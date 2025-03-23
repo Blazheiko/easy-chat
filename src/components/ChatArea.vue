@@ -25,6 +25,9 @@ const messages = ref<Message[]>([
 
 const newMessage = ref('')
 const isTyping = ref(false)
+const isMenuOpen = ref(false)
+
+const emit = defineEmits(['toggle-contacts', 'go-to-account', 'logout'])
 
 const sendMessage = () => {
   if (newMessage.value.trim()) {
@@ -38,7 +41,23 @@ const sendMessage = () => {
   }
 }
 
-defineEmits(['toggle-contacts', 'show-login', 'show-register'])
+const toggleMenu = () => {
+  isMenuOpen.value = !isMenuOpen.value
+}
+
+const closeMenu = () => {
+  isMenuOpen.value = false
+}
+
+const goToAccount = () => {
+  emit('go-to-account')
+  closeMenu()
+}
+
+const logout = () => {
+  emit('logout')
+  closeMenu()
+}
 
 // Демонстрационная функция для имитации печатания
 const simulateTyping = () => {
@@ -47,6 +66,17 @@ const simulateTyping = () => {
     isTyping.value = false
   }, 3000)
 }
+
+// Обработчик клика вне меню
+const handleClickOutside = (event: MouseEvent) => {
+  const target = event.target as HTMLElement
+  if (isMenuOpen.value && !target.closest('.menu-container')) {
+    closeMenu()
+  }
+}
+
+// Добавляем обработчик клика вне меню
+window.addEventListener('click', handleClickOutside)
 </script>
 
 <template>
@@ -58,25 +88,62 @@ const simulateTyping = () => {
         </svg>
       </button>
       <h2>John Smith</h2>
-      <div class="header-buttons">
-        <button
-          class="test-typing-button"
-          @click="simulateTyping"
-          title="Тест индикатора печатания"
-        >
+      <div class="menu-container">
+        <button class="menu-button" @click.stop="toggleMenu">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
-            width="20"
-            height="20"
+            width="24"
+            height="24"
             fill="white"
           >
             <path
-              d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 12h-2v-2h2v2zm0-4h-2V6h2v4z"
+              d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
             />
           </svg>
+          <span>Menu</span>
+          <svg
+            class="arrow-icon"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="white"
+          >
+            <path d="M7 10l5 5 5-5z" />
+          </svg>
         </button>
-        <button class="auth-header-button" @click="$emit('show-login')">Sign In</button>
+
+        <div class="dropdown-menu" :class="{ show: isMenuOpen }">
+          <button class="menu-item" @click="goToAccount">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="currentColor"
+            >
+              <path
+                d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+              />
+            </svg>
+            My Account
+          </button>
+          <button class="menu-item" @click="logout">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="currentColor"
+            >
+              <path
+                d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
+              />
+            </svg>
+            Logout
+          </button>
+        </div>
       </div>
     </div>
 
@@ -145,6 +212,19 @@ const simulateTyping = () => {
     </div>
 
     <div class="input-area">
+      <button class="video-call-button" title="Start video call">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          width="24"
+          height="24"
+          fill="currentColor"
+        >
+          <path
+            d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"
+          />
+        </svg>
+      </button>
       <input
         v-model="newMessage"
         type="text"
@@ -196,6 +276,70 @@ const simulateTyping = () => {
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
+}
+
+.menu-container {
+  position: relative;
+}
+
+.arrow-icon {
+  transition: transform 0.3s ease;
+}
+
+.menu-button.open .arrow-icon {
+  transform: rotate(180deg);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 180px;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-10px);
+  visibility: hidden;
+  transition: all 0.3s ease;
+  padding: 6px 0;
+}
+
+.dropdown-menu.show {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 15px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  color: #333;
+  border-radius: 6px;
+  margin: 4px;
+  width: calc(100% - 8px);
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-item:hover {
+  background-color: #f5f5f5;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .messages-container {
@@ -366,6 +510,38 @@ const simulateTyping = () => {
   gap: 10px;
   width: 100%;
   flex-shrink: 0;
+  align-items: center;
+}
+
+.video-call-button {
+  background-color: #003399;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.video-call-button:hover {
+  background-color: #002277;
+  transform: scale(1.05);
+}
+
+.video-call-button:active {
+  background-color: #001e66;
+  transform: scale(0.95);
+}
+
+.video-call-button svg {
+  width: 20px;
+  height: 20px;
 }
 
 .message-input {
@@ -375,7 +551,7 @@ const simulateTyping = () => {
   border-radius: 25px;
   outline: none;
   width: 100%;
-  max-width: calc(100% - 60px);
+  max-width: calc(100% - 110px);
 }
 
 .message-input:focus {
@@ -409,25 +585,28 @@ const simulateTyping = () => {
   transform: scale(0.92);
 }
 
-.auth-header-button {
+.menu-button {
   background-color: transparent;
   border: 2px solid white;
   color: white;
   padding: 8px 15px;
-  border-radius: 5px;
+  border-radius: 10px;
   cursor: pointer;
   transition:
     transform 0.1s ease,
     opacity 0.1s ease,
     background-color 0.2s ease;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.auth-header-button:hover {
+.menu-button:hover {
   background-color: rgba(255, 255, 255, 0.1);
 }
 
-.auth-header-button:active {
+.menu-button:active {
   background-color: rgba(255, 255, 255, 0.2);
   transform: scale(0.95);
 }
@@ -448,28 +627,6 @@ const simulateTyping = () => {
 
 .toggle-contacts:hover {
   opacity: 0.8;
-}
-
-.header-buttons {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.test-typing-button {
-  background-color: transparent;
-  border: none;
-  padding: 5px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-}
-
-.test-typing-button:hover {
-  opacity: 1;
 }
 
 @media (max-width: 768px) {
@@ -503,15 +660,31 @@ const simulateTyping = () => {
   .message-input {
     padding: 12px;
     font-size: 14px;
+    max-width: calc(100% - 100px);
   }
 
-  .send-button {
-    width: 45px;
-    height: 45px;
+  .send-button,
+  .video-call-button {
+    width: 40px;
+    height: 40px;
+  }
+
+  .video-call-button svg,
+  .send-button svg {
+    width: 18px;
+    height: 18px;
   }
 
   .toggle-contacts {
     display: block;
+  }
+
+  .menu-button span {
+    display: none;
+  }
+
+  .arrow-icon {
+    display: none;
   }
 }
 </style>

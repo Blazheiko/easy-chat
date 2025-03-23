@@ -35,7 +35,7 @@ const switchToLogin = () => {
 
 <template>
   <!-- Login Modal -->
-  <div class="modal-overlay" :class="{ show: props.showLogin }" @click.self="closeLoginModal">
+  <div class="modal-overlay" :class="{ show: props.showLogin }">
     <div class="modal login-modal">
       <div class="modal-header">
         <h3>Sign In</h3>
@@ -59,7 +59,7 @@ const switchToLogin = () => {
   </div>
 
   <!-- Register Modal -->
-  <div class="modal-overlay" :class="{ show: props.showRegister }" @click.self="closeRegisterModal">
+  <div class="modal-overlay" :class="{ show: props.showRegister }">
     <div class="modal register-modal">
       <div class="modal-header">
         <h3>Register</h3>
