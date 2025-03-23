@@ -99,12 +99,12 @@ const switchToLogin = () => {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.3);
+  background-color: rgba(0, 0, 0, 0.4);
   z-index: 100;
   justify-content: center;
   align-items: center;
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   transition:
     backdrop-filter 0.3s ease,
     background-color 0.3s ease;
@@ -112,21 +112,24 @@ const switchToLogin = () => {
 
 .modal-overlay.show {
   display: flex;
-  animation: modalFadeIn 0.3s ease;
+  animation: modalFadeIn 0.4s ease;
 }
 
 .modal {
   transform: scale(0.95);
   opacity: 0;
   transition:
-    transform 0.3s ease,
+    transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
     opacity 0.3s ease;
   background-color: white;
-  padding: 30px;
-  border-radius: 10px;
+  padding: 32px;
+  border-radius: 16px;
   width: 100%;
   max-width: 400px;
   position: relative;
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 .modal-overlay.show .modal {
@@ -138,43 +141,46 @@ const switchToLogin = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   position: relative;
 }
 
 .modal-header h3 {
   margin: 0;
-  color: #003399;
+  color: #1a73e8;
+  font-size: 24px;
+  font-weight: 700;
 }
 
 .close-modal {
   position: absolute;
-  right: -15px;
-  top: -15px;
-  background: #f0f0f0;
+  right: -12px;
+  top: -12px;
+  background: white;
   border: none;
-  font-size: 24px;
-  width: 30px;
-  height: 30px;
+  font-size: 20px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #666;
+  color: #6c757d;
   transition: all 0.2s ease;
-  border: 1px solid #ddd;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   padding: 0;
   line-height: 1;
 }
 
 .close-modal:hover {
-  background-color: #e0e0e0;
-  color: #333;
+  background-color: #f8f9fa;
+  color: #1a73e8;
+  transform: rotate(90deg);
 }
 
 .close-modal:active {
-  transform: scale(0.9);
+  transform: scale(0.9) rotate(90deg);
 }
 
 .modal-content {
@@ -182,70 +188,81 @@ const switchToLogin = () => {
 }
 
 .form-group {
-  margin-bottom: 15px;
+  margin-bottom: 20px;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 5px;
-  color: #333;
+  margin-bottom: 8px;
+  color: #495057;
+  font-weight: 500;
+  font-size: 14px;
 }
 
 .form-group input {
   width: 100%;
-  padding: 10px;
-  border: 2px solid #003399;
-  border-radius: 5px;
+  padding: 12px 16px;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
   outline: none;
+  font-size: 16px;
+  transition: all 0.2s ease;
 }
 
 .form-group input:focus {
-  box-shadow: 0 0 5px rgba(0, 51, 153, 0.3);
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 4px rgba(26, 115, 232, 0.1);
 }
 
 .auth-button {
   width: 100%;
-  padding: 12px;
-  background-color: #003399;
+  padding: 14px;
+  background-color: #1a73e8;
   color: white;
   border: none;
-  border-radius: 5px;
+  border-radius: 30px;
   cursor: pointer;
   font-size: 16px;
-  transition:
-    transform 0.1s ease,
-    opacity 0.1s ease,
-    background-color 0.2s ease;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-top: 10px;
 }
 
 .auth-button:hover {
-  background-color: #002277;
+  background-color: #1765cc;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .auth-button:active {
-  background-color: #001e66;
-  transform: scale(0.98);
+  background-color: #135cbb;
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-.switch-form {
-  margin-top: 15px;
+.auth-switch {
+  margin-top: 20px;
   text-align: center;
-  color: #666;
+  color: #6c757d;
+  font-size: 14px;
 }
 
-.switch-form a {
-  color: #003399;
+.auth-switch a {
+  color: #1a73e8;
   text-decoration: none;
   cursor: pointer;
+  font-weight: 500;
   transition: color 0.2s ease;
 }
 
-.switch-form a:hover {
+.auth-switch a:hover {
+  color: #1765cc;
   text-decoration: underline;
 }
 
-.switch-form a:active {
-  color: #001e66;
+.auth-switch a:active {
+  color: #135cbb;
 }
 
 @keyframes modalFadeIn {
@@ -256,8 +273,8 @@ const switchToLogin = () => {
   }
   to {
     opacity: 1;
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
 }
 </style>

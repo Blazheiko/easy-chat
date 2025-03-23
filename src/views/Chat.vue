@@ -49,6 +49,11 @@ const goToAccount = () => {
   router.push('/account')
 }
 
+// Переход на страницу новостей
+const goToNews = () => {
+  router.push('/news')
+}
+
 // Выход из аккаунта
 const logout = () => {
   localStorage.removeItem('user')
@@ -66,7 +71,12 @@ setupNetworkListeners()
 
     <ContactsList :class="{ show: isContactsVisible }" @toggle-contacts="toggleContacts" />
     <div class="main-content">
-      <ChatArea @toggle-contacts="toggleContacts" @go-to-account="goToAccount" @logout="logout" />
+      <ChatArea
+        @toggle-contacts="toggleContacts"
+        @go-to-account="goToAccount"
+        @go-to-news="goToNews"
+        @logout="logout"
+      />
     </div>
   </div>
 </template>

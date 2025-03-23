@@ -148,7 +148,14 @@ const toggleSound = () => {
 .account-page {
   width: 100%;
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
 }
 
 .account-header {
@@ -156,42 +163,50 @@ const toggleSound = () => {
   justify-content: space-between;
   align-items: center;
   padding: 20px;
-  background-color: #003399;
+  background-color: #1a73e8;
   color: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .account-header h1 {
   margin: 0;
+  font-weight: 600;
+  font-size: 24px;
 }
 
 .back-button,
 .logout-button {
   padding: 8px 15px;
   background-color: transparent;
-  border: 2px solid white;
+  border: 1px solid rgba(255, 255, 255, 0.5);
   color: white;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .back-button:hover,
 .logout-button:hover {
   background-color: rgba(255, 255, 255, 0.1);
+  border-color: white;
+  transform: translateY(-1px);
 }
 
 .back-button:active,
 .logout-button:active {
-  transform: scale(0.98);
+  transform: translateY(0);
+  opacity: 0.9;
 }
 
 .account-content {
   max-width: 800px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 30px 20px;
 }
 
 .profile-section {
@@ -200,8 +215,8 @@ const toggleSound = () => {
   margin-bottom: 40px;
   padding: 30px;
   background-color: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .avatar-container {
@@ -211,57 +226,79 @@ const toggleSound = () => {
 }
 
 .avatar {
-  width: 100px;
-  height: 100px;
-  background-color: #003399;
+  width: 110px;
+  height: 110px;
+  background-color: #1a73e8;
+  background: linear-gradient(135deg, #1a73e8 0%, #6c92f4 100%);
   color: white;
   font-size: 48px;
   display: flex;
   justify-content: center;
   align-items: center;
   border-radius: 50%;
+  box-shadow: 0 4px 10px rgba(26, 115, 232, 0.3);
+  font-weight: 500;
 }
 
 .user-info h2 {
   margin-top: 0;
-  margin-bottom: 10px;
-  color: #333;
+  margin-bottom: 12px;
+  color: #212529;
+  font-weight: 600;
+  font-size: 24px;
 }
 
 .user-info p {
   margin: 5px 0;
-  color: #666;
+  color: #6c757d;
+  font-size: 15px;
 }
 
 .user-status {
-  color: #4caf50 !important;
-  font-weight: bold;
+  color: #28a745 !important;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.user-status::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background-color: #28a745;
+  border-radius: 50%;
+  box-shadow: 0 0 5px rgba(40, 167, 69, 0.5);
 }
 
 .join-date {
   font-size: 14px;
-  color: #999 !important;
+  color: #adb5bd !important;
+  margin-top: 10px !important;
 }
 
 .settings-section {
   background-color: white;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 30px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .settings-section h3 {
   margin-top: 0;
-  margin-bottom: 20px;
-  color: #333;
+  margin-bottom: 25px;
+  color: #212529;
+  font-weight: 600;
+  font-size: 20px;
 }
 
 .setting-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 0;
-  border-bottom: 1px solid #eee;
+  padding: 18px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .setting-item:last-child {
@@ -270,12 +307,14 @@ const toggleSound = () => {
 
 .setting-item h4 {
   margin: 0 0 5px 0;
-  color: #333;
+  color: #212529;
+  font-weight: 500;
+  font-size: 16px;
 }
 
 .setting-item p {
   margin: 0;
-  color: #666;
+  color: #6c757d;
   font-size: 14px;
 }
 
@@ -300,7 +339,7 @@ const toggleSound = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #ccc;
+  background-color: #dee2e6;
   border-radius: 34px;
   transition: 0.4s;
 }
@@ -308,21 +347,26 @@ const toggleSound = () => {
 .toggle-slider:before {
   position: absolute;
   content: '';
-  height: 18px;
-  width: 18px;
-  left: 4px;
-  bottom: 4px;
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
   background-color: white;
   border-radius: 50%;
   transition: 0.4s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 input:checked + .toggle-slider {
-  background-color: #003399;
+  background-color: #1a73e8;
 }
 
 input:checked + .toggle-slider:before {
   transform: translateX(26px);
+}
+
+input:focus + .toggle-slider {
+  box-shadow: 0 0 1px #1a73e8;
 }
 
 @media (max-width: 768px) {
@@ -336,6 +380,7 @@ input:checked + .toggle-slider:before {
     width: 100%;
     margin-bottom: 10px;
     text-align: center;
+    font-size: 20px;
   }
 
   .back-button span,

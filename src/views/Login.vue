@@ -56,77 +56,105 @@ const closeAuthModals = () => {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   padding: 20px;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
 }
 
 .logo {
-  font-size: 36px;
-  font-weight: bold;
-  color: #003399;
+  font-size: 42px;
+  font-weight: 800;
+  color: #1a73e8;
   margin-bottom: 40px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  letter-spacing: -1px;
 }
 
 .welcome-message {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 40px;
+  max-width: 500px;
 }
 
 .welcome-message h1 {
-  color: #333;
-  margin-bottom: 10px;
+  color: #212529;
+  margin-bottom: 16px;
+  font-weight: 700;
+  font-size: 32px;
 }
 
 .welcome-message p {
-  color: #666;
+  color: #6c757d;
   margin-bottom: 30px;
+  font-size: 16px;
+  line-height: 1.5;
 }
 
 .auth-buttons {
   display: flex;
-  gap: 20px;
+  gap: 16px;
 }
 
 .auth-button {
   padding: 12px 30px;
-  background-color: #003399;
+  background-color: #1a73e8;
   color: white;
   border: none;
-  border-radius: 5px;
+  border-radius: 30px;
   cursor: pointer;
   font-size: 16px;
-  transition:
-    transform 0.1s ease,
-    opacity 0.1s ease,
-    background-color 0.2s ease;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .auth-button:hover {
-  background-color: #002277;
+  background-color: #1765cc;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .auth-button:active {
-  background-color: #001e66;
-  transform: scale(0.98);
+  background-color: #135cbb;
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .auth-button.register {
-  background-color: #f0f0f0;
-  color: #003399;
-  border: 2px solid #003399;
+  background-color: white;
+  color: #1a73e8;
+  border: 1px solid rgba(26, 115, 232, 0.2);
 }
 
 .auth-button.register:hover {
-  background-color: #e0e0e0;
+  background-color: rgba(26, 115, 232, 0.05);
+  color: #1765cc;
+  border-color: #1a73e8;
 }
 
 .auth-button.register:active {
-  background-color: #d0d0d0;
+  background-color: rgba(26, 115, 232, 0.1);
 }
 
 @media (max-width: 768px) {
+  .welcome-message h1 {
+    font-size: 28px;
+  }
+
   .auth-buttons {
     flex-direction: column;
+    width: 100%;
+    max-width: 280px;
+  }
+
+  .auth-button {
+    width: 100%;
   }
 }
 </style>

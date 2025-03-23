@@ -27,7 +27,7 @@ const newMessage = ref('')
 const isTyping = ref(false)
 const isMenuOpen = ref(false)
 
-const emit = defineEmits(['toggle-contacts', 'go-to-account', 'logout'])
+const emit = defineEmits(['toggle-contacts', 'go-to-account', 'logout', 'go-to-news'])
 
 const sendMessage = () => {
   if (newMessage.value.trim()) {
@@ -51,6 +51,11 @@ const closeMenu = () => {
 
 const goToAccount = () => {
   emit('go-to-account')
+  closeMenu()
+}
+
+const goToNews = () => {
+  emit('go-to-news')
   closeMenu()
 }
 
@@ -88,8 +93,9 @@ window.addEventListener('click', handleClickOutside)
         </svg>
       </button>
       <h2>John Smith</h2>
-      <div class="menu-container">
-        <button class="menu-button" @click.stop="toggleMenu">
+
+      <div class="header-buttons">
+        <button class="news-button" @click="goToNews">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
@@ -98,51 +104,82 @@ window.addEventListener('click', handleClickOutside)
             fill="white"
           >
             <path
-              d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+              d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM5 15h14v-6H5v6zm2-4h10v2H7v-2z"
             />
           </svg>
-          <span>Menu</span>
-          <svg
-            class="arrow-icon"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            width="18"
-            height="18"
-            fill="white"
-          >
-            <path d="M7 10l5 5 5-5z" />
-          </svg>
+          <span>News</span>
         </button>
 
-        <div class="dropdown-menu" :class="{ show: isMenuOpen }">
-          <button class="menu-item" @click="goToAccount">
+        <div class="menu-container">
+          <button class="menu-button" @click.stop="toggleMenu">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="currentColor"
+              width="24"
+              height="24"
+              fill="white"
             >
               <path
                 d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
               />
             </svg>
-            My Account
-          </button>
-          <button class="menu-item" @click="logout">
+            <span>Menu</span>
             <svg
+              class="arrow-icon"
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="currentColor"
+              width="18"
+              height="18"
+              fill="white"
             >
-              <path
-                d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
-              />
+              <path d="M7 10l5 5 5-5z" />
             </svg>
-            Logout
           </button>
+
+          <div class="dropdown-menu" :class="{ show: isMenuOpen }">
+            <button class="menu-item" @click="goToAccount">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="currentColor"
+              >
+                <path
+                  d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                />
+              </svg>
+              My Account
+            </button>
+            <button class="menu-item" @click="goToNews">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="currentColor"
+              >
+                <path
+                  d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM5 15h14v-6H5v6zm2-4h10v2H7v-2z"
+                />
+              </svg>
+              News Feed
+            </button>
+            <button class="menu-item" @click="logout">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="currentColor"
+              >
+                <path
+                  d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
+                />
+              </svg>
+              Logout
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -256,18 +293,26 @@ window.addEventListener('click', handleClickOutside)
   width: 100%;
   min-width: 0;
   overflow: hidden;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
 }
 
 .chat-header {
-  background-color: #003399;
+  background-color: #1a73e8;
   color: white;
-  padding: 20px;
+  padding: 16px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   position: relative;
   width: 100%;
   flex-shrink: 0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .chat-header h2 {
@@ -276,6 +321,41 @@ window.addEventListener('click', handleClickOutside)
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.header-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.news-button {
+  background-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  color: white;
+  padding: 8px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.news-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: white;
+  transform: translateY(-1px);
+}
+
+.news-button:active {
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(0);
 }
 
 .menu-container {
@@ -292,19 +372,19 @@ window.addEventListener('click', handleClickOutside)
 
 .dropdown-menu {
   position: absolute;
-  top: calc(100% + 10px);
+  top: calc(100% + 12px);
   right: 0;
-  width: 180px;
+  width: 200px;
   background-color: white;
-  border: 1px solid #ddd;
+  border: none;
   border-radius: 12px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
   z-index: 100;
   overflow: hidden;
   opacity: 0;
   transform: translateY(-10px);
   visibility: hidden;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   padding: 6px 0;
 }
 
@@ -323,23 +403,27 @@ window.addEventListener('click', handleClickOutside)
   padding: 12px 15px;
   background: none;
   border: none;
-  border-bottom: 1px solid #eee;
   cursor: pointer;
   transition: all 0.25s ease;
-  color: #333;
-  border-radius: 6px;
-  margin: 4px;
-  width: calc(100% - 8px);
+  color: #212529;
+  border-radius: 8px;
+  margin: 4px 8px;
+  width: calc(100% - 16px);
+  font-weight: 500;
+  font-size: 14px;
 }
 
 .menu-item:last-child {
-  border-bottom: none;
+  color: #dc3545;
 }
 
 .menu-item:hover {
-  background-color: #f5f5f5;
+  background-color: #f8f9fa;
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.menu-item:active {
+  transform: translateY(0);
 }
 
 .messages-container {
@@ -349,6 +433,7 @@ window.addEventListener('click', handleClickOutside)
   flex-direction: column;
   width: 100%;
   min-height: 0;
+  background-color: #f8f9fa;
 }
 
 .messages {
@@ -356,7 +441,6 @@ window.addEventListener('click', handleClickOutside)
   padding: 20px;
   padding-bottom: 0;
   overflow-y: auto;
-  background-color: #fff;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -377,37 +461,44 @@ window.addEventListener('click', handleClickOutside)
   top: 50%;
   width: 100%;
   height: 1px;
-  background-color: #ddd;
+  background-color: rgba(0, 0, 0, 0.08);
   z-index: 1;
 }
 
 .date-divider span {
-  background-color: #fff;
-  padding: 0 10px;
-  color: #666;
-  font-size: 14px;
+  background-color: #f8f9fa;
+  padding: 0 12px;
+  color: #6c757d;
+  font-size: 13px;
   position: relative;
   z-index: 2;
+  font-weight: 500;
 }
 
 .message {
   margin-bottom: 15px;
-  padding: 10px 15px;
-  border-radius: 10px;
+  padding: 12px 16px;
+  border-radius: 18px;
   max-width: 70%;
   position: relative;
   word-wrap: break-word;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  line-height: 1.5;
+  font-size: 15px;
 }
 
 .message.sent {
-  background-color: #003399;
+  background-color: #1a73e8;
   color: white;
   align-self: flex-end;
+  border-bottom-right-radius: 4px;
 }
 
 .message.received {
-  background-color: #f0f0f0;
+  background-color: white;
   align-self: flex-start;
+  border-bottom-left-radius: 4px;
+  color: #212529;
 }
 
 .message-footer {
@@ -420,7 +511,7 @@ window.addEventListener('click', handleClickOutside)
 
 .message.received .message-footer {
   justify-content: flex-start;
-  color: #666;
+  color: #adb5bd;
 }
 
 .message.sent .message-footer {
@@ -443,20 +534,20 @@ window.addEventListener('click', handleClickOutside)
 }
 
 .message.sent .message-status.read svg {
-  fill: #4caf50;
+  fill: #8fffb0;
 }
 
 .typing-indicator {
   padding: 10px 20px;
-  color: #666;
+  color: #6c757d;
   font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
   width: 100%;
-  background-color: #f9f9f9;
+  background-color: #f8f9fa;
   animation: fadeIn 0.3s ease;
 }
 
@@ -468,7 +559,7 @@ window.addEventListener('click', handleClickOutside)
 .typing-dot {
   width: 8px;
   height: 8px;
-  background-color: #666;
+  background-color: #adb5bd;
   border-radius: 50%;
   animation: typingAnimation 1.4s infinite;
 }
@@ -503,18 +594,19 @@ window.addEventListener('click', handleClickOutside)
 }
 
 .input-area {
-  padding: 20px;
-  background-color: #fff;
-  border-top: 1px solid #ddd;
+  padding: 16px 20px;
+  background-color: white;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
   display: flex;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
   flex-shrink: 0;
   align-items: center;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.03);
 }
 
 .video-call-button {
-  background-color: #003399;
+  background-color: #1a73e8;
   color: white;
   border: none;
   border-radius: 50%;
@@ -527,16 +619,19 @@ window.addEventListener('click', handleClickOutside)
   justify-content: center;
   transition: all 0.2s ease;
   flex-shrink: 0;
+  box-shadow: 0 2px 5px rgba(26, 115, 232, 0.2);
 }
 
 .video-call-button:hover {
-  background-color: #002277;
-  transform: scale(1.05);
+  background-color: #1765cc;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(26, 115, 232, 0.3);
 }
 
 .video-call-button:active {
-  background-color: #001e66;
-  transform: scale(0.95);
+  background-color: #1765cc;
+  transform: translateY(0);
+  box-shadow: 0 2px 5px rgba(26, 115, 232, 0.2);
 }
 
 .video-call-button svg {
@@ -546,69 +641,74 @@ window.addEventListener('click', handleClickOutside)
 
 .message-input {
   flex-grow: 1;
-  padding: 15px;
-  border: 2px solid #003399;
-  border-radius: 25px;
+  padding: 12px 16px;
+  border: 1px solid #dee2e6;
+  border-radius: 24px;
   outline: none;
   width: 100%;
   max-width: calc(100% - 110px);
+  font-size: 15px;
+  transition: all 0.2s ease;
 }
 
 .message-input:focus {
-  box-shadow: 0 0 5px rgba(0, 51, 153, 0.3);
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
 }
 
 .send-button {
-  background-color: #003399;
+  background-color: #1a73e8;
   color: white;
   border: none;
   border-radius: 50%;
-  width: 50px;
-  height: 50px;
+  width: 40px;
+  height: 40px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition:
-    transform 0.1s ease,
-    opacity 0.1s ease,
-    background-color 0.2s ease;
+  transition: all 0.2s ease;
   flex-shrink: 0;
+  box-shadow: 0 2px 5px rgba(26, 115, 232, 0.2);
 }
 
 .send-button:hover {
-  background-color: #002277;
+  background-color: #1765cc;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(26, 115, 232, 0.3);
 }
 
 .send-button:active {
-  background-color: #001e66;
-  transform: scale(0.92);
+  background-color: #1765cc;
+  transform: translateY(0);
+  box-shadow: 0 2px 5px rgba(26, 115, 232, 0.2);
 }
 
 .menu-button {
   background-color: transparent;
-  border: 2px solid white;
+  border: 1px solid rgba(255, 255, 255, 0.5);
   color: white;
   padding: 8px 15px;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
-  transition:
-    transform 0.1s ease,
-    opacity 0.1s ease,
-    background-color 0.2s ease;
+  transition: all 0.2s ease;
   white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .menu-button:hover {
   background-color: rgba(255, 255, 255, 0.1);
+  border-color: white;
+  transform: translateY(-1px);
 }
 
 .menu-button:active {
   background-color: rgba(255, 255, 255, 0.2);
-  transform: scale(0.95);
+  transform: translateY(0);
 }
 
 .toggle-contacts {
@@ -641,32 +741,34 @@ window.addEventListener('click', handleClickOutside)
   }
 
   .chat-header {
-    padding: 15px;
+    padding: 14px;
   }
 
   .chat-header h2 {
     padding-left: 10px;
-    font-size: 1.2rem;
+    font-size: 16px;
   }
 
   .message {
     max-width: 85%;
+    font-size: 14px;
+    padding: 10px 14px;
   }
 
   .input-area {
-    padding: 15px;
+    padding: 12px;
   }
 
   .message-input {
-    padding: 12px;
+    padding: 10px 12px;
     font-size: 14px;
     max-width: calc(100% - 100px);
   }
 
   .send-button,
   .video-call-button {
-    width: 40px;
-    height: 40px;
+    width: 38px;
+    height: 38px;
   }
 
   .video-call-button svg,
@@ -685,6 +787,14 @@ window.addEventListener('click', handleClickOutside)
 
   .arrow-icon {
     display: none;
+  }
+
+  .news-button span {
+    display: none;
+  }
+
+  .news-button {
+    padding: 8px;
   }
 }
 </style>
