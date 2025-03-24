@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import createApi from '@/utils/createApi'
+import { useUserStore } from '@/stores/user'
+import type { User } from '@/stores/user'
+
+const userStore = useUserStore()
 
 const props = defineProps({
   showLogin: {
@@ -22,6 +27,8 @@ const rememberMe = ref(false)
 const agreeToManifesto = ref(false)
 const showAgreementError = ref(false)
 
+const api = createApi('http://127.0.0.1:8088', null)
+
 const closeLoginModal = () => {
   emit('close')
 }
@@ -40,9 +47,16 @@ const switchToLogin = () => {
   emit('show-login')
 }
 
-const handleLogin = () => {
-  // Тут была бы логика авторизации
-  emit('close')
+const handleLogin = async () => {
+  const data = await api.http('POST', '/auth/login', {
+    email: email.value,
+    password: password.value,
+  })
+  console.log(data)
+  if (data && data.status === 'success' && data.user) {
+    userStore.setUser(data.user as User)
+    emit('close')
+  }
 }
 
 const handleRegister = () => {

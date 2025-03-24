@@ -4,11 +4,11 @@ import { useRouter } from 'vue-router'
 import AuthModals from '../components/AuthModals.vue'
 
 const router = useRouter()
-const isLoginModalVisible = ref(true)
+const isLoginModalVisible = ref(false)
 const isRegisterModalVisible = ref(false)
-const logoText = ref('Easy Chat')
+const logoText = ref('Free Social Media')
 const typingComplete = ref(false)
-
+// const showAuthModals = ref(false)
 const showLoginModal = () => {
   isLoginModalVisible.value = true
   isRegisterModalVisible.value = false
@@ -23,15 +23,17 @@ const closeAuthModals = () => {
   // В реальном приложении здесь была бы логика входа пользователя
   // Пока просто перенаправляем на страницу чата после успешной авторизации
   // и добавляем фиктивные данные пользователя в localStorage
-  localStorage.setItem('user', JSON.stringify({ id: 1, name: 'John Smith' }))
-  router.push('/chat')
+  isLoginModalVisible.value = false
+  isRegisterModalVisible.value = false
+  // localStorage.setItem('user', JSON.stringify({ id: 1, name: 'John Smith' }))
+  // router.push('/chat')
 }
 
 // Эффект печатающего текста для лого
 onMounted(() => {
-  const text = 'Easy Chat'
+  const text = 'Free Social Media'
   let i = 0
-  logoText.value = ''
+  logoText.value = ' '
 
   const typeWriter = () => {
     if (i < text.length) {
@@ -118,6 +120,7 @@ onMounted(() => {
       @close="closeAuthModals"
       @show-login="showLoginModal"
       @show-register="showRegisterModal"
+      v-if="isLoginModalVisible || isRegisterModalVisible"
     />
   </div>
 </template>
