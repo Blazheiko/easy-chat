@@ -134,7 +134,7 @@ const postNews = () => {
         </svg>
         <span>Back to News</span>
       </button>
-      <h1>Create News Post</h1>
+      <!-- <h1>Create News Post</h1> -->
       <div class="menu-container">
         <button class="menu-button" @click.stop="toggleMenu">
           <svg

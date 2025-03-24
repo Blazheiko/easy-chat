@@ -106,6 +106,10 @@ onMounted(() => {
         <button class="auth-button" @click="showLoginModal">Sign In</button>
         <button class="auth-button register" @click="showRegisterModal">Create Account</button>
       </div>
+
+      <div class="manifesto-link-container">
+        <router-link to="/manifesto" class="manifesto-link">Read our Manifesto</router-link>
+      </div>
     </div>
 
     <AuthModals
@@ -304,6 +308,24 @@ onMounted(() => {
 
 .auth-button.register:active {
   background-color: rgba(26, 115, 232, 0.1);
+}
+
+.manifesto-link-container {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.manifesto-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.manifesto-link:hover {
+  color: var(--accent-color);
+  text-decoration: underline;
 }
 
 @media (max-width: 768px) {

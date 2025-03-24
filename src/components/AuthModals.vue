@@ -19,6 +19,8 @@ const password = ref('')
 const name = ref('')
 const confirmPassword = ref('')
 const rememberMe = ref(false)
+const agreeToManifesto = ref(false)
+const showAgreementError = ref(false)
 
 const closeLoginModal = () => {
   emit('close')
@@ -26,16 +28,16 @@ const closeLoginModal = () => {
 
 const closeRegisterModal = () => {
   emit('close')
+  showAgreementError.value = false
 }
 
 const switchToRegister = () => {
-  emit('close')
-  setTimeout(() => emit('show-register'), 300)
+  emit('show-register')
 }
 
 const switchToLogin = () => {
-  emit('close')
-  setTimeout(() => emit('show-login'), 300)
+  showAgreementError.value = false
+  emit('show-login')
 }
 
 const handleLogin = () => {
@@ -44,6 +46,10 @@ const handleLogin = () => {
 }
 
 const handleRegister = () => {
+  if (!agreeToManifesto.value) {
+    showAgreementError.value = true
+    return
+  }
   // Тут была бы логика регистрации
   emit('close')
 }
@@ -251,6 +257,20 @@ const handleRegister = () => {
               autocomplete="new-password"
             />
           </div>
+        </div>
+        <div class="form-group terms-agreement">
+          <label class="checkbox-container">
+            <input type="checkbox" v-model="agreeToManifesto" />
+            <span class="checkmark"></span>
+            I agree with the
+            <router-link to="/manifesto" class="manifesto-link" target="_blank"
+              >Manifesto</router-link
+            >
+            of a free social network
+          </label>
+          <p class="error-message" v-if="showAgreementError">
+            You must agree with the Manifesto to create an account
+          </p>
         </div>
         <button class="auth-button" @click="handleRegister">Create Account</button>
         <p class="auth-switch">
@@ -511,6 +531,35 @@ const handleRegister = () => {
 .auth-switch a:hover {
   color: var(--accent-color);
   text-decoration: underline;
+}
+
+.terms-agreement {
+  margin-bottom: 24px;
+}
+
+.terms-agreement .checkbox-container {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.manifesto-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.manifesto-link:hover {
+  color: var(--accent-color);
+  text-decoration: underline;
+}
+
+.error-message {
+  color: #dc3545;
+  font-size: 13px;
+  margin-top: 6px;
+  margin-bottom: 0;
+  padding-left: 30px;
 }
 
 @keyframes modalFadeIn {

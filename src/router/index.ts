@@ -6,6 +6,7 @@ import Account from '@/views/Account.vue'
 import News from '@/views/News.vue'
 import NewsDetail from '@/views/NewsDetail.vue'
 import CreateNews from '@/views/CreateNews.vue'
+import ManifestoSocial from '@/views/ManifestoSocial.vue'
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -42,6 +43,11 @@ const routes: Array<RouteRecordRaw> = [
     name: 'NewsDetail',
     component: NewsDetail,
     meta: { requiresAuth: true },
+  },
+  {
+    path: '/manifesto',
+    name: 'Manifesto',
+    component: ManifestoSocial,
   },
 ]
 

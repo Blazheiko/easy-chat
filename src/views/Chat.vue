@@ -96,7 +96,7 @@ onBeforeUnmount(() => {
     <ConnectionStatus :show="isOffline" @retry="handleConnectionRetry" />
     <LoaderOverlay :show="isLoading" />
 
-    <div class="chat-header">
+    <!-- <div class="chat-header">
       <button class="contact-toggle" @click="toggleContacts">
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -185,7 +185,7 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </div>
-    </div>
+    </div> -->
 
     <div class="chat-main">
       <ContactsList :class="{ show: isContactsVisible }" @toggle-contacts="toggleContacts" />

@@ -111,7 +111,12 @@ const addComment = () => {
 }
 
 // Лайк новости
-const toggleLike = (item) => {
+interface NewsItem {
+  isLiked: boolean
+  likes: number
+}
+
+const toggleLike = (item: NewsItem) => {
   item.isLiked = !item.isLiked
   if (item.isLiked) {
     item.likes++
@@ -166,7 +171,7 @@ onUnmounted(() => {
           </svg>
           <span>Back to News</span>
         </button>
-        <h1>News Detail</h1>
+        <!-- <h1>News Detail</h1> -->
         <div class="menu-container">
           <button class="menu-button" @click.stop="toggleMenu">
             <svg
