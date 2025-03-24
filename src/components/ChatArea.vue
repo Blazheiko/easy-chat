@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 
 interface Message {
   text: string
@@ -26,6 +26,7 @@ const messages = ref<Message[]>([
 const newMessage = ref('')
 const isTyping = ref(false)
 const isMenuOpen = ref(false)
+const messageContainerRef = ref(null)
 
 const emit = defineEmits(['toggle-contacts', 'go-to-account', 'logout', 'go-to-news'])
 
@@ -38,6 +39,9 @@ const sendMessage = () => {
       status: 'sent',
     })
     newMessage.value = ''
+
+    // Прокрутка вниз после отправки сообщения
+    setTimeout(scrollToBottom, 100)
   }
 }
 
@@ -64,12 +68,47 @@ const logout = () => {
   closeMenu()
 }
 
+// Функция прокрутки чата вниз
+const scrollToBottom = () => {
+  if (messageContainerRef.value) {
+    const container = messageContainerRef.value as HTMLElement
+    container.scrollTop = container.scrollHeight
+  }
+}
+
 // Демонстрационная функция для имитации печатания
 const simulateTyping = () => {
   isTyping.value = true
   setTimeout(() => {
     isTyping.value = false
+    // Имитация получения сообщения после печатания
+    setTimeout(() => {
+      receiveRandomMessage()
+    }, 1000)
   }, 3000)
+}
+
+const randomMessages = [
+  "Sure, I'll be there!",
+  "That's interesting, tell me more.",
+  'I agree with you.',
+  'Let me think about it.',
+  'Can we discuss this later?',
+  'Great idea!',
+  "I'm not sure about that.",
+  'Absolutely!',
+]
+
+const receiveRandomMessage = () => {
+  const randomIndex = Math.floor(Math.random() * randomMessages.length)
+  messages.value.push({
+    text: randomMessages[randomIndex],
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    isSent: false,
+  })
+
+  // Прокрутка вниз после получения сообщения
+  setTimeout(scrollToBottom, 100)
 }
 
 // Обработчик клика вне меню
@@ -80,8 +119,18 @@ const handleClickOutside = (event: MouseEvent) => {
   }
 }
 
-// Добавляем обработчик клика вне меню
-window.addEventListener('click', handleClickOutside)
+onMounted(() => {
+  // Добавляем обработчик клика вне меню
+  window.addEventListener('click', handleClickOutside)
+
+  // Прокрутка к последнему сообщению при загрузке
+  setTimeout(scrollToBottom, 100)
+})
+
+onBeforeUnmount(() => {
+  // Удаляем обработчик при размонтировании компонента
+  window.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <template>
@@ -89,7 +138,7 @@ window.addEventListener('click', handleClickOutside)
     <div class="chat-header">
       <button class="toggle-contacts" @click="$emit('toggle-contacts')">
         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 18H21V16H3V18ZM3 13H21V11H3V13ZM3 6V8H21V6H3Z" fill="white" />
+          <path d="M3 18H21V16H3V18ZM3 13H21V11H3V13ZM3 6V8H21V6H3Z" fill="currentColor" />
         </svg>
       </button>
       <h2>John Smith</h2>
@@ -101,7 +150,7 @@ window.addEventListener('click', handleClickOutside)
             viewBox="0 0 24 24"
             width="24"
             height="24"
-            fill="white"
+            fill="currentColor"
           >
             <path
               d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM5 15h14v-6H5v6zm2-4h10v2H7v-2z"
@@ -117,7 +166,7 @@ window.addEventListener('click', handleClickOutside)
               viewBox="0 0 24 24"
               width="24"
               height="24"
-              fill="white"
+              fill="currentColor"
             >
               <path
                 d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
@@ -130,7 +179,7 @@ window.addEventListener('click', handleClickOutside)
               viewBox="0 0 24 24"
               width="18"
               height="18"
-              fill="white"
+              fill="currentColor"
             >
               <path d="M7 10l5 5 5-5z" />
             </svg>
@@ -165,7 +214,7 @@ window.addEventListener('click', handleClickOutside)
               </svg>
               News Feed
             </button>
-            <button class="menu-item" @click="logout">
+            <button class="menu-item logout" @click="logout">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -185,7 +234,7 @@ window.addEventListener('click', handleClickOutside)
     </div>
 
     <div class="messages-container">
-      <div class="messages">
+      <div class="messages" ref="messageContainerRef">
         <template v-for="(message, index) in messages" :key="index">
           <div v-if="message.date" class="date-divider">
             <span>{{ message.date }}</span>
@@ -270,7 +319,7 @@ window.addEventListener('click', handleClickOutside)
         @keyup.enter="sendMessage"
         @focus="simulateTyping"
       />
-      <button class="send-button" @click="sendMessage">
+      <button class="send-button" @click="sendMessage" :disabled="!newMessage.trim()">
         <svg
           width="24"
           height="24"
@@ -278,7 +327,7 @@ window.addEventListener('click', handleClickOutside)
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
-          <path d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z" fill="white" />
+          <path d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z" fill="currentColor" />
         </svg>
       </button>
     </div>
@@ -293,17 +342,11 @@ window.addEventListener('click', handleClickOutside)
   width: 100%;
   min-width: 0;
   overflow: hidden;
-  font-family:
-    'Inter',
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
+  background-color: var(--background-color);
 }
 
 .chat-header {
-  background-color: #1a73e8;
+  background-color: var(--primary-color);
   color: white;
   padding: 16px 20px;
   display: flex;
@@ -312,7 +355,7 @@ window.addEventListener('click', handleClickOutside)
   position: relative;
   width: 100%;
   flex-shrink: 0;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--box-shadow);
 }
 
 .chat-header h2 {
@@ -336,7 +379,7 @@ window.addEventListener('click', handleClickOutside)
   border: 1px solid rgba(255, 255, 255, 0.5);
   color: white;
   padding: 8px 15px;
-  border-radius: 8px;
+  border-radius: var(--border-radius);
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
@@ -405,7 +448,7 @@ window.addEventListener('click', handleClickOutside)
   border: none;
   cursor: pointer;
   transition: all 0.25s ease;
-  color: #212529;
+  color: var(--text-color);
   border-radius: 8px;
   margin: 4px 8px;
   width: calc(100% - 16px);
@@ -413,7 +456,7 @@ window.addEventListener('click', handleClickOutside)
   font-size: 14px;
 }
 
-.menu-item:last-child {
+.menu-item.logout {
   color: #dc3545;
 }
 
@@ -428,7 +471,7 @@ window.addEventListener('click', handleClickOutside)
 
 .messages-container {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -439,12 +482,27 @@ window.addEventListener('click', handleClickOutside)
 .messages {
   flex: 1;
   padding: 20px;
-  padding-bottom: 0;
+  padding-bottom: 20px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   width: 100%;
   min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+}
+
+.messages::-webkit-scrollbar {
+  width: 5px;
+}
+
+.messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.messages::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
 }
 
 .date-divider {
@@ -488,7 +546,7 @@ window.addEventListener('click', handleClickOutside)
 }
 
 .message.sent {
-  background-color: #1a73e8;
+  background-color: var(--primary-color);
   color: white;
   align-self: flex-end;
   border-bottom-right-radius: 4px;
@@ -498,7 +556,7 @@ window.addEventListener('click', handleClickOutside)
   background-color: white;
   align-self: flex-start;
   border-bottom-left-radius: 4px;
-  color: #212529;
+  color: var(--text-color);
 }
 
 .message-footer {
@@ -606,7 +664,7 @@ window.addEventListener('click', handleClickOutside)
 }
 
 .video-call-button {
-  background-color: #1a73e8;
+  background-color: var(--primary-color);
   color: white;
   border: none;
   border-radius: 50%;
@@ -623,13 +681,13 @@ window.addEventListener('click', handleClickOutside)
 }
 
 .video-call-button:hover {
-  background-color: #1765cc;
+  background-color: var(--accent-color);
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(26, 115, 232, 0.3);
 }
 
 .video-call-button:active {
-  background-color: #1765cc;
+  background-color: var(--accent-color);
   transform: translateY(0);
   box-shadow: 0 2px 5px rgba(26, 115, 232, 0.2);
 }
@@ -642,7 +700,7 @@ window.addEventListener('click', handleClickOutside)
 .message-input {
   flex-grow: 1;
   padding: 12px 16px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--border-color);
   border-radius: 24px;
   outline: none;
   width: 100%;
@@ -652,12 +710,12 @@ window.addEventListener('click', handleClickOutside)
 }
 
 .message-input:focus {
-  border-color: #1a73e8;
+  border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
 }
 
 .send-button {
-  background-color: #1a73e8;
+  background-color: var(--primary-color);
   color: white;
   border: none;
   border-radius: 50%;
@@ -673,15 +731,23 @@ window.addEventListener('click', handleClickOutside)
 }
 
 .send-button:hover {
-  background-color: #1765cc;
+  background-color: var(--accent-color);
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(26, 115, 232, 0.3);
 }
 
 .send-button:active {
-  background-color: #1765cc;
+  background-color: var(--accent-color);
   transform: translateY(0);
   box-shadow: 0 2px 5px rgba(26, 115, 232, 0.2);
+}
+
+.send-button:disabled {
+  background-color: #e9ecef;
+  color: #adb5bd;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .menu-button {
@@ -689,7 +755,7 @@ window.addEventListener('click', handleClickOutside)
   border: 1px solid rgba(255, 255, 255, 0.5);
   color: white;
   padding: 8px 15px;
-  border-radius: 8px;
+  border-radius: var(--border-radius);
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
@@ -718,6 +784,7 @@ window.addEventListener('click', handleClickOutside)
   padding: 8px;
   cursor: pointer;
   transition: opacity 0.2s;
+  color: white;
 }
 
 .toggle-contacts svg {
@@ -731,13 +798,8 @@ window.addEventListener('click', handleClickOutside)
 
 @media (max-width: 768px) {
   .chat-area {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100vw;
-    height: 100vh;
+    height: 100%;
+    width: 100%;
   }
 
   .chat-header {
@@ -781,20 +843,33 @@ window.addEventListener('click', handleClickOutside)
     display: block;
   }
 
-  .menu-button span {
-    display: none;
-  }
-
-  .arrow-icon {
-    display: none;
-  }
-
+  .menu-button span,
+  .arrow-icon,
   .news-button span {
     display: none;
   }
 
-  .news-button {
+  .news-button,
+  .menu-button {
     padding: 8px;
+    justify-content: center;
+  }
+
+  .messages::-webkit-scrollbar {
+    display: none;
+  }
+
+  .messages {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .date-divider span {
+    font-size: 12px;
+  }
+
+  .message-footer {
+    font-size: 11px;
   }
 }
 </style>

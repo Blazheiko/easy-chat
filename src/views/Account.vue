@@ -206,14 +206,14 @@ const toggleSound = () => {
 .account-content {
   max-width: 800px;
   margin: 0 auto;
-  padding: 30px 20px;
+  padding: 20px 10px;
 }
 
 .profile-section {
   display: flex;
-  gap: 30px;
+  gap: 20px;
   margin-bottom: 40px;
-  padding: 30px;
+  padding: 20px;
   background-color: white;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);

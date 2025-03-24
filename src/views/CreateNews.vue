@@ -1,8 +1,23 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+
+// Отслеживание ширины окна
+const windowWidth = ref(window.innerWidth)
+
+const handleResize = () => {
+  windowWidth.value = window.innerWidth
+}
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+})
 
 // Состояние формы
 const newsContent = ref('')
@@ -179,7 +194,7 @@ const postNews = () => {
       </div>
     </header>
 
-    <div class="create-news-content">
+    <div class="create-news-content" :class="{ 'mobile-container': windowWidth <= 768 }">
       <div class="news-form">
         <div v-if="error" class="error-message">{{ error }}</div>
 
@@ -268,6 +283,7 @@ const postNews = () => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 
 .create-news-header {
@@ -596,6 +612,8 @@ const postNews = () => {
   .create-news-header {
     padding: 15px 10px;
     flex-wrap: wrap;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .create-news-header h1 {
@@ -626,25 +644,51 @@ const postNews = () => {
 
   .create-news-content {
     padding: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  .mobile-container {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  .create-news-page {
+    width: 100%;
+    overflow-x: hidden;
   }
 
   .news-form {
-    padding: 0;
+    padding: 16px;
     border-radius: 0;
     box-shadow: none;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .form-group {
     margin-bottom: 20px;
-    padding: 0 16px;
+    padding: 0;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .error-message {
-    margin: 0 16px 16px 16px;
+    margin: 0 0 16px 0;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .form-actions {
-    padding: 0 16px;
+    padding: 0;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .content-input {
@@ -652,11 +696,14 @@ const postNews = () => {
     padding: 12px;
     font-size: 15px;
     width: 100%;
+    border-radius: 8px;
+    box-sizing: border-box;
   }
 
   .image-upload-container {
     width: 100%;
     margin-bottom: 16px;
+    box-sizing: border-box;
   }
 
   .image-upload-label {
@@ -665,11 +712,14 @@ const postNews = () => {
     justify-content: center;
     padding: 12px;
     border-radius: 8px;
+    box-sizing: border-box;
   }
 
   .image-previews {
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .publish-button {
@@ -678,6 +728,7 @@ const postNews = () => {
     font-size: 16px;
     border-radius: 8px;
     margin-top: 10px;
+    box-sizing: border-box;
   }
 }
 </style>

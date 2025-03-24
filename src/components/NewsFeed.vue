@@ -147,77 +147,83 @@ const goToCreatePost = () => {
       </button>
     </div>
 
-    <div class="news-item" v-for="item in newsItems" :key="item.id">
-      <div class="news-header">
-        <div class="user-avatar">{{ getInitial(item.userName) }}</div>
-        <div class="user-info">
-          <div class="user-name">{{ item.userName }}</div>
-          <div class="post-time">{{ item.timeAgo }}</div>
-        </div>
-      </div>
-
-      <div class="news-content" @click="viewNewsDetail(item.id)">
-        <p>{{ item.content }}</p>
-
-        <div
-          v-if="item.images && item.images.length > 0"
-          class="news-images"
-          :class="{
-            'single-image': item.images.length === 1,
-            'multi-image': item.images.length > 1,
-          }"
-        >
-          <div v-for="(image, index) in item.images" :key="index" class="image-container">
-            <img :src="image" :alt="`${item.userName}'s post image ${index + 1}`" loading="lazy" />
+    <div class="news-items-grid">
+      <div class="news-item" v-for="item in newsItems" :key="item.id">
+        <div class="news-header">
+          <div class="user-avatar">{{ getInitial(item.userName) }}</div>
+          <div class="user-info">
+            <div class="user-name">{{ item.userName }}</div>
+            <div class="post-time">{{ item.timeAgo }}</div>
           </div>
         </div>
-      </div>
 
-      <div class="news-actions">
-        <button class="action-button" :class="{ liked: item.isLiked }" @click="toggleLike(item)">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            width="20"
-            height="20"
-            fill="currentColor"
-          >
-            <path
-              d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-            />
-          </svg>
-          <span>{{ item.likes }}</span>
-        </button>
+        <div class="news-content" @click="viewNewsDetail(item.id)">
+          <p>{{ item.content }}</p>
 
-        <button class="action-button" @click="viewNewsDetail(item.id)">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            width="20"
-            height="20"
-            fill="currentColor"
+          <div
+            v-if="item.images && item.images.length > 0"
+            class="news-images"
+            :class="{
+              'single-image': item.images.length === 1,
+              'multi-image': item.images.length > 1,
+            }"
           >
-            <path
-              d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"
-            />
-          </svg>
-          <span>{{ item.comments }}</span>
-        </button>
+            <div v-for="(image, index) in item.images" :key="index" class="image-container">
+              <img
+                :src="image"
+                :alt="`${item.userName}'s post image ${index + 1}`"
+                loading="lazy"
+              />
+            </div>
+          </div>
+        </div>
 
-        <button class="action-button">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            width="20"
-            height="20"
-            fill="currentColor"
-          >
-            <path
-              d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"
-            />
-          </svg>
-          <span>Share</span>
-        </button>
+        <div class="news-actions">
+          <button class="action-button" :class="{ liked: item.isLiked }" @click="toggleLike(item)">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="currentColor"
+            >
+              <path
+                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+              />
+            </svg>
+            <span>{{ item.likes }}</span>
+          </button>
+
+          <button class="action-button" @click="viewNewsDetail(item.id)">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="currentColor"
+            >
+              <path
+                d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"
+              />
+            </svg>
+            <span>{{ item.comments }}</span>
+          </button>
+
+          <button class="action-button">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="currentColor"
+            >
+              <path
+                d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"
+              />
+            </svg>
+            <span>Share</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -233,6 +239,14 @@ const goToCreatePost = () => {
   flex-direction: column;
   gap: 24px;
   width: 100%;
+  box-sizing: border-box;
+}
+
+.news-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 24px;
+  width: 100%;
 }
 
 .news-item {
@@ -243,6 +257,11 @@ const goToCreatePost = () => {
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .news-item:hover {
@@ -293,6 +312,9 @@ const goToCreatePost = () => {
   padding: 0 20px 16px;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .news-content:hover {
@@ -307,7 +329,7 @@ const goToCreatePost = () => {
 }
 
 .news-images {
-  margin-top: 8px;
+  margin-top: auto;
   border-radius: 12px;
   overflow: hidden;
 }
@@ -383,10 +405,16 @@ const goToCreatePost = () => {
 .load-more {
   display: flex;
   justify-content: center;
-  margin-top: 16px;
+  margin-top: 24px;
+  margin-bottom: 24px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .load-more-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background-color: #f8f9fa;
   border: 1px solid #dee2e6;
   color: #495057;
@@ -396,6 +424,7 @@ const goToCreatePost = () => {
   font-size: 14px;
   font-weight: 500;
   transition: all 0.2s ease;
+  width: 200px;
 }
 
 .load-more-button:hover {
@@ -407,12 +436,15 @@ const goToCreatePost = () => {
 .create-post-button-container {
   display: flex;
   justify-content: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .create-post-button {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 12px 24px;
   background-color: #1a73e8;
@@ -424,6 +456,7 @@ const goToCreatePost = () => {
   font-weight: 500;
   transition: all 0.2s ease;
   box-shadow: 0 4px 10px rgba(26, 115, 232, 0.2);
+  width: 200px;
 }
 
 .create-post-button:hover {
@@ -439,19 +472,34 @@ const goToCreatePost = () => {
 
 @media (max-width: 768px) {
   .news-feed {
-    padding-right: 0;
+    gap: 0;
     width: 100%;
-    gap: 16px;
-  }
-
-  .news-item {
-    border-radius: 12px;
-    width: 100%;
+    max-width: 100%;
+    padding: 0;
     margin: 0;
   }
 
+  .news-items-grid {
+    display: block;
+    gap: 0;
+  }
+
+  .news-item {
+    border-radius: 0;
+    margin: 0 0 8px 0;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .news-item:hover {
+    transform: none;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  }
+
   .news-header {
-    padding: 14px 12px;
+    padding: 14px 16px;
   }
 
   .user-avatar {
@@ -461,21 +509,17 @@ const goToCreatePost = () => {
   }
 
   .news-content {
-    padding: 0 12px 14px;
+    padding: 0 16px 14px;
   }
 
   .news-content p {
     font-size: 15px;
-    margin: 0 0 12px;
+    margin-bottom: 12px;
   }
 
-  .news-actions {
-    padding: 10px 12px;
-  }
-
-  .action-button {
-    font-size: 13px;
-    padding: 6px 8px;
+  .news-images {
+    border-radius: 8px;
+    width: 100%;
   }
 
   .multi-image {
@@ -483,20 +527,39 @@ const goToCreatePost = () => {
     gap: 8px;
   }
 
-  .image-container {
-    border-radius: 6px;
+  .news-actions {
+    padding: 10px 16px;
   }
 
-  .load-more {
-    margin-top: 8px;
-    margin-bottom: 16px;
+  .action-button {
+    font-size: 13px;
+    padding: 6px 8px;
+  }
+
+  .create-post-button-container {
+    padding: 16px;
+    margin: 0;
+    width: 100%;
   }
 
   .create-post-button {
-    width: 90%;
-    justify-content: center;
+    width: 100%;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 0;
+  }
+
+  .load-more {
+    padding: 8px 16px 16px;
+    margin: 0;
+    width: 100%;
+  }
+
+  .load-more-button {
+    width: 100%;
+    border-radius: 8px;
     padding: 10px 16px;
-    font-size: 14px;
+    margin: 0;
   }
 }
 </style>

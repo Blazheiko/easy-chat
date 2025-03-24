@@ -1,10 +1,25 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
 const route = useRoute()
 const newsId = ref(parseInt(route.params.id as string))
+
+// Отслеживание ширины окна
+const windowWidth = ref(window.innerWidth)
+
+const handleResize = () => {
+  windowWidth.value = window.innerWidth
+}
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+})
 
 // Состояние меню
 const isMenuOpen = ref(false)
@@ -26,6 +41,13 @@ const handleClickOutside = (event: MouseEvent) => {
   }
 }
 
+// Текущий пользователь
+const currentUser = {
+  id: 0,
+  name: 'Current User',
+  avatar: '',
+}
+
 // Новость
 const newsItem = ref({
   id: newsId.value,
@@ -37,9 +59,9 @@ const newsItem = ref({
     'https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
   ],
   likes: 24,
+  isLiked: false,
   comments: 6,
   timeAgo: '2 hours ago',
-  isLiked: false,
 })
 
 // Комментарии
@@ -47,61 +69,58 @@ const comments = ref([
   {
     id: 1,
     userId: 2,
-    userName: 'Alex Wilson',
-    content: 'Amazing view! Where exactly is this?',
-    timeAgo: '1 hour ago',
+    userName: 'Mary Johnson',
+    content: 'Beautiful view! Which trail did you take?',
     likes: 3,
+    timeAgo: '1 hour ago',
   },
   {
     id: 2,
     userId: 3,
-    userName: 'Sarah Parker',
-    content: 'I was there last summer! One of the best hiking trails in the area.',
-    timeAgo: '45 minutes ago',
+    userName: 'Alex Wilson',
+    content: 'This looks amazing! I need to visit this place.',
     likes: 2,
+    timeAgo: '45 minutes ago',
   },
   {
     id: 3,
     userId: 4,
-    userName: 'Michael Chen',
-    content: 'The colors in that sunset photo are incredible. What camera did you use?',
-    timeAgo: '30 minutes ago',
+    userName: 'Helen Brown',
+    content: 'The colors in the first picture are stunning!',
     likes: 1,
+    timeAgo: '30 minutes ago',
   },
 ])
 
 // Новый комментарий
 const newComment = ref('')
 
-// Функция добавления комментария
+// Добавление комментария
 const addComment = () => {
-  if (newComment.value.trim() === '') return
-
-  const comment = {
-    id: comments.value.length + 1,
-    userId: 5,
-    userName: 'Current User',
-    content: newComment.value,
-    timeAgo: 'Just now',
-    likes: 0,
+  if (newComment.value.trim()) {
+    comments.value.unshift({
+      id: comments.value.length + 1,
+      userId: currentUser.id,
+      userName: currentUser.name,
+      content: newComment.value.trim(),
+      likes: 0,
+      timeAgo: 'Just now',
+    })
+    newComment.value = ''
   }
-
-  comments.value.push(comment)
-  newComment.value = ''
 }
 
-// Функция лайка новости
-const toggleLike = () => {
-  if (newsItem.value.isLiked) {
-    newsItem.value.likes--
-    newsItem.value.isLiked = false
+// Лайк новости
+const toggleLike = (item) => {
+  item.isLiked = !item.isLiked
+  if (item.isLiked) {
+    item.likes++
   } else {
-    newsItem.value.likes++
-    newsItem.value.isLiked = true
+    item.likes--
   }
 }
 
-// Вернуться к ленте новостей
+// Вернуться к списку новостей
 const backToNews = () => {
   router.push('/news')
 }
@@ -122,222 +141,225 @@ const getInitial = (name: string): string => {
   return name.charAt(0)
 }
 
-// Проверка авторизации
-onMounted(() => {
-  const storedUser = localStorage.getItem('user')
-  if (!storedUser) {
-    router.push('/')
-  }
+// Добавляем обработчик клика вне меню
+window.addEventListener('click', handleClickOutside)
 
-  // Добавляем обработчик клика вне меню
-  window.addEventListener('click', handleClickOutside)
+// Удаляем обработчик при уничтожении компонента
+onUnmounted(() => {
+  window.removeEventListener('click', handleClickOutside)
 })
 </script>
 
 <template>
   <div class="news-detail-page">
     <header class="news-header">
-      <button class="back-button" @click="backToNews">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          width="24"
-          height="24"
-          fill="currentColor"
-        >
-          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
-        </svg>
-        <span>Back to News</span>
-      </button>
-      <h1>News Detail</h1>
-      <div class="menu-container">
-        <button class="menu-button" @click.stop="toggleMenu">
+      <div class="header-content">
+        <button class="back-button" @click="backToNews">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             width="24"
             height="24"
-            fill="white"
+            fill="currentColor"
           >
-            <path
-              d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-            />
+            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
           </svg>
-          <span>Menu</span>
-          <svg
-            class="arrow-icon"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            width="18"
-            height="18"
-            fill="white"
-          >
-            <path d="M7 10l5 5 5-5z" />
-          </svg>
+          <span>Back to News</span>
         </button>
-
-        <div class="dropdown-menu" :class="{ show: isMenuOpen }">
-          <button class="menu-item" @click="goToAccount">
+        <h1>News Detail</h1>
+        <div class="menu-container">
+          <button class="menu-button" @click.stop="toggleMenu">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="currentColor"
+              width="24"
+              height="24"
+              fill="white"
             >
               <path
                 d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
               />
             </svg>
-            My Account
-          </button>
-          <button class="menu-item" @click="logout">
+            <span>Menu</span>
             <svg
+              class="arrow-icon"
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="currentColor"
+              width="18"
+              height="18"
+              fill="white"
             >
-              <path
-                d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
-              />
+              <path d="M7 10l5 5 5-5z" />
             </svg>
-            Logout
           </button>
+
+          <div class="dropdown-menu" :class="{ show: isMenuOpen }">
+            <button class="menu-item" @click="goToAccount">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="currentColor"
+              >
+                <path
+                  d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                />
+              </svg>
+              My Account
+            </button>
+            <button class="menu-item" @click="logout">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="currentColor"
+              >
+                <path
+                  d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
+                />
+              </svg>
+              Logout
+            </button>
+          </div>
         </div>
       </div>
     </header>
 
-    <div class="detail-content">
-      <!-- Новость -->
-      <div class="news-item">
-        <div class="news-item-header">
-          <div class="user-avatar">{{ getInitial(newsItem.userName) }}</div>
-          <div class="user-info">
-            <div class="user-name">{{ newsItem.userName }}</div>
-            <div class="post-time">{{ newsItem.timeAgo }}</div>
-          </div>
-        </div>
-
-        <div class="news-item-content">
-          <p>{{ newsItem.content }}</p>
-
-          <div
-            v-if="newsItem.images && newsItem.images.length > 0"
-            class="news-images"
-            :class="{
-              'single-image': newsItem.images.length === 1,
-              'multi-image': newsItem.images.length > 1,
-            }"
-          >
-            <div v-for="(image, index) in newsItem.images" :key="index" class="image-container">
-              <img
-                :src="image"
-                :alt="`${newsItem.userName}'s post image ${index + 1}`"
-                loading="lazy"
-              />
+    <div class="content-wrapper">
+      <div class="content-container">
+        <!-- Новость -->
+        <div class="news-item">
+          <div class="news-item-header">
+            <div class="user-avatar">{{ getInitial(newsItem.userName) }}</div>
+            <div class="user-info">
+              <div class="user-name">{{ newsItem.userName }}</div>
+              <div class="post-time">{{ newsItem.timeAgo }}</div>
             </div>
           </div>
-        </div>
 
-        <div class="news-actions">
-          <button class="action-button" :class="{ liked: newsItem.isLiked }" @click="toggleLike">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="currentColor"
+          <div class="news-item-content">
+            <p>{{ newsItem.content }}</p>
+
+            <div
+              v-if="newsItem.images && newsItem.images.length > 0"
+              class="news-images"
+              :class="{
+                'single-image': newsItem.images.length === 1,
+                'multi-image': newsItem.images.length > 1,
+              }"
             >
-              <path
-                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-              />
-            </svg>
-            <span>{{ newsItem.likes }}</span>
-          </button>
+              <div v-for="(image, index) in newsItem.images" :key="index" class="image-container">
+                <img
+                  :src="image"
+                  :alt="`${newsItem.userName}'s post image ${index + 1}`"
+                  loading="lazy"
+                />
+              </div>
+            </div>
+          </div>
 
-          <button class="action-button">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="currentColor"
+          <div class="news-actions">
+            <button
+              class="action-button"
+              :class="{ liked: newsItem.isLiked }"
+              @click="toggleLike(newsItem)"
             >
-              <path
-                d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"
-              />
-            </svg>
-            <span>{{ comments.length }}</span>
-          </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="currentColor"
+              >
+                <path
+                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                />
+              </svg>
+              <span>{{ newsItem.likes }}</span>
+            </button>
 
-          <button class="action-button">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="currentColor"
-            >
-              <path
-                d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"
-              />
-            </svg>
-            <span>Share</span>
-          </button>
-        </div>
-      </div>
+            <button class="action-button">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="currentColor"
+              >
+                <path
+                  d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"
+                />
+              </svg>
+              <span>{{ newsItem.comments }}</span>
+            </button>
 
-      <!-- Секция комментариев -->
-      <div class="comments-section">
-        <h2>Discussion ({{ comments.length }})</h2>
-
-        <!-- Форма добавления комментария -->
-        <div class="comment-form">
-          <div class="user-avatar current">{{ getInitial('Current User') }}</div>
-          <div class="comment-input-container">
-            <textarea
-              v-model="newComment"
-              placeholder="Write a comment..."
-              class="comment-input"
-              @keyup.enter="addComment"
-            ></textarea>
-            <button class="post-button" @click="addComment" :disabled="!newComment.trim()">
-              Post
+            <button class="action-button">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="currentColor"
+              >
+                <path
+                  d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"
+                />
+              </svg>
+              <span>Share</span>
             </button>
           </div>
         </div>
 
-        <!-- Список комментариев -->
-        <div class="comments-list">
-          <div v-for="comment in comments" :key="comment.id" class="comment-item">
-            <div class="comment-header">
-              <div class="user-avatar">{{ getInitial(comment.userName) }}</div>
-              <div class="comment-info">
-                <div class="comment-user-name">{{ comment.userName }}</div>
-                <div class="comment-time">{{ comment.timeAgo }}</div>
+        <!-- Секция комментариев -->
+        <div class="comments-section">
+          <h2>Comments ({{ comments.length }})</h2>
+
+          <!-- Форма добавления комментария -->
+          <div class="comment-form">
+            <div class="user-avatar current">{{ getInitial(currentUser.name) }}</div>
+            <div class="comment-input-container">
+              <textarea
+                v-model="newComment"
+                class="comment-input"
+                placeholder="Write a comment..."
+                rows="3"
+              ></textarea>
+              <button class="post-button" @click="addComment">Post</button>
+            </div>
+          </div>
+
+          <!-- Список комментариев -->
+          <div class="comments-list">
+            <div v-for="comment in comments" :key="comment.id" class="comment-item">
+              <div class="comment-header">
+                <div class="user-avatar">{{ getInitial(comment.userName) }}</div>
+                <div class="comment-info">
+                  <div class="comment-user-name">{{ comment.userName }}</div>
+                  <div class="comment-time">{{ comment.timeAgo }}</div>
+                </div>
               </div>
-            </div>
-            <div class="comment-content">
-              {{ comment.content }}
-            </div>
-            <div class="comment-actions">
-              <button class="comment-action">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  width="16"
-                  height="16"
-                  fill="currentColor"
-                >
-                  <path
-                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                  />
-                </svg>
-                <span>{{ comment.likes }}</span>
-              </button>
-              <button class="comment-action">Reply</button>
+              <div class="comment-content">
+                {{ comment.content }}
+              </div>
+              <div class="comment-actions">
+                <button class="comment-action">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                  >
+                    <path
+                      d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                    />
+                  </svg>
+                  <span>{{ comment.likes }}</span>
+                </button>
+                <button class="comment-action">Reply</button>
+              </div>
             </div>
           </div>
         </div>
@@ -362,17 +384,43 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 
 .news-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
+  width: 100%;
   background-color: #1a73e8;
   color: white;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+}
+
+.header-content {
   width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  max-width: 1400px; /* Широкий контейнер для большего использования пространства */
+}
+
+.content-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #c1c9d6 transparent;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.content-container {
+  width: 100%;
+  max-width: 1400px; /* Тот же размер, что и у шапки */
+  padding: 24px;
+  box-sizing: border-box;
 }
 
 .news-header h1 {
@@ -502,31 +550,21 @@ onMounted(() => {
   transform: translateY(0);
 }
 
-.detail-content {
-  width: 100%;
-  max-width: 100%;
-  padding: 0;
-  flex: 1;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(193, 201, 214, 0.5) transparent;
-}
-
-.detail-content::-webkit-scrollbar {
+.content-wrapper::-webkit-scrollbar {
   width: 3px;
 }
 
-.detail-content::-webkit-scrollbar-track {
+.content-wrapper::-webkit-scrollbar-track {
   background: transparent;
   margin: 10px 0;
 }
 
-.detail-content::-webkit-scrollbar-thumb {
+.content-wrapper::-webkit-scrollbar-thumb {
   background-color: rgba(193, 201, 214, 0.5);
   border-radius: 6px;
 }
 
-.detail-content::-webkit-scrollbar-thumb:hover {
+.content-wrapper::-webkit-scrollbar-thumb:hover {
   background-color: rgba(168, 179, 195, 0.8);
 }
 
@@ -535,7 +573,7 @@ onMounted(() => {
   border-radius: 16px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   overflow: hidden;
-  margin: 20px;
+  margin-bottom: 24px;
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease;
@@ -602,7 +640,6 @@ onMounted(() => {
 }
 
 .news-images {
-  margin-top: 8px;
   border-radius: 12px;
   overflow: hidden;
 }
@@ -681,7 +718,6 @@ onMounted(() => {
   border-radius: 16px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   padding: 20px;
-  margin: 0 20px 20px 20px;
 }
 
 .comments-section h2 {
@@ -695,6 +731,7 @@ onMounted(() => {
   display: flex;
   gap: 12px;
   margin-bottom: 24px;
+  width: 100%;
 }
 
 .comment-input-container {
@@ -702,6 +739,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  width: 100%;
 }
 
 .comment-input {
@@ -739,11 +777,8 @@ onMounted(() => {
   transform: translateY(-1px);
 }
 
-.post-button:disabled {
-  background-color: #e9ecef;
-  color: #adb5bd;
-  cursor: not-allowed;
-  transform: none;
+.post-button:active {
+  transform: translateY(0);
 }
 
 .comments-list {
@@ -754,8 +789,8 @@ onMounted(() => {
 
 .comment-item {
   padding: 16px;
-  border-radius: 12px;
   background-color: #f8f9fa;
+  border-radius: 12px;
 }
 
 .comment-header {
@@ -763,11 +798,6 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   margin-bottom: 10px;
-}
-
-.comment-info {
-  display: flex;
-  flex-direction: column;
 }
 
 .comment-user-name {
@@ -779,19 +809,23 @@ onMounted(() => {
 .comment-time {
   color: #6c757d;
   font-size: 12px;
-  margin-top: 2px;
+}
+
+.comment-info {
+  display: flex;
+  flex-direction: column;
 }
 
 .comment-content {
   font-size: 15px;
   line-height: 1.5;
   color: #212529;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .comment-actions {
   display: flex;
-  gap: 12px;
+  gap: 16px;
 }
 
 .comment-action {
@@ -803,7 +837,7 @@ onMounted(() => {
   gap: 6px;
   color: #6c757d;
   padding: 6px 10px;
-  border-radius: 16px;
+  border-radius: 20px;
   transition: all 0.2s ease;
   font-size: 13px;
   font-weight: 500;
@@ -814,21 +848,18 @@ onMounted(() => {
   color: #212529;
 }
 
-@media (min-width: 769px) and (max-width: 1024px) {
-  .news-item,
-  .comments-section {
-    margin: 15px;
-  }
-
-  .comments-section {
-    margin-bottom: 15px;
-  }
-}
-
 @media (max-width: 768px) {
+  .news-page {
+    overflow-x: hidden;
+  }
+
   .news-header {
-    padding: 15px 10px;
+    width: 100%;
+  }
+
+  .header-content {
     flex-wrap: wrap;
+    padding: 15px 10px;
   }
 
   .news-header h1 {
@@ -857,30 +888,34 @@ onMounted(() => {
     display: none;
   }
 
-  .detail-content {
-    padding: 10px 0;
-    max-width: 100%;
-    margin: 0;
+  .content-container {
+    padding: 0;
   }
 
-  .detail-content::-webkit-scrollbar {
+  .content-wrapper::-webkit-scrollbar {
     width: 0;
     display: none;
   }
 
-  .detail-content {
+  .content-wrapper {
     -ms-overflow-style: none; /* IE и Edge */
     scrollbar-width: none; /* Firefox */
   }
 
-  .news-item {
-    border-radius: 12px;
-    width: calc(100% - 20px);
-    margin: 10px;
+  .news-item,
+  .comments-section {
+    margin: 0 0 8px 0;
+    border-radius: 0;
+    width: 100%;
+  }
+
+  .news-item:hover {
+    transform: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   }
 
   .news-item-header {
-    padding: 14px 12px;
+    padding: 14px 16px;
   }
 
   .user-avatar {
@@ -890,16 +925,16 @@ onMounted(() => {
   }
 
   .news-item-content {
-    padding: 0 12px 14px;
+    padding: 0 16px 14px;
   }
 
   .news-item-content p {
     font-size: 15px;
-    margin: 0 0 12px;
+    margin-bottom: 12px;
   }
 
   .news-actions {
-    padding: 10px 12px;
+    padding: 10px 16px;
   }
 
   .action-button {
@@ -912,27 +947,8 @@ onMounted(() => {
     gap: 8px;
   }
 
-  .comment-form {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .user-avatar.current {
-    align-self: flex-start;
-  }
-
-  .comment-input {
-    min-height: 60px;
-  }
-
-  .post-button {
-    width: 100%;
-  }
-
   .comments-section {
-    border-radius: 12px;
-    padding: 16px 12px;
-    margin: 10px;
+    padding: 16px;
   }
 
   .comments-section h2 {
@@ -946,8 +962,28 @@ onMounted(() => {
     margin-bottom: 20px;
   }
 
+  .user-avatar.current {
+    align-self: flex-start;
+  }
+
+  .comment-input {
+    min-height: 60px;
+  }
+
+  .post-button {
+    width: 100%;
+    align-self: center;
+  }
+
   .comment-item {
-    padding: 14px 12px;
+    padding: 14px 16px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1200px) {
+  .header-content,
+  .content-container {
+    max-width: 1000px;
   }
 }
 </style>

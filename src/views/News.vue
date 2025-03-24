@@ -1,9 +1,24 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import NewsFeed from '../components/NewsFeed.vue'
 
 const router = useRouter()
+
+// Отслеживание ширины окна
+const windowWidth = ref(window.innerWidth)
+
+const handleResize = () => {
+  windowWidth.value = window.innerWidth
+}
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+})
 
 // Проверка авторизации
 onMounted(() => {
@@ -56,80 +71,84 @@ window.addEventListener('click', handleClickOutside)
 <template>
   <div class="news-page">
     <header class="news-header">
-      <button class="back-button" @click="backToChat">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          width="24"
-          height="24"
-          fill="currentColor"
-        >
-          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
-        </svg>
-        <span>Back to Chat</span>
-      </button>
-      <h1>News Feed</h1>
-      <div class="menu-container">
-        <button class="menu-button" @click.stop="toggleMenu">
+      <div class="header-content">
+        <button class="back-button" @click="backToChat">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             width="24"
             height="24"
-            fill="white"
+            fill="currentColor"
           >
-            <path
-              d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-            />
+            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
           </svg>
-          <span>Menu</span>
-          <svg
-            class="arrow-icon"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            width="18"
-            height="18"
-            fill="white"
-          >
-            <path d="M7 10l5 5 5-5z" />
-          </svg>
+          <span>Back to Chat</span>
         </button>
-
-        <div class="dropdown-menu" :class="{ show: isMenuOpen }">
-          <button class="menu-item" @click="goToAccount">
+        <h1>News Feed</h1>
+        <div class="menu-container">
+          <button class="menu-button" @click.stop="toggleMenu">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="currentColor"
+              width="24"
+              height="24"
+              fill="white"
             >
               <path
                 d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
               />
             </svg>
-            My Account
-          </button>
-          <button class="menu-item" @click="logout">
+            <span>Menu</span>
             <svg
+              class="arrow-icon"
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="currentColor"
+              width="18"
+              height="18"
+              fill="white"
             >
-              <path
-                d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
-              />
+              <path d="M7 10l5 5 5-5z" />
             </svg>
-            Logout
           </button>
+
+          <div class="dropdown-menu" :class="{ show: isMenuOpen }">
+            <button class="menu-item" @click="goToAccount">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="currentColor"
+              >
+                <path
+                  d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                />
+              </svg>
+              My Account
+            </button>
+            <button class="menu-item" @click="logout">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="currentColor"
+              >
+                <path
+                  d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
+                />
+              </svg>
+              Logout
+            </button>
+          </div>
         </div>
       </div>
     </header>
 
-    <div class="news-content">
-      <NewsFeed />
+    <div class="content-wrapper">
+      <div class="content-container">
+        <NewsFeed />
+      </div>
     </div>
   </div>
 </template>
@@ -150,17 +169,43 @@ window.addEventListener('click', handleClickOutside)
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 
 .news-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  padding-right: 20px;
+  width: 100%;
   background-color: #1a73e8;
   color: white;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+}
+
+.header-content {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  max-width: 1400px; /* Широкий контейнер для большего использования пространства */
+}
+
+.content-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #c1c9d6 transparent;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.content-container {
+  width: 100%;
+  max-width: 1400px; /* Тот же размер, что и у шапки */
+  padding: 24px;
+  box-sizing: border-box;
 }
 
 .news-header h1 {
@@ -290,44 +335,36 @@ window.addEventListener('click', handleClickOutside)
   transform: translateY(0);
 }
 
-.news-content {
-  max-width: 800px;
-  margin: 0;
-  margin-right: 20px;
-  padding: 20px;
-  padding-right: 5px;
-  width: 100%;
-  max-width: calc(100% - 40px);
-  flex: 1;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #c1c9d6 transparent;
-  align-self: flex-end;
-}
-
-.news-content::-webkit-scrollbar {
+.content-wrapper::-webkit-scrollbar {
   width: 3px;
 }
 
-.news-content::-webkit-scrollbar-track {
+.content-wrapper::-webkit-scrollbar-track {
   background: transparent;
   margin: 10px 0;
 }
 
-.news-content::-webkit-scrollbar-thumb {
+.content-wrapper::-webkit-scrollbar-thumb {
   background-color: rgba(193, 201, 214, 0.5);
   border-radius: 6px;
 }
 
-.news-content::-webkit-scrollbar-thumb:hover {
+.content-wrapper::-webkit-scrollbar-thumb:hover {
   background-color: rgba(168, 179, 195, 0.8);
 }
 
 @media (max-width: 768px) {
+  .news-page {
+    overflow-x: hidden;
+  }
+
   .news-header {
-    padding: 15px 10px;
-    flex-wrap: wrap;
     width: 100%;
+  }
+
+  .header-content {
+    flex-wrap: wrap;
+    padding: 15px 10px;
   }
 
   .news-header h1 {
@@ -356,30 +393,25 @@ window.addEventListener('click', handleClickOutside)
     display: none;
   }
 
-  .news-content {
-    padding: 10px 0;
-    margin: 0;
-    width: 100%;
-    max-width: 100%;
-    align-self: stretch;
+  .content-container {
+    padding: 0;
   }
 
-  .news-content::-webkit-scrollbar {
+  .content-wrapper::-webkit-scrollbar {
     width: 0;
     display: none;
   }
 
-  .news-content {
+  .content-wrapper {
     -ms-overflow-style: none; /* IE и Edge */
     scrollbar-width: none; /* Firefox */
   }
 }
 
-@media (min-width: 769px) and (max-width: 1024px) {
-  .news-content {
-    max-width: 90%;
-    margin: 0 auto;
-    padding: 20px 15px;
+@media (min-width: 768px) and (max-width: 1200px) {
+  .header-content,
+  .content-container {
+    max-width: 1000px;
   }
 }
 </style>
