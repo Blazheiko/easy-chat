@@ -27,10 +27,10 @@ onUnmounted(() => {
 
 // Проверка авторизации
 onMounted(() => {
-  const storedUser = localStorage.getItem('user')
-  if (!storedUser) {
-    router.push('/')
-  }
+  // const storedUser = localStorage.getItem('user')
+  // if (!storedUser) {
+  //   router.push('/')
+  // }
 })
 
 // Вернуться в чат

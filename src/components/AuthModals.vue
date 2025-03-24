@@ -3,7 +3,9 @@ import { ref } from 'vue'
 import createApi from '@/utils/createApi'
 import { useUserStore } from '@/stores/user'
 import type { User } from '@/stores/user'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const userStore = useUserStore()
 
 const props = defineProps({
@@ -27,6 +29,14 @@ const rememberMe = ref(false)
 const agreeToManifesto = ref(false)
 const showAgreementError = ref(false)
 
+// Ошибки валидации
+const emailError = ref('')
+const passwordError = ref('')
+const nameError = ref('')
+const confirmPasswordError = ref('')
+const loginError = ref('')
+const registerError = ref('')
+
 const api = createApi('http://127.0.0.1:8088', null)
 
 const closeLoginModal = () => {
@@ -48,24 +58,100 @@ const switchToLogin = () => {
 }
 
 const handleLogin = async () => {
-  const data = await api.http('POST', '/auth/login', {
-    email: email.value,
-    password: password.value,
-  })
-  console.log(data)
-  if (data && data.status === 'success' && data.user) {
-    userStore.setUser(data.user as User)
-    emit('close')
+  // Сброс ошибок
+  emailError.value = ''
+  passwordError.value = ''
+  loginError.value = ''
+
+  // Валидация
+  const isValid = validateEmailPassword()
+
+  if (!isValid) return
+
+  try {
+    const data = await api.http('POST', '/auth/login', {
+      email: email.value,
+      password: password.value,
+    })
+
+    if (data && data.status === 'success' && data.user) {
+      userStore.setUser(data.user as User)
+      emit('close')
+      console.log('user', userStore.user)
+      router.push({name: 'Chat'})
+    } else {
+      loginError.value = (data?.message as string) || 'Authorization error'
+    }
+  } catch (error: unknown) {
+    console.error(error)
+    loginError.value = 'Server error. Please try again later.'
   }
 }
 
-const handleRegister = () => {
+const validateEmailPassword = (): boolean => {
+  let isValid = true
+  if (!email.value.trim()) {
+    emailError.value = 'Email is required'
+    isValid = false
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
+    emailError.value = 'Enter a valid email'
+    isValid = false
+  }
+
+  if (!password.value) {
+    passwordError.value = 'Password is required'
+    isValid = false
+  } else if (password.value.length < 8) {
+    passwordError.value = 'Password must be at least 8 characters long'
+    isValid = false
+  }
+
+  return isValid
+}
+
+const handleRegister = async () => {
+  // Сброс ошибок
+  nameError.value = ''
+  emailError.value = ''
+  passwordError.value = ''
+  registerError.value = ''
+  confirmPasswordError.value = ''
+  showAgreementError.value = false
+
+  // Валидация
+  let isValid = true
+
+  if (!name.value.trim()) {
+    nameError.value = 'Name is required'
+    isValid = false
+  }
+  isValid = validateEmailPassword()
+
+  if (password.value !== confirmPassword.value) {
+    confirmPasswordError.value = 'Passwords do not match'
+    isValid = false
+  }
+
   if (!agreeToManifesto.value) {
     showAgreementError.value = true
-    return
+    isValid = false
   }
-  // Тут была бы логика регистрации
-  emit('close')
+
+  if (!isValid) return
+
+  const data = await api.http('POST', '/auth/register', {
+    name: name.value,
+    email: email.value,
+    password: password.value,
+  })
+
+  if (data && data.status === 'success' && data.user) {
+    userStore.setUser(data.user as User)
+    emit('close')
+    router.push({name: 'Chat'})
+  } else {
+    registerError.value = (data?.message as string) || 'Registration error'
+  }
 }
 </script>
 
@@ -90,6 +176,7 @@ const handleRegister = () => {
         </button>
       </div>
       <div class="modal-content">
+        <div v-if="loginError" class="error-message form-error">{{ loginError }}</div>
         <div class="form-group">
           <label for="login-email">Email</label>
           <div class="input-wrapper">
@@ -111,8 +198,10 @@ const handleRegister = () => {
               v-model="email"
               placeholder="yourname@example.com"
               autocomplete="email"
+              :class="{ 'has-error': emailError }"
             />
           </div>
+          <div v-if="emailError" class="error-message">{{ emailError }}</div>
         </div>
         <div class="form-group">
           <label for="login-password">Password</label>
@@ -135,8 +224,10 @@ const handleRegister = () => {
               v-model="password"
               placeholder="Your password"
               autocomplete="current-password"
+              :class="{ 'has-error': passwordError }"
             />
           </div>
+          <div v-if="passwordError" class="error-message">{{ passwordError }}</div>
         </div>
 
         <div class="form-options">
@@ -197,8 +288,10 @@ const handleRegister = () => {
               v-model="name"
               placeholder="John Smith"
               autocomplete="name"
+              :class="{ 'has-error': nameError }"
             />
           </div>
+          <div v-if="nameError" class="error-message">{{ nameError }}</div>
         </div>
         <div class="form-group">
           <label for="register-email">Email</label>
@@ -221,8 +314,10 @@ const handleRegister = () => {
               v-model="email"
               placeholder="yourname@example.com"
               autocomplete="email"
+              :class="{ 'has-error': emailError }"
             />
           </div>
+          <div v-if="emailError" class="error-message">{{ emailError }}</div>
         </div>
         <div class="form-group">
           <label for="register-password">Password</label>
@@ -245,8 +340,10 @@ const handleRegister = () => {
               v-model="password"
               placeholder="Min. 8 characters"
               autocomplete="new-password"
+              :class="{ 'has-error': passwordError }"
             />
           </div>
+          <div v-if="passwordError" class="error-message">{{ passwordError }}</div>
         </div>
         <div class="form-group">
           <label for="register-confirm-password">Confirm Password</label>
@@ -269,8 +366,10 @@ const handleRegister = () => {
               v-model="confirmPassword"
               placeholder="Confirm your password"
               autocomplete="new-password"
+              :class="{ 'has-error': confirmPasswordError }"
             />
           </div>
+          <div v-if="confirmPasswordError" class="error-message">{{ confirmPasswordError }}</div>
         </div>
         <div class="form-group terms-agreement">
           <label class="checkbox-container">
@@ -406,6 +505,11 @@ const handleRegister = () => {
   position: absolute;
   left: 16px;
   color: #6c757d;
+  transition: color 0.2s ease;
+}
+
+.input-wrapper:has(input.has-error) .input-icon {
+  color: #dc3545;
 }
 
 .form-group input {
@@ -419,10 +523,20 @@ const handleRegister = () => {
   background-color: #f8f9fa;
 }
 
+.form-group input.has-error {
+  border-color: #dc3545;
+  background-color: rgba(220, 53, 69, 0.05);
+}
+
 .form-group input:focus {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 4px rgba(26, 115, 232, 0.1);
   background-color: white;
+}
+
+.form-group input.has-error:focus {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.1);
 }
 
 .form-options {
@@ -574,6 +688,15 @@ const handleRegister = () => {
   margin-top: 6px;
   margin-bottom: 0;
   padding-left: 30px;
+}
+
+.form-error {
+  padding: 10px;
+  background-color: rgba(220, 53, 69, 0.1);
+  border-radius: 8px;
+  margin-bottom: 15px;
+  padding-left: 15px;
+  font-weight: 500;
 }
 
 @keyframes modalFadeIn {

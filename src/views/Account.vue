@@ -1,16 +1,19 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-
+import { useUserStore } from '@/stores/user'
 const router = useRouter()
-const user = ref({
-  id: 0,
-  name: '',
-  email: 'user@example.com',
-  joinDate: '01/01/2023',
-  avatar: '',
-  status: 'Online',
-})
+
+const userStore = useUserStore()
+const user = ref(userStore.user)
+// ref({
+//   id: 0,
+//   name: '',
+//   email: 'user@example.com',
+//   joinDate: '01/01/2023',
+//   avatar: '',
+//   status: 'Online',
+// })
 
 // Настройки и темы
 const darkMode = ref(false)
@@ -18,20 +21,20 @@ const notificationsEnabled = ref(true)
 const soundEnabled = ref(true)
 
 // Загрузка данных пользователя из localStorage
-onMounted(() => {
-  const storedUser = localStorage.getItem('user')
-  if (storedUser) {
-    const parsedUser = JSON.parse(storedUser)
-    user.value = {
-      ...user.value,
-      id: parsedUser.id,
-      name: parsedUser.name,
-    }
-  } else {
-    // Если пользователь не авторизован, перенаправляем на страницу входа
-    router.push('/')
-  }
-})
+// onMounted(() => {
+//   const storedUser = localStorage.getItem('user')
+//   if (storedUser) {
+//     const parsedUser = JSON.parse(storedUser)
+//     user.value = {
+//       ...user.value,
+//       id: parsedUser.id,
+//       name: parsedUser.name,
+//     }
+//   } else {
+//     // Если пользователь не авторизован, перенаправляем на страницу входа
+//     router.push('/')
+//   }
+// })
 
 // Выход из аккаунта
 const logout = () => {

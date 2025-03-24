@@ -7,7 +7,10 @@ import News from '@/views/News.vue'
 import NewsDetail from '@/views/NewsDetail.vue'
 import CreateNews from '@/views/CreateNews.vue'
 import ManifestoSocial from '@/views/ManifestoSocial.vue'
+import { useUserStore } from '@/stores/user'
 
+// Не вызывайте store вне функции навигационной защиты
+// const userStore = useUserStore()
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
@@ -61,9 +64,10 @@ router.beforeEach((to, from, next) => {
   // Проверяем, требует ли маршрут авторизации
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
 
+  // Используем useUserStore внутри навигационной защиты
+  const userStore = useUserStore()
   // Здесь будет проверка авторизации пользователя
-  // Пока используем имитацию - проверяем наличие данных в localStorage
-  const isAuthenticated = localStorage.getItem('user') !== null
+  const isAuthenticated = userStore.hasUser()
 
   if (requiresAuth && !isAuthenticated) {
     next('/')

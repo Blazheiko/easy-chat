@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import AuthModals from '../components/AuthModals.vue'
 
-const router = useRouter()
 const isLoginModalVisible = ref(false)
 const isRegisterModalVisible = ref(false)
 const logoText = ref('Free Social Media')

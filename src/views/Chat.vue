@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, defineComponent, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 import ContactsList from '../components/ContactsList.vue'
 import ChatArea from '../components/ChatArea.vue'
 import LoaderOverlay from '../components/LoaderOverlay.vue'
@@ -11,6 +12,7 @@ defineComponent({
 })
 
 const router = useRouter()
+const userStore = useUserStore()
 const isContactsVisible = ref(false)
 const isLoading = ref(false)
 const isOffline = ref(false)
@@ -79,13 +81,17 @@ const goToManifesto = () => {
 // Выход из аккаунта
 const logout = () => {
   isMenuOpen.value = false
-  localStorage.removeItem('user')
+  // localStorage.removeItem('user')
   router.push('/')
 }
 
 onMounted(() => {
   setupNetworkListeners()
   document.addEventListener('click', closeMenuOnClickOutside)
+  if (!userStore.hasUser()) {
+    console.log('no user')
+    router.push('/')
+  }
 })
 
 onBeforeUnmount(() => {

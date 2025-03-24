@@ -19,5 +19,9 @@ export const useUserStore = defineStore('user', () => {
     user.value = null
   }
 
-  return { user, setUser, clearUser }
+  function hasUser() {
+    return user.value !== null
+  }
+
+  return { user, setUser, clearUser, hasUser }
 })
