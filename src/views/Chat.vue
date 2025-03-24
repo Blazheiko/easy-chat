@@ -20,10 +20,6 @@ const toggleContacts = () => {
   isContactsVisible.value = !isContactsVisible.value
 }
 
-const toggleMenu = () => {
-  isMenuOpen.value = !isMenuOpen.value
-}
-
 const handleConnectionRetry = () => {
   isLoading.value = true
 
@@ -72,6 +68,12 @@ const goToAccount = () => {
 const goToNews = () => {
   isMenuOpen.value = false
   router.push('/news')
+}
+
+// Переход на страницу манифеста
+const goToManifesto = () => {
+  isMenuOpen.value = false
+  router.push('/manifesto')
 }
 
 // Выход из аккаунта
@@ -194,6 +196,7 @@ onBeforeUnmount(() => {
           @toggle-contacts="toggleContacts"
           @go-to-account="goToAccount"
           @go-to-news="goToNews"
+          @go-to-manifesto="goToManifesto"
           @logout="logout"
         />
       </div>

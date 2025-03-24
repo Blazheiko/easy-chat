@@ -2,6 +2,11 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import NewsFeed from '../components/NewsFeed.vue'
+import { defineComponent } from 'vue'
+
+defineComponent({
+  name: 'NewsView',
+})
 
 const router = useRouter()
 

@@ -28,7 +28,13 @@ const isTyping = ref(false)
 const isMenuOpen = ref(false)
 const messageContainerRef = ref(null)
 
-const emit = defineEmits(['toggle-contacts', 'go-to-account', 'logout', 'go-to-news'])
+const emit = defineEmits([
+  'toggle-contacts',
+  'go-to-account',
+  'logout',
+  'go-to-news',
+  'go-to-manifesto',
+])
 
 const sendMessage = () => {
   if (newMessage.value.trim()) {
