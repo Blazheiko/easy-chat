@@ -215,7 +215,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: 100%;
+  height: 100vh;
   background-color: var(--background-color);
   position: relative;
   overflow: hidden;
@@ -230,6 +230,10 @@ onBeforeUnmount(() => {
   background-color: var(--primary-color);
   color: white;
   box-shadow: var(--box-shadow);
+}
+
+.dark-theme .chat-header {
+  background-color: #0d47a1;
 }
 
 .chat-header h1 {
@@ -249,9 +253,9 @@ onBeforeUnmount(() => {
 .main-content {
   display: flex;
   flex-direction: column;
-  width: 100%;
-  height: 100%;
+  flex: 1;
   overflow: hidden;
+  min-height: 0;
 }
 
 .contact-toggle,
@@ -390,5 +394,9 @@ onBeforeUnmount(() => {
   :deep(.contacts-list.show) {
     left: 0;
   }
+}
+
+.dark-theme .chat-container {
+  background-color: #121212;
 }
 </style>

@@ -144,11 +144,21 @@ const getInitials = (name: string) => {
   overflow: hidden;
 }
 
+.dark-theme .contacts-list {
+  background-color: #1e1e1e;
+  border-right: 1px solid #444;
+}
+
 .contacts-header {
   display: flex;
   align-items: center;
   padding: 16px 20px;
   border-bottom: 1px solid var(--border-color);
+}
+
+.dark-theme .contacts-header {
+  border-bottom: 1px solid #444;
+  background-color: #0d47a1;
 }
 
 .contacts-header h2 {
@@ -157,6 +167,10 @@ const getInitials = (name: string) => {
   font-size: 18px;
   font-weight: 600;
   color: var(--text-color);
+}
+
+.dark-theme .contacts-header h2 {
+  color: white;
 }
 
 .close-contacts {
@@ -195,6 +209,10 @@ const getInitials = (name: string) => {
   color: #adb5bd;
 }
 
+.dark-theme .search-icon {
+  color: #777;
+}
+
 .search-input {
   width: 100%;
   padding: 10px 10px 10px 40px;
@@ -205,11 +223,16 @@ const getInitials = (name: string) => {
   transition: all 0.2s ease;
 }
 
-.search-input:focus {
-  outline: none;
+.dark-theme .search-input {
+  background-color: #333;
+  border-color: #444;
+  color: #e0e0e0;
+}
+
+.dark-theme .search-input:focus {
   border-color: var(--primary-color);
-  background-color: white;
-  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+  background-color: #444;
+  box-shadow: 0 0 0 3px rgba(100, 181, 246, 0.2);
 }
 
 .contacts-list-container {
@@ -240,6 +263,10 @@ const getInitials = (name: string) => {
   gap: 14px;
   transition: all 0.2s ease;
   border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.dark-theme .contact {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .contact-avatar {
@@ -273,6 +300,10 @@ const getInitials = (name: string) => {
   transition: all 0.2s ease;
 }
 
+.dark-theme .status-indicator {
+  border-color: #1e1e1e;
+}
+
 .status-indicator.online {
   background-color: #28a745;
   box-shadow: 0 0 5px rgba(40, 167, 69, 0.5);
@@ -299,11 +330,19 @@ const getInitials = (name: string) => {
   text-overflow: ellipsis;
 }
 
+.dark-theme .contact-name {
+  color: #e0e0e0;
+}
+
 .message-time {
   font-size: 12px;
   color: #6c757d;
   white-space: nowrap;
   margin-left: 8px;
+}
+
+.dark-theme .message-time {
+  color: #adb5bd;
 }
 
 .contact-message {
@@ -322,12 +361,24 @@ const getInitials = (name: string) => {
   max-width: 180px;
 }
 
+.dark-theme .last-message {
+  color: #adb5bd;
+}
+
 .contact:hover {
   background-color: rgba(26, 115, 232, 0.05);
 }
 
+.dark-theme .contact:hover {
+  background-color: rgba(100, 181, 246, 0.1);
+}
+
 .contact.active {
   background-color: rgba(26, 115, 232, 0.1);
+}
+
+.dark-theme .contact.active {
+  background-color: rgba(100, 181, 246, 0.15);
 }
 
 .contact.active .contact-name {
@@ -360,11 +411,19 @@ const getInitials = (name: string) => {
   font-size: 14px;
 }
 
+.dark-theme .no-results {
+  color: #adb5bd;
+}
+
 @media (max-width: 768px) {
   .contacts-list {
     background-color: white;
     width: 100%;
     max-width: 100%;
+  }
+
+  .dark-theme .contacts-list {
+    background-color: #1e1e1e;
   }
 
   .contacts-header {

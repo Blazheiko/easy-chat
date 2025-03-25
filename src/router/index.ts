@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import Login from '@/views/Login.vue'
 import Chat from '@/views/Chat.vue'
-import Account from '@/views/Account.vue'
+import UserAccount from '@/views/UserAccount.vue'
 import News from '@/views/News.vue'
 import NewsDetail from '@/views/NewsDetail.vue'
 import CreateNews from '@/views/CreateNews.vue'
@@ -25,8 +25,8 @@ const routes: Array<RouteRecordRaw> = [
   },
   {
     path: '/account',
-    name: 'Account',
-    component: Account,
+    name: 'UserAccount',
+    component: UserAccount,
     meta: { requiresAuth: true },
   },
   {

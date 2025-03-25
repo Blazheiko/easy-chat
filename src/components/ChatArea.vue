@@ -1,901 +1,741 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted } from 'vue'
+import MenuButton from '@/components/MenuButton.vue'
 
 interface Message {
-  text: string
-  time: string
-  isSent: boolean
-  status?: 'sent' | 'delivered' | 'read'
-  date?: string
+    text: string
+    time: string
+    isSent: boolean
+    status?: 'sent' | 'delivered' | 'read'
+    date?: string
 }
 
 const messages = ref<Message[]>([
-  { text: 'Hi! How are you?', time: '10:30 AM', isSent: false, date: 'Today' },
-  { text: "Hello! I'm fine, thanks!", time: '10:31 AM', isSent: true, status: 'read' },
-  {
-    text: 'Would you like to grab lunch tomorrow?',
-    time: '3:45 PM',
-    isSent: false,
-    date: 'Yesterday',
-  },
-  { text: 'Sure, that sounds great!', time: '3:47 PM', isSent: true, status: 'read' },
-  { text: "Let's meet at the usual place?", time: '3:47 PM', isSent: true, status: 'delivered' },
-  { text: 'Perfect, see you then!', time: '3:50 PM', isSent: false },
+    { text: 'Hi! How are you?', time: '10:30 AM', isSent: false, date: 'Today' },
+    { text: "Hello! I'm fine, thanks!", time: '10:31 AM', isSent: true, status: 'read' },
+    {
+        text: 'Would you like to grab lunch tomorrow?',
+        time: '3:45 PM',
+        isSent: false,
+        date: 'Yesterday',
+    },
+    { text: 'Sure, that sounds great!', time: '3:47 PM', isSent: true, status: 'read' },
+    { text: "Let's meet at the usual place?", time: '3:47 PM', isSent: true, status: 'delivered' },
+    { text: 'Perfect, see you then!', time: '3:50 PM', isSent: false },
 ])
 
 const newMessage = ref('')
 const isTyping = ref(false)
-const isMenuOpen = ref(false)
 const messageContainerRef = ref(null)
 
 const emit = defineEmits([
-  'toggle-contacts',
-  'go-to-account',
-  'logout',
-  'go-to-news',
-  'go-to-manifesto',
+    'toggle-contacts',
+    'go-to-account',
+    'logout',
+    'go-to-news',
+    'go-to-manifesto',
 ])
 
 const sendMessage = () => {
-  if (newMessage.value.trim()) {
-    messages.value.push({
-      text: newMessage.value,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isSent: true,
-      status: 'sent',
-    })
-    newMessage.value = ''
+    if (newMessage.value.trim()) {
+        messages.value.push({
+            text: newMessage.value,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isSent: true,
+            status: 'sent',
+        })
+        newMessage.value = ''
 
-    // Прокрутка вниз после отправки сообщения
-    setTimeout(scrollToBottom, 100)
-  }
+        // Прокрутка вниз после отправки сообщения
+        setTimeout(scrollToBottom, 100)
+    }
 }
 
-const toggleMenu = () => {
-  isMenuOpen.value = !isMenuOpen.value
-}
-
-const closeMenu = () => {
-  isMenuOpen.value = false
-}
-
-const goToAccount = () => {
-  emit('go-to-account')
-  closeMenu()
-}
-
-// Переход в манифест
-const goToManifesto = () => {
-  emit('go-to-manifesto')
-  closeMenu()
-}
-
+// Переход на страницу новостей
 const goToNews = () => {
-  emit('go-to-news')
-  closeMenu()
-}
-
-const logout = () => {
-  emit('logout')
-  closeMenu()
+    emit('go-to-news')
 }
 
 // Функция прокрутки чата вниз
 const scrollToBottom = () => {
-  if (messageContainerRef.value) {
-    const container = messageContainerRef.value as HTMLElement
-    container.scrollTop = container.scrollHeight
-  }
+    if (messageContainerRef.value) {
+        const container = messageContainerRef.value as HTMLElement
+        container.scrollTop = container.scrollHeight
+    }
 }
 
 // Демонстрационная функция для имитации печатания
 const simulateTyping = () => {
-  isTyping.value = true
-  setTimeout(() => {
-    isTyping.value = false
-    // Имитация получения сообщения после печатания
+    isTyping.value = true
     setTimeout(() => {
-      receiveRandomMessage()
-    }, 1000)
-  }, 3000)
+        isTyping.value = false
+        // Имитация получения сообщения после печатания
+        setTimeout(() => {
+            receiveRandomMessage()
+        }, 1000)
+    }, 3000)
 }
 
 const randomMessages = [
-  "Sure, I'll be there!",
-  "That's interesting, tell me more.",
-  'I agree with you.',
-  'Let me think about it.',
-  'Can we discuss this later?',
-  'Great idea!',
-  "I'm not sure about that.",
-  'Absolutely!',
+    "Sure, I'll be there!",
+    "That's interesting, tell me more.",
+    'I agree with you.',
+    'Let me think about it.',
+    'Can we discuss this later?',
+    'Great idea!',
+    "I'm not sure about that.",
+    'Absolutely!',
 ]
 
 const receiveRandomMessage = () => {
-  const randomIndex = Math.floor(Math.random() * randomMessages.length)
-  messages.value.push({
-    text: randomMessages[randomIndex],
-    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    isSent: false,
-  })
+    const randomIndex = Math.floor(Math.random() * randomMessages.length)
+    messages.value.push({
+        text: randomMessages[randomIndex],
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isSent: false,
+    })
 
-  // Прокрутка вниз после получения сообщения
-  setTimeout(scrollToBottom, 100)
-}
-
-// Обработчик клика вне меню
-const handleClickOutside = (event: MouseEvent) => {
-  const target = event.target as HTMLElement
-  if (isMenuOpen.value && !target.closest('.menu-container')) {
-    closeMenu()
-  }
+    // Прокрутка вниз после получения сообщения
+    setTimeout(scrollToBottom, 100)
 }
 
 onMounted(() => {
-  // Добавляем обработчик клика вне меню
-  window.addEventListener('click', handleClickOutside)
-
-  // Прокрутка к последнему сообщению при загрузке
-  setTimeout(scrollToBottom, 100)
-})
-
-onBeforeUnmount(() => {
-  // Удаляем обработчик при размонтировании компонента
-  window.removeEventListener('click', handleClickOutside)
+    // Прокрутка к последнему сообщению при загрузке
+    setTimeout(scrollToBottom, 100)
 })
 </script>
 
 <template>
-  <div class="chat-area">
-    <div class="chat-header">
-      <button class="toggle-contacts" @click="$emit('toggle-contacts')">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 18H21V16H3V18ZM3 13H21V11H3V13ZM3 6V8H21V6H3Z" fill="currentColor" />
-        </svg>
-      </button>
-      <h2>John Smith</h2>
-
-      <div class="header-buttons">
-        <button class="news-button" @click="goToNews">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            width="24"
-            height="24"
-            fill="currentColor"
-          >
-            <path
-              d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM5 15h14v-6H5v6zm2-4h10v2H7v-2z"
-            />
-          </svg>
-          <span>News</span>
-        </button>
-
-        <div class="menu-container">
-          <button class="menu-button" @click.stop="toggleMenu">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              width="24"
-              height="24"
-              fill="currentColor"
-            >
-              <path
-                d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-              />
-            </svg>
-            <span>Menu</span>
-            <svg
-              class="arrow-icon"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              width="18"
-              height="18"
-              fill="currentColor"
-            >
-              <path d="M7 10l5 5 5-5z" />
-            </svg>
-          </button>
-
-          <div class="dropdown-menu" :class="{ show: isMenuOpen }">
-            <button class="menu-item" @click="goToAccount">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                width="20"
-                height="20"
-                fill="currentColor"
-              >
-                <path
-                  d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-                />
-              </svg>
-              My Account
-            </button>
-            <button class="menu-item" @click="goToManifesto">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                width="20"
-                height="20"
-                fill="currentColor"
-              >
-                <path
-                  d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-                />
-              </svg>
-              Manifesto
-            </button>
-            <button class="menu-item" @click="goToNews">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                width="20"
-                height="20"
-                fill="currentColor"
-              >
-                <path
-                  d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM5 15h14v-6H5v6zm2-4h10v2H7v-2z"
-                />
-              </svg>
-              News Feed
-            </button>
-            <button class="menu-item logout" @click="logout">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                width="20"
-                height="20"
-                fill="currentColor"
-              >
-                <path
-                  d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
-                />
-              </svg>
-              Logout
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="messages-container">
-      <div class="messages" ref="messageContainerRef">
-        <template v-for="(message, index) in messages" :key="index">
-          <div v-if="message.date" class="date-divider">
-            <span>{{ message.date }}</span>
-          </div>
-          <div :class="['message', message.isSent ? 'sent' : 'received']">
-            {{ message.text }}
-            <div class="message-footer">
-              <span>{{ message.time }}</span>
-              <span v-if="message.isSent" class="message-status" :class="message.status">
-                <svg
-                  v-if="message.status === 'read'"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M18 7L9.429 15.571L6 12.143"
-                    stroke="currentColor"
-                    fill="none"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                  <path
-                    d="M18 7L9.429 15.571L6 12.143"
-                    stroke="currentColor"
-                    fill="none"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    transform="translate(4 0)"
-                  />
+    <div class="chat-area">
+        <div class="chat-header">
+            <button class="toggle-contacts" @click="$emit('toggle-contacts')">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M3 18H21V16H3V18ZM3 13H21V11H3V13ZM3 6V8H21V6H3Z"
+                        fill="currentColor"
+                    />
                 </svg>
-                <svg
-                  v-else-if="message.status === 'delivered'"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M18 7L9.429 15.571L6 12.143"
-                    stroke="currentColor"
-                    fill="none"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </span>
+            </button>
+            <h2>John Smith</h2>
+
+            <div class="header-buttons">
+                <button class="news-button" @click="goToNews">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        height="24"
+                        fill="currentColor"
+                    >
+                        <path
+                            d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM5 15h14v-6H5v6zm2-4h10v2H7v-2z"
+                        />
+                    </svg>
+                    <span>News</span>
+                </button>
+                <MenuButton />
             </div>
-          </div>
-        </template>
-      </div>
-    </div>
+        </div>
 
-    <div class="typing-indicator" v-if="isTyping">
-      <span>John is typing</span>
-      <div class="typing-dots">
-        <div class="typing-dot"></div>
-        <div class="typing-dot"></div>
-        <div class="typing-dot"></div>
-      </div>
-    </div>
+        <div class="messages-container">
+            <div class="messages" ref="messageContainerRef">
+                <template v-for="(message, index) in messages" :key="index">
+                    <div v-if="message.date" class="date-divider">
+                        <span>{{ message.date }}</span>
+                    </div>
+                    <div :class="['message', message.isSent ? 'sent' : 'received']">
+                        {{ message.text }}
+                        <div class="message-footer">
+                            <span>{{ message.time }}</span>
+                            <span
+                                v-if="message.isSent"
+                                class="message-status"
+                                :class="message.status"
+                            >
+                                <svg
+                                    v-if="message.status === 'read'"
+                                    viewBox="0 0 24 24"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M18 7L9.429 15.571L6 12.143"
+                                        stroke="currentColor"
+                                        fill="none"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                    <path
+                                        d="M18 7L9.429 15.571L6 12.143"
+                                        stroke="currentColor"
+                                        fill="none"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        transform="translate(4 0)"
+                                    />
+                                </svg>
+                                <svg
+                                    v-else-if="message.status === 'delivered'"
+                                    viewBox="0 0 24 24"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M18 7L9.429 15.571L6 12.143"
+                                        stroke="currentColor"
+                                        fill="none"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    />
+                                </svg>
+                            </span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
 
-    <div class="input-area">
-      <button class="video-call-button" title="Start video call">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          width="24"
-          height="24"
-          fill="currentColor"
-        >
-          <path
-            d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"
-          />
-        </svg>
-      </button>
-      <input
-        v-model="newMessage"
-        type="text"
-        class="message-input"
-        placeholder="Type a message..."
-        @keyup.enter="sendMessage"
-        @focus="simulateTyping"
-      />
-      <button class="send-button" @click="sendMessage" :disabled="!newMessage.trim()">
-        <svg
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z" fill="currentColor" />
-        </svg>
-      </button>
+        <div class="typing-indicator" v-if="isTyping">
+            <span>John is typing</span>
+            <div class="typing-dots">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <button class="video-call-button" title="Start video call">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    width="24"
+                    height="24"
+                    fill="currentColor"
+                >
+                    <path
+                        d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"
+                    />
+                </svg>
+            </button>
+            <input
+                v-model="newMessage"
+                type="text"
+                class="message-input"
+                placeholder="Type a message..."
+                @keyup.enter="sendMessage"
+                @focus="simulateTyping"
+            />
+            <button class="send-button" @click="sendMessage" :disabled="!newMessage.trim()">
+                <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                >
+                    <path d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z" fill="currentColor" />
+                </svg>
+            </button>
+        </div>
     </div>
-  </div>
 </template>
 
 <style scoped>
 .chat-area {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  width: 100%;
-  min-width: 0;
-  overflow: hidden;
-  background-color: var(--background-color);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    background-color: var(--background-color);
 }
 
 .chat-header {
-  background-color: var(--primary-color);
-  color: white;
-  padding: 16px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: relative;
-  width: 100%;
-  flex-shrink: 0;
-  box-shadow: var(--box-shadow);
+    background-color: var(--primary-color);
+    color: white;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    width: 100%;
+    flex-shrink: 0;
+    box-shadow: var(--box-shadow);
 }
 
 .chat-header h2 {
-  padding-left: 40px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
-  font-weight: 600;
-  font-size: 18px;
+    padding-left: 40px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    font-weight: 600;
+    font-size: 18px;
+    color: white;
 }
 
 .header-buttons {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .news-button {
-  background-color: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  color: white;
-  padding: 8px 15px;
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 500;
+    background-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    color: white;
+    padding: 8px 15px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
 }
 
 .news-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-color: white;
-  transform: translateY(-1px);
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: white;
+    transform: translateY(-1px);
 }
 
 .news-button:active {
-  background-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(0);
-}
-
-.menu-container {
-  position: relative;
-}
-
-.arrow-icon {
-  transition: transform 0.3s ease;
-}
-
-.menu-button.open .arrow-icon {
-  transform: rotate(180deg);
-}
-
-.dropdown-menu {
-  position: absolute;
-  top: calc(100% + 12px);
-  right: 0;
-  width: 200px;
-  background-color: white;
-  border: none;
-  border-radius: 12px;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
-  z-index: 100;
-  overflow: hidden;
-  opacity: 0;
-  transform: translateY(-10px);
-  visibility: hidden;
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  padding: 6px 0;
-}
-
-.dropdown-menu.show {
-  opacity: 1;
-  transform: translateY(0);
-  visibility: visible;
-}
-
-.menu-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  text-align: left;
-  padding: 12px 15px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  color: var(--text-color);
-  border-radius: 8px;
-  margin: 4px 8px;
-  width: calc(100% - 16px);
-  font-weight: 500;
-  font-size: 14px;
-}
-
-.menu-item.logout {
-  color: #dc3545;
-}
-
-.menu-item:hover {
-  background-color: #f8f9fa;
-  transform: translateY(-1px);
-}
-
-.menu-item:active {
-  transform: translateY(0);
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(0);
 }
 
 .messages-container {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  min-height: 0;
-  background-color: #f8f9fa;
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 0;
+    background-color: var(--background-color);
 }
 
 .messages {
-  flex: 1;
-  padding: 20px;
-  padding-bottom: 20px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  min-height: 0;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+    flex: 1;
+    padding: 20px;
+    padding-bottom: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+    background-color: var(--background-color);
+}
+
+.dark-theme .messages {
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
 .messages::-webkit-scrollbar {
-  width: 5px;
+    width: 5px;
 }
 
 .messages::-webkit-scrollbar-track {
-  background: transparent;
+    background: transparent;
 }
 
 .messages::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.1);
-  border-radius: 10px;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
 }
 
 .date-divider {
-  text-align: center;
-  margin: 20px 0;
-  position: relative;
-  width: 100%;
+    text-align: center;
+    margin: 20px 0;
+    position: relative;
+    width: 100%;
 }
 
 .date-divider::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 100%;
-  height: 1px;
-  background-color: rgba(0, 0, 0, 0.08);
-  z-index: 1;
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 100%;
+    height: 1px;
+    background-color: rgba(0, 0, 0, 0.08);
+    z-index: 1;
+}
+
+.dark-theme .date-divider::before {
+    background-color: rgba(255, 255, 255, 0.08);
 }
 
 .date-divider span {
-  background-color: #f8f9fa;
-  padding: 0 12px;
-  color: #6c757d;
-  font-size: 13px;
-  position: relative;
-  z-index: 2;
-  font-weight: 500;
+    background-color: var(--background-color);
+    padding: 0 12px;
+    color: #6c757d;
+    font-size: 13px;
+    position: relative;
+    z-index: 2;
+    font-weight: 500;
+}
+
+.dark-theme .date-divider span {
+    color: #adb5bd;
 }
 
 .message {
-  margin-bottom: 15px;
-  padding: 12px 16px;
-  border-radius: 18px;
-  max-width: 70%;
-  position: relative;
-  word-wrap: break-word;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  line-height: 1.5;
-  font-size: 15px;
+    margin-bottom: 15px;
+    padding: 12px 16px;
+    border-radius: 18px;
+    max-width: 70%;
+    position: relative;
+    word-wrap: break-word;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    line-height: 1.5;
+    font-size: 15px;
 }
 
 .message.sent {
-  background-color: var(--primary-color);
-  color: white;
-  align-self: flex-end;
-  border-bottom-right-radius: 4px;
+    background-color: var(--primary-color);
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+}
+
+.dark-theme .message.sent {
+    background-color: #0d47a1;
+    color: white;
 }
 
 .message.received {
-  background-color: white;
-  align-self: flex-start;
-  border-bottom-left-radius: 4px;
-  color: var(--text-color);
+    background-color: white;
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+    color: var(--text-color);
+}
+
+.dark-theme .message.received {
+    background-color: #2a2a2a;
+    color: #e0e0e0;
 }
 
 .message-footer {
-  font-size: 12px;
-  margin-top: 5px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
+    font-size: 12px;
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .message.received .message-footer {
-  justify-content: flex-start;
-  color: #adb5bd;
+    justify-content: flex-start;
+    color: #adb5bd;
 }
 
 .message.sent .message-footer {
-  justify-content: flex-end;
-  color: rgba(255, 255, 255, 0.8);
+    justify-content: flex-end;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.dark-theme .message.sent .message-footer {
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .message-status {
-  display: inline-flex;
-  align-items: center;
+    display: inline-flex;
+    align-items: center;
 }
 
 .message-status svg {
-  width: 16px;
-  height: 16px;
+    width: 16px;
+    height: 16px;
 }
 
 .message.sent .message-status.delivered svg {
-  fill: rgba(255, 255, 255, 0.8);
+    fill: rgba(255, 255, 255, 0.8);
 }
 
 .message.sent .message-status.read svg {
-  fill: #8fffb0;
+    fill: #a3ffcd;
+}
+
+.dark-theme .message.sent .message-status.read svg {
+    fill: #a3ffcd;
 }
 
 .typing-indicator {
-  padding: 10px 20px;
-  color: #6c757d;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  border-top: 1px solid rgba(0, 0, 0, 0.04);
-  width: 100%;
-  background-color: #f8f9fa;
-  animation: fadeIn 0.3s ease;
+    padding: 10px 20px;
+    color: #6c757d;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    border-top: 1px solid rgba(0, 0, 0, 0.04);
+    width: 100%;
+    background-color: var(--background-color);
+    animation: fadeIn 0.3s ease;
+}
+
+.dark-theme .typing-indicator {
+    color: #adb5bd;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .typing-dots {
-  display: flex;
-  gap: 4px;
+    display: flex;
+    gap: 4px;
 }
 
 .typing-dot {
-  width: 8px;
-  height: 8px;
-  background-color: #adb5bd;
-  border-radius: 50%;
-  animation: typingAnimation 1.4s infinite;
+    width: 8px;
+    height: 8px;
+    background-color: #adb5bd;
+    border-radius: 50%;
+    animation: typingAnimation 1.4s infinite;
 }
 
 .typing-dot:nth-child(2) {
-  animation-delay: 0.2s;
+    animation-delay: 0.2s;
 }
 
 .typing-dot:nth-child(3) {
-  animation-delay: 0.4s;
+    animation-delay: 0.4s;
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 @keyframes typingAnimation {
-  0%,
-  100% {
-    opacity: 0.3;
-    transform: scale(0.8);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1);
-  }
+    0%,
+    100% {
+        opacity: 0.3;
+        transform: scale(0.8);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 .input-area {
-  padding: 16px 20px;
-  background-color: white;
-  border-top: 1px solid rgba(0, 0, 0, 0.04);
-  display: flex;
-  gap: 12px;
-  width: 100%;
-  flex-shrink: 0;
-  align-items: center;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.03);
+    padding: 16px 20px;
+    background-color: white;
+    border-top: 1px solid rgba(0, 0, 0, 0.04);
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    flex-shrink: 0;
+    align-items: center;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.03);
+}
+
+.dark-theme .input-area {
+    background-color: #1e1e1e;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
 }
 
 .video-call-button {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-  box-shadow: 0 2px 5px rgba(26, 115, 232, 0.2);
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    box-shadow: 0 2px 5px rgba(26, 115, 232, 0.2);
 }
 
 .video-call-button:hover {
-  background-color: var(--accent-color);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(26, 115, 232, 0.3);
+    background-color: var(--accent-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(26, 115, 232, 0.3);
 }
 
 .video-call-button:active {
-  background-color: var(--accent-color);
-  transform: translateY(0);
-  box-shadow: 0 2px 5px rgba(26, 115, 232, 0.2);
+    background-color: var(--accent-color);
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(26, 115, 232, 0.2);
 }
 
 .video-call-button svg {
-  width: 20px;
-  height: 20px;
+    width: 20px;
+    height: 20px;
 }
 
 .message-input {
-  flex-grow: 1;
-  padding: 12px 16px;
-  border: 1px solid var(--border-color);
-  border-radius: 24px;
-  outline: none;
-  width: 100%;
-  max-width: calc(100% - 110px);
-  font-size: 15px;
-  transition: all 0.2s ease;
+    flex-grow: 1;
+    padding: 12px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
+    outline: none;
+    width: 100%;
+    max-width: calc(100% - 110px);
+    font-size: 15px;
+    transition: all 0.2s ease;
+    background-color: white;
+    color: var(--text-color);
+}
+
+.dark-theme .message-input {
+    background-color: #333;
+    color: #e0e0e0;
+    border-color: #444;
 }
 
 .message-input:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+}
+
+.dark-theme .message-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(100, 181, 246, 0.2);
 }
 
 .send-button {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-  box-shadow: 0 2px 5px rgba(26, 115, 232, 0.2);
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    box-shadow: 0 2px 5px rgba(26, 115, 232, 0.2);
 }
 
 .send-button:hover {
-  background-color: var(--accent-color);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(26, 115, 232, 0.3);
+    background-color: var(--accent-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(26, 115, 232, 0.3);
 }
 
 .send-button:active {
-  background-color: var(--accent-color);
-  transform: translateY(0);
-  box-shadow: 0 2px 5px rgba(26, 115, 232, 0.2);
+    background-color: var(--accent-color);
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(26, 115, 232, 0.2);
 }
 
 .send-button:disabled {
-  background-color: #e9ecef;
-  color: #adb5bd;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-.menu-button {
-  background-color: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  color: white;
-  padding: 8px 15px;
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.menu-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-color: white;
-  transform: translateY(-1px);
-}
-
-.menu-button:active {
-  background-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(0);
+    background-color: #e9ecef;
+    color: #adb5bd;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 .toggle-contacts {
-  display: none;
-  background: transparent;
-  border: none;
-  padding: 8px;
-  cursor: pointer;
-  transition: opacity 0.2s;
-  color: white;
+    display: none;
+    background: transparent;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    color: white;
 }
 
 .toggle-contacts svg {
-  width: 24px;
-  height: 24px;
+    width: 24px;
+    height: 24px;
 }
 
 .toggle-contacts:hover {
-  opacity: 0.8;
+    opacity: 0.8;
 }
 
 @media (max-width: 768px) {
-  .chat-area {
-    height: 100%;
-    width: 100%;
-  }
+    .chat-area {
+        height: 100%;
+        width: 100%;
+    }
 
-  .chat-header {
-    padding: 14px;
-  }
+    .chat-header {
+        padding: 14px;
+    }
 
-  .chat-header h2 {
-    padding-left: 10px;
-    font-size: 16px;
-  }
+    .chat-header h2 {
+        padding-left: 10px;
+        font-size: 16px;
+    }
 
-  .message {
-    max-width: 85%;
-    font-size: 14px;
-    padding: 10px 14px;
-  }
+    .message {
+        max-width: 85%;
+        font-size: 14px;
+        padding: 10px 14px;
+    }
 
-  .input-area {
-    padding: 12px;
-  }
+    .input-area {
+        padding: 12px;
+    }
 
-  .message-input {
-    padding: 10px 12px;
-    font-size: 14px;
-    max-width: calc(100% - 100px);
-  }
+    .message-input {
+        padding: 10px 12px;
+        font-size: 14px;
+        max-width: calc(100% - 100px);
+    }
 
-  .send-button,
-  .video-call-button {
-    width: 38px;
-    height: 38px;
-  }
+    .send-button,
+    .video-call-button {
+        width: 38px;
+        height: 38px;
+    }
 
-  .video-call-button svg,
-  .send-button svg {
-    width: 18px;
-    height: 18px;
-  }
+    .video-call-button svg,
+    .send-button svg {
+        width: 18px;
+        height: 18px;
+    }
 
-  .toggle-contacts {
-    display: block;
-  }
+    .toggle-contacts {
+        display: block;
+    }
 
-  .menu-button span,
-  .arrow-icon,
-  .news-button span {
-    display: none;
-  }
+    .news-button span {
+        display: none;
+    }
 
-  .news-button,
-  .menu-button {
-    padding: 8px;
-    justify-content: center;
-  }
+    .news-button {
+        padding: 8px;
+        justify-content: center;
+    }
 
-  .messages::-webkit-scrollbar {
-    display: none;
-  }
+    .messages::-webkit-scrollbar {
+        display: none;
+    }
 
-  .messages {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+    .messages {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
 
-  .date-divider span {
-    font-size: 12px;
-  }
+    .date-divider span {
+        font-size: 12px;
+    }
 
-  .message-footer {
-    font-size: 11px;
-  }
+    .message-footer {
+        font-size: 11px;
+    }
 }
 </style>
