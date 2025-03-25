@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import createApi from '@/utils/createApi'
+import api from '@/utils/api'
 import { useUserStore } from '@/stores/user'
 import type { User } from '@/stores/user'
 import { useRouter } from 'vue-router'
@@ -36,8 +36,6 @@ const nameError = ref('')
 const confirmPasswordError = ref('')
 const loginError = ref('')
 const registerError = ref('')
-
-const api = createApi('http://127.0.0.1:8088', null)
 
 const closeLoginModal = () => {
     emit('close')
@@ -139,18 +137,29 @@ const handleRegister = async () => {
 
     if (!isValid) return
 
-    const data = await api.http('POST', '/auth/register', {
+    const { data, error }  = await api.http('POST', '/auth/register', {
         name: name.value,
         email: email.value,
         password: password.value,
     })
 
-    if (data && data.status === 'success' && data.user) {
+    if (error) {
+
+      if (error.code === 422) {
+        console.log(data)
+        registerError.value = error.message
+      } else {
+        registerError.value = error.message || 'Server error. Please try again later.'
+      }
+
+    }else if (data && data.status === 'success' && data.user) {
         userStore.setUser(data.user as User)
         emit('close')
         router.push({ name: 'Chat' })
-    } else {
+    } else if(data && data.status === 'error'){
         registerError.value = (data?.message as string) || 'Registration error'
+    }else{
+        registerError.value = 'Server error. Please try again later.'
     }
 }
 </script>
@@ -268,6 +277,7 @@ const handleRegister = async () => {
                 </button>
             </div>
             <div class="modal-content">
+                <div v-if="registerError" class="error-message form-error">{{ registerError }}</div>
                 <div class="form-group">
                     <label for="register-name">Full Name</label>
                     <div class="input-wrapper">
