@@ -1,20 +1,40 @@
 <script setup lang="ts">
 // Главный компонент приложения
-import { onMounted } from 'vue'
+import { onMounted, ref, computed, onBeforeUnmount } from 'vue'
 import { useStateStore } from '@/stores/state'
 import { useAppInitialization } from '@/composables/useAppInitialization'
 import { useUserStore } from '@/stores/user'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import type { User } from '@/stores/user'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
+const isLoading = ref(true)
+const windowWidth = ref(window.innerWidth)
 
 const stateStore = useStateStore()
 const { initializeApp } = useAppInitialization()
 
+// Вычисляем, нужно ли показывать кнопку переключения темы
+const showThemeToggle = computed(() => {
+    // Скрываем кнопку на странице чата в мобильной версии
+    if ((route.name === 'Chat' || route.name === 'UserAccount') && windowWidth.value <= 1400) {
+        return false
+    }
+    return true
+})
+
+// Обработчик изменения размера окна
+const handleResize = () => {
+    windowWidth.value = window.innerWidth
+}
+
 // Определяем тему при загрузке приложения
 onMounted(async () => {
+    // Добавляем слушатель изменения размера окна
+    window.addEventListener('resize', handleResize)
+
     // Слушаем изменения предпочтений системы
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
         if (localStorage.getItem('theme') === null) {
@@ -29,6 +49,12 @@ onMounted(async () => {
         router.push({ name: 'News' })
         console.log('Data in initialization:')
     }
+    isLoading.value = false
+})
+
+// Удаляем слушатель при размонтировании компонента
+onBeforeUnmount(() => {
+    window.removeEventListener('resize', handleResize)
 })
 
 // Переключение темы
@@ -39,12 +65,18 @@ function toggleTheme() {
 
 <template>
     <div class="app-container">
-        <div class="theme-toggle">
-            <button @click="toggleTheme">
-                {{ stateStore.darkMode ? '☀️' : '🌙' }}
-            </button>
+        <div v-if="isLoading" class="loader-container">
+            <div class="loader"></div>
+            <p>Loading...</p>
         </div>
-        <router-view />
+        <template v-else>
+            <div v-if="showThemeToggle" class="theme-toggle">
+                <button @click="toggleTheme">
+                    {{ stateStore.darkMode ? '☀️' : '🌙' }}
+                </button>
+            </div>
+            <router-view />
+        </template>
     </div>
 </template>
 
@@ -222,5 +254,55 @@ input {
 
 .dark-theme .theme-toggle button:hover {
     background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Изменение позиции кнопки темы на мобильных устройствах */
+@media (max-width: 1400px) {
+    .theme-toggle {
+        top: auto;
+        bottom: 20px;
+        right: 20px;
+    }
+}
+
+.loader-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--background-color);
+    z-index: 9999;
+}
+
+.loader {
+    width: 48px;
+    height: 48px;
+    border: 5px solid var(--primary-color);
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    display: inline-block;
+    box-sizing: border-box;
+    animation: rotation 1s linear infinite;
+    margin-bottom: 16px;
+}
+
+.loader-container p {
+    color: var(--text-color);
+    font-size: 18px;
+    font-weight: 500;
+}
+
+@keyframes rotation {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
 }
 </style>
