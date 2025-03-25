@@ -119,7 +119,7 @@ onMounted(() => {
             <h2>John Smith</h2>
 
             <div class="header-buttons">
-                <button class="news-button" @click="goToNews">
+                <!-- <button class="news-button" @click="goToNews">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
@@ -132,7 +132,7 @@ onMounted(() => {
                         />
                     </svg>
                     <span>News</span>
-                </button>
+                </button> -->
                 <MenuButton />
             </div>
         </div>

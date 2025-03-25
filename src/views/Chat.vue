@@ -4,11 +4,12 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import ContactsList from '../components/ContactsList.vue'
 import ChatArea from '../components/ChatArea.vue'
+import NewsFeed from '../components/NewsFeed.vue'
 import LoaderOverlay from '../components/LoaderOverlay.vue'
 import ConnectionStatus from '../components/ConnectionStatus.vue'
 
 defineComponent({
-  name: 'ChatView',
+    name: 'ChatView',
 })
 
 const router = useRouter()
@@ -17,94 +18,99 @@ const isContactsVisible = ref(false)
 const isLoading = ref(false)
 const isOffline = ref(false)
 const isMenuOpen = ref(false)
+const showNews = ref(false)
 
 const toggleContacts = () => {
-  isContactsVisible.value = !isContactsVisible.value
+    isContactsVisible.value = !isContactsVisible.value
+}
+
+const toggleNews = (newsState: boolean) => {
+    showNews.value = newsState
 }
 
 const handleConnectionRetry = () => {
-  isLoading.value = true
+    isLoading.value = true
 
-  // Имитация попытки переподключения
-  setTimeout(() => {
-    isLoading.value = false
-    isOffline.value = false
-  }, 2000)
+    // Имитация попытки переподключения
+    setTimeout(() => {
+        isLoading.value = false
+        isOffline.value = false
+    }, 2000)
 }
 
 // Проверяем состояние сети при загрузке и слушаем события
 const setupNetworkListeners = () => {
-  // Добавляем слушатели для отслеживания состояния сети
-  window.addEventListener('online', () => {
-    isOffline.value = false
-  })
+    // Добавляем слушатели для отслеживания состояния сети
+    window.addEventListener('online', () => {
+        isOffline.value = false
+    })
 
-  window.addEventListener('offline', () => {
-    isOffline.value = true
-  })
+    window.addEventListener('offline', () => {
+        isOffline.value = true
+    })
 
-  // Начальная проверка состояния сети
-  isOffline.value = !navigator.onLine
+    // Начальная проверка состояния сети
+    isOffline.value = !navigator.onLine
 }
 
 // Функция для закрытия выпадающего меню при клике вне
 const closeMenuOnClickOutside = (event: MouseEvent) => {
-  if (isMenuOpen.value) {
-    const target = event.target as HTMLElement
-    const menu = document.querySelector('.dropdown-menu')
-    const menuButton = document.querySelector('.menu-button')
+    if (isMenuOpen.value) {
+        const target = event.target as HTMLElement
+        const menu = document.querySelector('.dropdown-menu')
+        const menuButton = document.querySelector('.menu-button')
 
-    if (menu && menuButton && !menu.contains(target) && !menuButton.contains(target)) {
-      isMenuOpen.value = false
+        if (menu && menuButton && !menu.contains(target) && !menuButton.contains(target)) {
+            isMenuOpen.value = false
+        }
     }
-  }
 }
 
 // Переход в аккаунт
 const goToAccount = () => {
-  isMenuOpen.value = false
-  router.push('/account')
+    isMenuOpen.value = false
+    router.push('/account')
 }
 
 // Переход на страницу новостей
 const goToNews = () => {
-  isMenuOpen.value = false
-  router.push('/news')
+    isMenuOpen.value = false
+    router.push('/news')
 }
 
 // Переход на страницу манифеста
 const goToManifesto = () => {
-  isMenuOpen.value = false
-  router.push('/manifesto')
+    isMenuOpen.value = false
+    router.push('/manifesto')
 }
 
 // Выход из аккаунта
 const logout = () => {
-  isMenuOpen.value = false
-  // localStorage.removeItem('user')
-  router.push('/')
+    isMenuOpen.value = false
+    // localStorage.removeItem('user')
+    router.push('/')
 }
 
 onMounted(() => {
-  setupNetworkListeners()
-  document.addEventListener('click', closeMenuOnClickOutside)
-  if (!userStore.hasUser()) {
-    console.log('no user')
-    router.push('/')
-  }
+    setupNetworkListeners()
+    document.addEventListener('click', closeMenuOnClickOutside)
+    if (!userStore.hasUser()) {
+        console.log('no user')
+        router.push('/')
+    }
 })
 
 onBeforeUnmount(() => {
-  document.removeEventListener('click', closeMenuOnClickOutside)
+    document.removeEventListener('click', closeMenuOnClickOutside)
 })
 </script>
 
 <template>
-  <div class="chat-container">
-    <ConnectionStatus :show="isOffline" @retry="handleConnectionRetry" />
-    <LoaderOverlay :show="isLoading" />
+    <div class="chat-container">
+        <ConnectionStatus :show="isOffline" @retry="handleConnectionRetry" />
+        <LoaderOverlay :show="isLoading" />
 
-    <!-- <div class="chat-header">
+        <!-- <div class="chat-header">
       <button class="contact-toggle" @click="toggleContacts">
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -195,208 +201,214 @@ onBeforeUnmount(() => {
       </div>
     </div> -->
 
-    <div class="chat-main">
-      <ContactsList :class="{ show: isContactsVisible }" @toggle-contacts="toggleContacts" />
-      <div class="main-content">
-        <ChatArea
-          @toggle-contacts="toggleContacts"
-          @go-to-account="goToAccount"
-          @go-to-news="goToNews"
-          @go-to-manifesto="goToManifesto"
-          @logout="logout"
-        />
-      </div>
+        <div class="chat-main">
+            <ContactsList
+                :class="{ show: isContactsVisible }"
+                @toggle-contacts="toggleContacts"
+                @toggle-news="toggleNews"
+            />
+            <div class="main-content">
+                <NewsFeed v-if="showNews" :hide-header="false" @back-to-chat="showNews = false" />
+                <ChatArea
+                    v-else
+                    @toggle-contacts="toggleContacts"
+                    @go-to-account="goToAccount"
+                    @go-to-news="goToNews"
+                    @go-to-manifesto="goToManifesto"
+                    @logout="logout"
+                />
+            </div>
+        </div>
     </div>
-  </div>
 </template>
 
 <style scoped>
 .chat-container {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100vh;
-  background-color: var(--background-color);
-  position: relative;
-  overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100vh;
+    background-color: var(--background-color);
+    position: relative;
+    overflow: hidden;
 }
 
 .chat-header {
-  height: var(--header-height);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 20px;
-  background-color: var(--primary-color);
-  color: white;
-  box-shadow: var(--box-shadow);
+    height: var(--header-height);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    background-color: var(--primary-color);
+    color: white;
+    box-shadow: var(--box-shadow);
 }
 
 .dark-theme .chat-header {
-  background-color: #0d47a1;
+    background-color: #0d47a1;
 }
 
 .chat-header h1 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
 }
 
 .chat-main {
-  display: grid;
-  grid-template-columns: 300px 1fr;
-  flex: 1;
-  height: calc(100% - var(--header-height));
-  overflow: hidden;
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    flex: 1;
+    height: calc(100% - var(--header-height));
+    overflow: hidden;
 }
 
 .main-content {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow: hidden;
-  min-height: 0;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
 }
 
 .contact-toggle,
 .menu-button {
-  background-color: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  color: white;
-  padding: 8px 15px;
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 500;
+    background-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    color: white;
+    padding: 8px 15px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
 }
 
 .contact-toggle:hover,
 .menu-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-color: white;
-  transform: translateY(-1px);
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: white;
+    transform: translateY(-1px);
 }
 
 .contact-toggle:active,
 .menu-button:active {
-  background-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(0);
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(0);
 }
 
 .menu-container {
-  position: relative;
+    position: relative;
 }
 
 .arrow-icon {
-  transition: transform 0.3s ease;
+    transition: transform 0.3s ease;
 }
 
 .menu-button.open .arrow-icon {
-  transform: rotate(180deg);
+    transform: rotate(180deg);
 }
 
 .dropdown-menu {
-  position: absolute;
-  top: calc(100% + 12px);
-  right: 0;
-  width: 200px;
-  background-color: white;
-  border: none;
-  border-radius: 12px;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
-  z-index: 100;
-  overflow: hidden;
-  opacity: 0;
-  transform: translateY(-10px);
-  visibility: hidden;
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  padding: 6px 0;
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    width: 200px;
+    background-color: white;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(-10px);
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    padding: 6px 0;
 }
 
 .dropdown-menu.show {
-  opacity: 1;
-  transform: translateY(0);
-  visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible;
 }
 
 .menu-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  text-align: left;
-  padding: 12px 15px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  color: var(--text-color);
-  border-radius: 8px;
-  margin: 4px 8px;
-  width: calc(100% - 16px);
-  font-weight: 500;
-  font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    padding: 12px 15px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    color: var(--text-color);
+    border-radius: 8px;
+    margin: 4px 8px;
+    width: calc(100% - 16px);
+    font-weight: 500;
+    font-size: 14px;
 }
 
 .menu-item.logout {
-  color: #dc3545;
+    color: #dc3545;
 }
 
 .menu-item:hover {
-  background-color: #f8f9fa;
-  transform: translateY(-1px);
+    background-color: #f8f9fa;
+    transform: translateY(-1px);
 }
 
 .menu-item:active {
-  transform: translateY(0);
+    transform: translateY(0);
 }
 
 @media (max-width: 768px) {
-  .chat-header {
-    padding: 0 16px;
-  }
+    .chat-header {
+        padding: 0 16px;
+    }
 
-  .chat-header h1 {
-    font-size: 18px;
-  }
+    .chat-header h1 {
+        font-size: 18px;
+    }
 
-  .contact-toggle span,
-  .menu-button span,
-  .arrow-icon {
-    display: none;
-  }
+    .contact-toggle span,
+    .menu-button span,
+    .arrow-icon {
+        display: none;
+    }
 
-  .contact-toggle,
-  .menu-button {
-    padding: 10px;
-    justify-content: center;
-  }
+    .contact-toggle,
+    .menu-button {
+        padding: 10px;
+        justify-content: center;
+    }
 
-  .chat-main {
-    grid-template-columns: 1fr;
-  }
+    .chat-main {
+        grid-template-columns: 1fr;
+    }
 
-  :deep(.contacts-list) {
-    position: absolute;
-    top: var(--header-height);
-    left: -100%;
-    width: 100%;
-    height: calc(100% - var(--header-height));
-    z-index: 10;
-    transition: all 0.3s ease;
-  }
+    :deep(.contacts-list) {
+        position: absolute;
+        top: var(--header-height);
+        left: -100%;
+        width: 100%;
+        height: calc(100% - var(--header-height));
+        z-index: 10;
+        transition: all 0.3s ease;
+    }
 
-  :deep(.contacts-list.show) {
-    left: 0;
-  }
+    :deep(.contacts-list.show) {
+        left: 0;
+    }
 }
 
 .dark-theme .chat-container {
-  background-color: #121212;
+    background-color: #121212;
 }
 </style>

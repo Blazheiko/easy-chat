@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useStateStore } from '@/stores/state'
 
-const stateStore = useStateStore()
 const router = useRouter()
 
 // Состояние меню
@@ -51,7 +49,7 @@ const logout = () => {
 <template>
     <div class="menu-container">
         <button class="menu-button" @click.stop="toggleMenu">
-            <svg
+            <!-- <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 width="24"
@@ -61,17 +59,16 @@ const logout = () => {
                 <path
                     d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
                 />
-            </svg>
-            <span>Menu</span>
+            </svg> -->
             <svg
-                class="arrow-icon"
+                class="menu-icon"
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
-                width="18"
-                height="18"
+                width="24"
+                height="24"
                 fill="white"
             >
-                <path d="M7 10l5 5 5-5z" />
+                <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
             </svg>
         </button>
 
@@ -140,14 +137,11 @@ const logout = () => {
     transform: translateY(0);
 }
 
-.arrow-icon {
-    transition: transform 0.3s ease;
+.menu-icon {
+    margin-left: 4px;
 }
 
-.menu-button.open .arrow-icon {
-    transform: rotate(180deg);
-}
-
+/* Стили для выпадающего меню */
 .dropdown-menu {
     position: absolute;
     top: calc(100% + 12px);
@@ -219,5 +213,19 @@ const logout = () => {
 
 .menu-item:active {
     transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+    .menu-button {
+        padding: 8px;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        justify-content: center;
+    }
+
+    .menu-icon {
+        margin-left: 0;
+    }
 }
 </style>
