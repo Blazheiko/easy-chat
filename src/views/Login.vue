@@ -48,7 +48,7 @@ onMounted(() => {
     }
 
     // Запускаем анимацию печати с небольшой задержкой
-    setTimeout(typeWriter, 500)
+    setTimeout(typeWriter, 1000)
 })
 </script>
 

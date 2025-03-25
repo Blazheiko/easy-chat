@@ -3,12 +3,18 @@
 import { onMounted } from 'vue'
 import { useStateStore } from '@/stores/state'
 import { useAppInitialization } from '@/composables/useAppInitialization'
+import { useUserStore } from '@/stores/user'
+import { useRouter } from 'vue-router'
+import type { User } from '@/stores/user'
+
+const router = useRouter()
+const userStore = useUserStore()
 
 const stateStore = useStateStore()
 const { initializeApp } = useAppInitialization()
 
 // Определяем тему при загрузке приложения
-onMounted(() => {
+onMounted(async () => {
     // Слушаем изменения предпочтений системы
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
         if (localStorage.getItem('theme') === null) {
@@ -17,7 +23,12 @@ onMounted(() => {
     })
 
     // Инициализация данных при загрузке приложения
-    initializeApp()
+    const result = await initializeApp()
+    if (result?.user) {
+        userStore.setUser(result.user as User)
+        router.push({ name: 'News' })
+        console.log('Data in initialization:')
+    }
 })
 
 // Переключение темы

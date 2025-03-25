@@ -27,7 +27,7 @@ interface RequestInit {
     headers: Record<string, string>
     body?: string
 }
-const BASE_URL = 'http://127.0.0.1:8088'
+const BASE_URL = 'http://127.0.0.1:5174'
 let webSocketClient: WebsocketBase | null = null
 
 const api: ApiMethods = {

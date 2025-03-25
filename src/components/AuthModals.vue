@@ -67,16 +67,18 @@ const handleLogin = async () => {
     if (!isValid) return
 
     try {
-        const data = await api.http('POST', '/auth/login', {
+        const {data, error } = await api.http('POST', '/api/auth/login', {
             email: email.value,
             password: password.value,
         })
 
-        if (data && data.status === 'success' && data.user) {
+        if (error) {
+            loginError.value = error.message || 'Authorization error'
+        } else if (data && data.status === 'success' && data.user) {
             userStore.setUser(data.user as User)
             emit('close')
             console.log('user', userStore.user)
-            router.push({ name: 'Chat' })
+            router.push({ name: 'News' })
         } else {
             loginError.value = (data?.message as string) || 'Authorization error'
         }
@@ -137,7 +139,7 @@ const handleRegister = async () => {
 
     if (!isValid) return
 
-    const { data, error }  = await api.http('POST', '/auth/register', {
+    const { data, error }  = await api.http('POST', '/api/auth/register', {
         name: name.value,
         email: email.value,
         password: password.value,
@@ -155,7 +157,7 @@ const handleRegister = async () => {
     }else if (data && data.status === 'success' && data.user) {
         userStore.setUser(data.user as User)
         emit('close')
-        router.push({ name: 'Chat' })
+        router.push({ name: 'News' })
     } else if(data && data.status === 'error'){
         registerError.value = (data?.message as string) || 'Registration error'
     }else{

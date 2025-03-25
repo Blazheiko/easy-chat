@@ -10,15 +10,23 @@ export function useAppInitialization() {
      */
     async function initializeApp() {
         try {
-            const data = await api.http('GET', '/api/initialize')
+            const { data, error } = await api.http('GET', '/api/init')
+            console.log(data)
 
-            if (data) {
-                console.log('Данные успешно инициализированы', data)
+            if (error) {
+                console.error('Error in initialization:', error)
+                return null
+            }
+            if (data && data.status === 'ok' && data.user) {
                 return data
             }
+
+
         } catch (error) {
-            console.error('Произошла ошибка при инициализации:', error)
+            console.error('Error in initialization:', error)
         }
+
+        return null
     }
 
     return {
