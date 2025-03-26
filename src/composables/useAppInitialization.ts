@@ -1,4 +1,5 @@
 import api from '@/utils/api'
+import WebsocketBase from '@/utils/websocket-base'
 
 /**
  * Композабл для инициализации данных приложения
@@ -13,15 +14,16 @@ export function useAppInitialization() {
             const { data, error } = await api.http('GET', '/api/init')
             console.log(data)
 
-            if (error) {
+            if (error ) {
                 console.error('Error in initialization:', error)
                 return null
-            }
-            if (data && data.status === 'ok' && data.user) {
+            } else if (data && data.status === 'ok' && data.user && data.wsUrl) {
+                const websocketBase = new WebsocketBase(data.wsUrl as string)
+                api.setWebSocketClient(websocketBase)
                 return data
+            } else {
+                return null
             }
-
-
         } catch (error) {
             console.error('Error in initialization:', error)
         }

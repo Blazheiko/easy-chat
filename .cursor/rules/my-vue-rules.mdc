@@ -4,7 +4,7 @@ globs:
 alwaysApply: true
 ---
 
-      You have extensive expertise in Vue 3, Nuxt 3, TypeScript, Node.js, Vite, Vue Router, Pinia, VueUse, Nuxt UI, and Tailwind CSS. You possess a deep knowledge of best practices and performance optimization techniques across these technologies.
+      You have extensive expertise in Vue 3, TypeScript, Node.js, Vite, Vue Router, Pinia, VueUse, and Tailwind CSS. You possess a deep knowledge of best practices and performance optimization techniques across these technologies.
 
       Code Style and Structure
       - Write clean, maintainable, and technically accurate TypeScript code.
@@ -12,16 +12,6 @@ alwaysApply: true
       - Emphasize iteration and modularization to follow DRY principles and minimize code duplication.
       - Prefer Composition API <script setup> style.
       - Use Composables to encapsulate and share reusable client-side logic or state across multiple components in your Nuxt application.
-
-      Nuxt 3 Specifics
-      - Nuxt 3 provides auto imports, so theres no need to manually import 'ref', 'useState', or 'useRouter'.
-      - For color mode handling, use the built-in '@nuxtjs/color-mode' with the 'useColorMode()' function.
-      - Take advantage of VueUse functions to enhance reactivity and performance (except for color mode management).
-      - Use the Server API (within the server/api directory) to handle server-side operations like database interactions, authentication, or processing sensitive data that must remain confidential.
-      - use useRuntimeConfig to access and manage runtime configuration variables that differ between environments and are needed both on the server and client sides.
-      - For SEO use useHead and useSeoMeta.
-      - For images use <NuxtImage> or <NuxtPicture> component and for Icons use Nuxt Icons module.
-      - use app.config.ts for app theme configuration.
 
       Fetching Data
       1. Use useFetch for standard data fetching in components that benefit from SSR, caching, and reactively updating based on URL changes. 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+// import { TransitionGroup } from 'vue'
 
 interface Contact {
     name: string
@@ -47,6 +48,14 @@ const showNews = ref(false)
 const unreadNewsCount = ref(3)
 const emit = defineEmits(['toggle-contacts', 'toggle-news'])
 
+// Функция для обработки клика по контакту
+const handleContactClick = (contact: Contact) => {
+    // Сбрасываем активное состояние у всех контактов
+    contacts.value.forEach((c) => (c.isActive = false))
+    // Устанавливаем активное состояние для выбранного контакта
+    contact.isActive = true
+}
+
 // Функция для переключения отображения новостей
 const toggleNews = () => {
     showNews.value = !showNews.value
@@ -56,13 +65,23 @@ const toggleNews = () => {
     emit('toggle-news', showNews.value)
 }
 
-// Фильтрация контактов по поисковому запросу
+// Фильтрация и сортировка контактов
 const filteredContacts = () => {
-    if (!searchQuery.value) return contacts.value
+    let filtered = contacts.value
 
-    return contacts.value.filter((contact) =>
-        contact.name.toLowerCase().includes(searchQuery.value.toLowerCase()),
-    )
+    // Применяем фильтр по поисковому запросу
+    if (searchQuery.value) {
+        filtered = filtered.filter((contact) =>
+            contact.name.toLowerCase().includes(searchQuery.value.toLowerCase()),
+        )
+    }
+
+    // Сортируем контакты: активный контакт всегда сверху
+    return filtered.sort((a, b) => {
+        if (a.isActive && !b.isActive) return -1
+        if (!a.isActive && b.isActive) return 1
+        return 0
+    })
 }
 
 // Получение инициалов пользователя из имени
@@ -133,30 +152,33 @@ const getInitials = (name: string) => {
         </div>
 
         <div class="contacts-list-container">
-            <div
-                v-for="contact in filteredContacts()"
-                :key="contact.name"
-                class="contact"
-                :class="{ active: contact.isActive }"
-            >
-                <div class="contact-avatar">
-                    <div class="avatar">{{ getInitials(contact.name) }}</div>
-                    <div class="status-indicator" :class="{ online: contact.isOnline }"></div>
-                </div>
+            <TransitionGroup name="contact-list" tag="div">
+                <div
+                    v-for="contact in filteredContacts()"
+                    :key="contact.name"
+                    class="contact"
+                    :class="{ active: contact.isActive }"
+                    @click="handleContactClick(contact)"
+                >
+                    <div class="contact-avatar">
+                        <div class="avatar">{{ getInitials(contact.name) }}</div>
+                        <div class="status-indicator" :class="{ online: contact.isOnline }"></div>
+                    </div>
 
-                <div class="contact-details">
-                    <div class="contact-header">
-                        <span class="contact-name">{{ contact.name }}</span>
-                        <span class="message-time">{{ contact.lastMessageTime }}</span>
-                    </div>
-                    <div class="contact-message">
-                        <p class="last-message">{{ contact.lastMessage }}</p>
-                        <span v-if="contact.unreadCount" class="unread-count">
-                            {{ contact.unreadCount }}
-                        </span>
+                    <div class="contact-details">
+                        <div class="contact-header">
+                            <span class="contact-name">{{ contact.name }}</span>
+                            <span class="message-time">{{ contact.lastMessageTime }}</span>
+                        </div>
+                        <div class="contact-message">
+                            <p class="last-message">{{ contact.lastMessage }}</p>
+                            <span v-if="contact.unreadCount" class="unread-count">
+                                {{ contact.unreadCount }}
+                            </span>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </TransitionGroup>
 
             <div v-if="filteredContacts().length === 0" class="no-results">
                 No contacts found for "{{ searchQuery }}"
@@ -267,6 +289,7 @@ const getInitials = (name: string) => {
 }
 
 .contacts-list-container {
+    position: relative;
     flex: 1;
     overflow-y: auto;
     scrollbar-width: thin;
@@ -580,5 +603,22 @@ const getInitials = (name: string) => {
         height: 18px;
         padding: 1px 5px;
     }
+}
+
+/* Анимации для списка контактов */
+.contact-list-move,
+.contact-list-enter-active,
+.contact-list-leave-active {
+    transition: all 0.3s ease;
+}
+
+.contact-list-enter-from,
+.contact-list-leave-to {
+    opacity: 0;
+    transform: translateX(30px);
+}
+
+.contact-list-leave-active {
+    position: absolute;
 }
 </style>
