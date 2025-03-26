@@ -1,59 +1,35 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useContactsStore } from '@/stores/contacts'
+import type { Contact } from '@/stores/contacts'
 // import { TransitionGroup } from 'vue'
 
-interface Contact {
-    name: string
-    unreadCount?: number
-    isActive?: boolean
-    isOnline?: boolean
-    avatar?: string
-    lastMessage?: string
-    lastMessageTime?: string
-}
-
-const contacts = ref<Contact[]>([
-    {
-        name: 'John Smith',
-        unreadCount: 2,
-        isActive: true,
-        isOnline: true,
-        lastMessage: 'Perfect, see you then!',
-        lastMessageTime: '10:30 AM',
-    },
-    {
-        name: 'Mary Johnson',
-        unreadCount: 5,
-        isOnline: true,
-        lastMessage: 'I just sent you the files you requested',
-        lastMessageTime: 'Yesterday',
-    },
-    {
-        name: 'Alex Wilson',
-        isOnline: false,
-        lastMessage: 'When are you planning to finish the project?',
-        lastMessageTime: '2 days ago',
-    },
-    {
-        name: 'Helen Brown',
-        unreadCount: 1,
-        isOnline: false,
-        lastMessage: 'Thank you for your help!',
-        lastMessageTime: 'Monday',
-    },
-])
-
+const contactsStore = useContactsStore()
 const searchQuery = ref('')
 const showNews = ref(false)
 const unreadNewsCount = ref(3)
 const emit = defineEmits(['toggle-contacts', 'toggle-news'])
+const editInput = ref<HTMLInputElement | null>(null)
+
+// Добавляем состояние для контекстного меню
+const contextMenu = ref({
+    show: false,
+    x: 0,
+    y: 0,
+    contactIndex: -1,
+    isEditing: false,
+    editName: '',
+})
+
+// Добавляем состояние для редактирования контакта
+const editingContact = ref({
+    index: -1,
+    name: '',
+})
 
 // Функция для обработки клика по контакту
 const handleContactClick = (contact: Contact) => {
-    // Сбрасываем активное состояние у всех контактов
-    contacts.value.forEach((c) => (c.isActive = false))
-    // Устанавливаем активное состояние для выбранного контакта
-    contact.isActive = true
+    contactsStore.setActiveContact(contact.name)
 }
 
 // Функция для переключения отображения новостей
@@ -67,7 +43,7 @@ const toggleNews = () => {
 
 // Фильтрация и сортировка контактов
 const filteredContacts = () => {
-    let filtered = contacts.value
+    let filtered = contactsStore.contacts
 
     // Применяем фильтр по поисковому запросу
     if (searchQuery.value) {
@@ -92,6 +68,88 @@ const getInitials = (name: string) => {
         .join('')
         .toUpperCase()
 }
+
+// Функции для работы с контекстным меню
+const showContextMenu = (event: MouseEvent, index: number, name: string) => {
+    event.preventDefault()
+    contextMenu.value = {
+        show: true,
+        x: event.clientX,
+        y: event.clientY,
+        contactIndex: index,
+        isEditing: false,
+        editName: name,
+    }
+}
+
+const hideContextMenu = () => {
+    contextMenu.value.show = false
+    contextMenu.value.contactIndex = -1
+    contextMenu.value.isEditing = false
+    contextMenu.value.editName = ''
+}
+
+const startEditing = () => {
+    contextMenu.value.isEditing = true
+    // Добавляем небольшую задержку, чтобы DOM обновился
+    setTimeout(() => {
+        editInput.value?.focus()
+        editInput.value?.select() // Выделяем весь текст
+    }, 0)
+}
+
+const saveEdit = () => {
+    if (contextMenu.value.contactIndex !== -1 && contextMenu.value.editName.trim()) {
+        contactsStore.updateContact(contextMenu.value.contactIndex, {
+            name: contextMenu.value.editName,
+        })
+        hideContextMenu()
+    }
+}
+
+const cancelEdit = () => {
+    hideContextMenu()
+}
+
+const deleteContact = () => {
+    if (contextMenu.value.contactIndex !== -1) {
+        contactsStore.deleteContact(contextMenu.value.contactIndex)
+        hideContextMenu()
+    }
+}
+
+// Функции для работы с редактированием контакта
+const startContactEdit = (index: number, name: string) => {
+    editingContact.value = {
+        index,
+        name,
+    }
+}
+
+const saveContactEdit = () => {
+    if (editingContact.value.index !== -1 && editingContact.value.name.trim()) {
+        contactsStore.updateContact(editingContact.value.index, {
+            name: editingContact.value.name,
+        })
+        editingContact.value.index = -1
+        editingContact.value.name = ''
+    }
+}
+
+const cancelContactEdit = () => {
+    editingContact.value.index = -1
+    editingContact.value.name = ''
+}
+
+onMounted(() => {
+    // Добавляем обработчик клика вне контекстного меню
+    document.addEventListener('click', hideContextMenu)
+})
+
+onUnmounted(() => {
+    // Удаляем обработчик клика
+    document.removeEventListener('click', hideContextMenu)
+})
 </script>
 
 <template>
@@ -154,11 +212,12 @@ const getInitials = (name: string) => {
         <div class="contacts-list-container">
             <TransitionGroup name="contact-list" tag="div">
                 <div
-                    v-for="contact in filteredContacts()"
+                    v-for="(contact, index) in filteredContacts()"
                     :key="contact.name"
                     class="contact"
                     :class="{ active: contact.isActive }"
                     @click="handleContactClick(contact)"
+                    @contextmenu="showContextMenu($event, index, contact.name)"
                 >
                     <div class="contact-avatar">
                         <div class="avatar">{{ getInitials(contact.name) }}</div>
@@ -182,6 +241,49 @@ const getInitials = (name: string) => {
 
             <div v-if="filteredContacts().length === 0" class="no-results">
                 No contacts found for "{{ searchQuery }}"
+            </div>
+        </div>
+
+        <!-- Контекстное меню -->
+        <div
+            v-if="contextMenu.show"
+            class="context-menu"
+            :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+            @click.stop
+        >
+            <div v-if="contextMenu.isEditing" class="edit-mode">
+                <input
+                    v-model="contextMenu.editName"
+                    type="text"
+                    class="edit-input"
+                    @keyup.enter="saveEdit"
+                    @keyup.esc="cancelEdit"
+                    ref="editInput"
+                />
+                <div class="edit-actions">
+                    <button @click="saveEdit" class="edit-button save">Save</button>
+                    <button @click="cancelEdit" class="edit-button cancel">Cancel</button>
+                </div>
+            </div>
+            <div v-else class="menu-items">
+                <button @click.stop="startEditing" class="menu-item">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M3 17.25V21H6.75L17.81 9.94L14.06 6.19L3 17.25ZM20.71 7.05C21.1 6.66 21.1 6.02 20.71 5.63L18.37 3.29C17.98 2.9 17.34 2.9 16.95 3.29L15.66 4.58L19.42 8.34L20.71 7.05Z"
+                            fill="currentColor"
+                        />
+                    </svg>
+                    Edit
+                </button>
+                <button @click.stop="deleteContact" class="menu-item delete">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+                            fill="currentColor"
+                        />
+                    </svg>
+                    Delete
+                </button>
             </div>
         </div>
     </div>
@@ -620,5 +722,170 @@ const getInitials = (name: string) => {
 
 .contact-list-leave-active {
     position: absolute;
+}
+
+.contact-edit-mode {
+    flex: 1;
+    margin-right: 8px;
+}
+
+.contact-edit-input {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 15px;
+    background-color: white;
+    color: var(--text-color);
+}
+
+.dark-theme .contact-edit-input {
+    background-color: #333;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+.contact-edit-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.1);
+}
+
+.dark-theme .contact-edit-input:focus {
+    box-shadow: 0 0 0 2px rgba(100, 181, 246, 0.2);
+}
+
+.context-menu {
+    position: fixed;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 8px;
+    z-index: 1000;
+    min-width: 150px;
+    user-select: none;
+}
+
+.dark-theme .context-menu {
+    background-color: #2a2a2a;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.menu-items {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: none;
+    background: none;
+    color: var(--text-color);
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.menu-item:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.dark-theme .menu-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.menu-item svg {
+    width: 16px;
+    height: 16px;
+}
+
+.menu-item.delete {
+    color: #dc3545;
+}
+
+.menu-item.delete:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+.edit-mode {
+    padding: 8px;
+}
+
+.edit-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    background-color: white;
+    color: var(--text-color);
+    outline: none;
+}
+
+.dark-theme .edit-input {
+    background-color: #333;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+.edit-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.1);
+}
+
+.dark-theme .edit-input:focus {
+    box-shadow: 0 0 0 2px rgba(100, 181, 246, 0.2);
+}
+
+.edit-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.edit-button {
+    flex: 1;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.edit-button.save {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.edit-button.save:hover {
+    background-color: var(--accent-color);
+}
+
+.edit-button.cancel {
+    background-color: #e9ecef;
+    color: #6c757d;
+}
+
+.dark-theme .edit-button.cancel {
+    background-color: #444;
+    color: #adb5bd;
+}
+
+.edit-button.cancel:hover {
+    background-color: #dee2e6;
+}
+
+.dark-theme .edit-button.cancel:hover {
+    background-color: #555;
+}
+
+.contact {
+    cursor: pointer;
 }
 </style>

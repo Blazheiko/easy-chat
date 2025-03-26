@@ -1,35 +1,31 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import MenuButton from '@/components/MenuButton.vue'
-
-interface Message {
-    text: string
-    time: string
-    isSent: boolean
-    status?: 'sent' | 'delivered' | 'read'
-    date?: string
-}
+import { useMessagesStore } from '@/stores/messages'
 
 // Тип звонка
 type CallType = 'video' | 'audio' | null
 
-const messages = ref<Message[]>([
-    { text: 'Hi! How are you?', time: '10:30 AM', isSent: false, date: 'Today' },
-    { text: "Hello! I'm fine, thanks!", time: '10:31 AM', isSent: true, status: 'read' },
-    {
-        text: 'Would you like to grab lunch tomorrow?',
-        time: '3:45 PM',
-        isSent: false,
-        date: 'Yesterday',
-    },
-    { text: 'Sure, that sounds great!', time: '3:47 PM', isSent: true, status: 'read' },
-    { text: "Let's meet at the usual place?", time: '3:47 PM', isSent: true, status: 'delivered' },
-    { text: 'Perfect, see you then!', time: '3:50 PM', isSent: false },
-])
-
+const messagesStore = useMessagesStore()
 const newMessage = ref('')
 const isTyping = ref(false)
 const messageContainerRef = ref(null)
+
+// Добавляем состояние для контекстного меню
+const contextMenu = ref({
+    show: false,
+    x: 0,
+    y: 0,
+    messageIndex: -1,
+    isEditing: false,
+    editText: '',
+})
+
+// Добавляем состояние для редактирования сообщения
+const editingMessage = ref({
+    index: -1,
+    text: '',
+})
 
 // Добавляем состояние для управления модальным окном и типом звонка
 const isCallActive = ref(false)
@@ -45,7 +41,7 @@ const localStream = ref<MediaStream | null>(null)
 
 const sendMessage = () => {
     if (newMessage.value.trim()) {
-        messages.value.push({
+        messagesStore.addMessage({
             text: newMessage.value,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             isSent: true,
@@ -91,7 +87,7 @@ const randomMessages = [
 
 const receiveRandomMessage = () => {
     const randomIndex = Math.floor(Math.random() * randomMessages.length)
-    messages.value.push({
+    messagesStore.addMessage({
         text: randomMessages[randomIndex],
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         isSent: false,
@@ -193,9 +189,74 @@ const toggleMute = () => {
     }
 }
 
+// Функции для работы с контекстным меню
+const showContextMenu = (event: MouseEvent, index: number, text: string) => {
+    event.preventDefault()
+    contextMenu.value = {
+        show: true,
+        x: event.clientX,
+        y: event.clientY,
+        messageIndex: index,
+        isEditing: false,
+        editText: text,
+    }
+}
+
+const hideContextMenu = () => {
+    contextMenu.value.show = false
+    contextMenu.value.messageIndex = -1
+}
+
+const startEditing = () => {
+    contextMenu.value.isEditing = true
+}
+
+const saveEdit = () => {
+    if (contextMenu.value.messageIndex !== -1 && contextMenu.value.editText.trim()) {
+        messagesStore.updateMessage(contextMenu.value.messageIndex, contextMenu.value.editText)
+        contextMenu.value.isEditing = false
+    }
+}
+
+const cancelEdit = () => {
+    contextMenu.value.isEditing = false
+    contextMenu.value.editText = ''
+}
+
+const deleteMessage = () => {
+    if (contextMenu.value.messageIndex !== -1) {
+        messagesStore.deleteMessage(contextMenu.value.messageIndex)
+        hideContextMenu()
+    }
+}
+
+// Функции для работы с редактированием сообщения
+const startMessageEdit = (index: number, text: string) => {
+    editingMessage.value = {
+        index,
+        text,
+    }
+}
+
+const saveMessageEdit = () => {
+    if (editingMessage.value.index !== -1 && editingMessage.value.text.trim()) {
+        messagesStore.updateMessage(editingMessage.value.index, editingMessage.value.text)
+        editingMessage.value.index = -1
+        editingMessage.value.text = ''
+    }
+}
+
+const cancelMessageEdit = () => {
+    editingMessage.value.index = -1
+    editingMessage.value.text = ''
+}
+
 onMounted(() => {
     // Прокрутка к последнему сообщению при загрузке
     setTimeout(scrollToBottom, 100)
+
+    // Добавляем обработчик клика вне контекстного меню
+    document.addEventListener('click', hideContextMenu)
 })
 
 // Очистка ресурсов при размонтировании компонента
@@ -207,6 +268,9 @@ onUnmounted(() => {
     if (localStream.value) {
         localStream.value.getTracks().forEach((track) => track.stop())
     }
+
+    // Удаляем обработчик клика
+    document.removeEventListener('click', hideContextMenu)
 })
 </script>
 
@@ -224,78 +288,109 @@ onUnmounted(() => {
             <h2>John Smith</h2>
 
             <div class="header-buttons">
-                <!-- <button class="news-button" @click="goToNews">
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        width="24"
-                        height="24"
-                        fill="currentColor"
-                    >
-                        <path
-                            d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM5 15h14v-6H5v6zm2-4h10v2H7v-2z"
-                        />
-                    </svg>
-                    <span>News</span>
-                </button> -->
                 <MenuButton />
             </div>
         </div>
 
         <div class="messages-container">
             <div class="messages" ref="messageContainerRef">
-                <template v-for="(message, index) in messages" :key="index">
+                <template v-for="(message, index) in messagesStore.messages" :key="index">
                     <div v-if="message.date" class="date-divider">
                         <span>{{ message.date }}</span>
                     </div>
-                    <div :class="['message', message.isSent ? 'sent' : 'received']">
-                        {{ message.text }}
-                        <div class="message-footer">
-                            <span>{{ message.time }}</span>
-                            <span
-                                v-if="message.isSent"
-                                class="message-status"
-                                :class="message.status"
-                            >
-                                <svg
-                                    v-if="message.status === 'read'"
-                                    viewBox="0 0 24 24"
-                                    xmlns="http://www.w3.org/2000/svg"
+                    <div
+                        :class="['message', message.isSent ? 'sent' : 'received']"
+                        @contextmenu="showContextMenu($event, index, message.text)"
+                        @dblclick="startMessageEdit(index, message.text)"
+                    >
+                        <div v-if="editingMessage.index === index" class="message-edit-mode">
+                            <textarea
+                                v-model="editingMessage.text"
+                                class="message-edit-input"
+                                @keyup.enter.exact="saveMessageEdit"
+                                @keyup.esc="cancelMessageEdit"
+                                @keydown.enter.shift.exact.prevent="editingMessage.text += '\n'"
+                                ref="editTextarea"
+                            ></textarea>
+                            <div class="message-edit-actions">
+                                <button @click="saveMessageEdit" class="message-edit-button save">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path
+                                            d="M9 16.17L4.83 12l-1.42 1.41L9 19L21 7l-1.41-1.41L9 16.17z"
+                                            fill="currentColor"
+                                        />
+                                    </svg>
+                                </button>
+                                <button
+                                    @click="cancelMessageEdit"
+                                    class="message-edit-button cancel"
                                 >
-                                    <path
-                                        d="M18 7L9.429 15.571L6 12.143"
-                                        stroke="currentColor"
+                                    <svg
+                                        viewBox="0 0 24 24"
                                         fill="none"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    />
-                                    <path
-                                        d="M18 7L9.429 15.571L6 12.143"
-                                        stroke="currentColor"
-                                        fill="none"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        transform="translate(4 0)"
-                                    />
-                                </svg>
-                                <svg
-                                    v-else-if="message.status === 'delivered'"
-                                    viewBox="0 0 24 24"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                >
-                                    <path
-                                        d="M18 7L9.429 15.571L6 12.143"
-                                        stroke="currentColor"
-                                        fill="none"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    />
-                                </svg>
-                            </span>
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path
+                                            d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z"
+                                            fill="currentColor"
+                                        />
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
+                        <template v-else>
+                            {{ message.text }}
+                            <div class="message-footer">
+                                <span>{{ message.time }}</span>
+                                <span
+                                    v-if="message.isSent"
+                                    class="message-status"
+                                    :class="message.status"
+                                >
+                                    <svg
+                                        v-if="message.status === 'read'"
+                                        viewBox="0 0 24 24"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path
+                                            d="M18 7L9.429 15.571L6 12.143"
+                                            stroke="currentColor"
+                                            fill="none"
+                                            stroke-width="2"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                        />
+                                        <path
+                                            d="M18 7L9.429 15.571L6 12.143"
+                                            stroke="currentColor"
+                                            fill="none"
+                                            stroke-width="2"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            transform="translate(4 0)"
+                                        />
+                                    </svg>
+                                    <svg
+                                        v-else-if="message.status === 'delivered'"
+                                        viewBox="0 0 24 24"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <path
+                                            d="M18 7L9.429 15.571L6 12.143"
+                                            stroke="currentColor"
+                                            fill="none"
+                                            stroke-width="2"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                        />
+                                    </svg>
+                                </span>
+                            </div>
+                        </template>
                     </div>
                 </template>
             </div>
@@ -460,6 +555,47 @@ onUnmounted(() => {
                 </div>
             </div>
         </div>
+
+        <!-- Контекстное меню -->
+        <div
+            v-if="contextMenu.show"
+            class="context-menu"
+            :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+        >
+            <div v-if="contextMenu.isEditing" class="edit-mode">
+                <input
+                    v-model="contextMenu.editText"
+                    type="text"
+                    class="edit-input"
+                    @keyup.enter="saveEdit"
+                    @keyup.esc="cancelEdit"
+                />
+                <div class="edit-actions">
+                    <button @click="saveEdit" class="edit-button save">Save</button>
+                    <button @click="cancelEdit" class="edit-button cancel">Cancel</button>
+                </div>
+            </div>
+            <div v-else class="menu-items">
+                <button @click="startEditing" class="menu-item">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M3 17.25V21H6.75L17.81 9.94L14.06 6.19L3 17.25ZM20.71 7.05C21.1 6.66 21.1 6.02 20.71 5.63L18.37 3.29C17.98 2.9 17.34 2.9 16.95 3.29L15.66 4.58L19.42 8.34L20.71 7.05Z"
+                            fill="currentColor"
+                        />
+                    </svg>
+                    Edit
+                </button>
+                <button @click="deleteMessage" class="menu-item delete">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+                            fill="currentColor"
+                        />
+                    </svg>
+                    Delete
+                </button>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -618,6 +754,7 @@ onUnmounted(() => {
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     line-height: 1.5;
     font-size: 15px;
+    cursor: context-menu;
 }
 
 .message.sent {
@@ -1274,5 +1411,225 @@ onUnmounted(() => {
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 1;
+}
+
+.context-menu {
+    position: fixed;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 8px;
+    z-index: 1000;
+    min-width: 150px;
+}
+
+.dark-theme .context-menu {
+    background-color: #2a2a2a;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.menu-items {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: none;
+    background: none;
+    color: var(--text-color);
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.menu-item:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.dark-theme .menu-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.menu-item svg {
+    width: 16px;
+    height: 16px;
+}
+
+.menu-item.delete {
+    color: #dc3545;
+}
+
+.menu-item.delete:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+.edit-mode {
+    padding: 8px;
+}
+
+.edit-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    background-color: white;
+    color: var(--text-color);
+}
+
+.dark-theme .edit-input {
+    background-color: #333;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+.edit-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.edit-button {
+    flex: 1;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.edit-button.save {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.edit-button.save:hover {
+    background-color: var(--accent-color);
+}
+
+.edit-button.cancel {
+    background-color: #e9ecef;
+    color: #6c757d;
+}
+
+.dark-theme .edit-button.cancel {
+    background-color: #444;
+    color: #adb5bd;
+}
+
+.edit-button.cancel:hover {
+    background-color: #dee2e6;
+}
+
+.dark-theme .edit-button.cancel:hover {
+    background-color: #555;
+}
+
+.message-edit-mode {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.message-edit-input {
+    width: 100%;
+    min-height: 60px;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 15px;
+    line-height: 1.5;
+    resize: none;
+    background-color: white;
+    color: var(--text-color);
+    font-family: inherit;
+}
+
+.dark-theme .message-edit-input {
+    background-color: #333;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+.message-edit-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.1);
+}
+
+.dark-theme .message-edit-input:focus {
+    box-shadow: 0 0 0 2px rgba(100, 181, 246, 0.2);
+}
+
+.message-edit-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.message-edit-button {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.message-edit-button svg {
+    width: 20px;
+    height: 20px;
+}
+
+.message-edit-button.save {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.message-edit-button.save:hover {
+    background-color: var(--accent-color);
+    transform: translateY(-1px);
+}
+
+.message-edit-button.cancel {
+    background-color: #e9ecef;
+    color: #6c757d;
+}
+
+.dark-theme .message-edit-button.cancel {
+    background-color: #444;
+    color: #adb5bd;
+}
+
+.message-edit-button.cancel:hover {
+    background-color: #dee2e6;
+    transform: translateY(-1px);
+}
+
+.dark-theme .message-edit-button.cancel:hover {
+    background-color: #555;
+}
+
+.message {
+    cursor: context-menu;
+}
+
+.message.sent {
+    cursor: context-menu;
+}
+
+.message.received {
+    cursor: context-menu;
 }
 </style>

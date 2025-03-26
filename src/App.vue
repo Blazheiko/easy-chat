@@ -6,6 +6,8 @@ import { useAppInitialization } from '@/composables/useAppInitialization'
 import { useUserStore } from '@/stores/user'
 import { useRouter, useRoute } from 'vue-router'
 import type { User } from '@/stores/user'
+import { useContactsStore } from '@/stores/contacts'
+import { useMessagesStore } from '@/stores/messages'
 
 const router = useRouter()
 const route = useRoute()
@@ -14,6 +16,8 @@ const isLoading = ref(true)
 const windowWidth = ref(window.innerWidth)
 
 const stateStore = useStateStore()
+const contactsStore = useContactsStore()
+const messagesStore = useMessagesStore()
 const { initializeApp } = useAppInitialization()
 
 // Вычисляем, нужно ли показывать кнопку переключения темы
@@ -49,6 +53,13 @@ onMounted(async () => {
         router.push({ name: 'News' })
         console.log('Data in initialization:')
     }
+
+    // Инициализация контактов
+    contactsStore.resetContacts()
+
+    // Инициализация сообщений
+    messagesStore.resetMessages()
+
     isLoading.value = false
 })
 

@@ -1,64 +1,127 @@
-# easy-chat
+# Easy Chat - Функционал приложения
 
-This template should help get you started developing with Vue 3 in Vite.
+## Общее описание
 
-## Recommended IDE Setup
+Easy Chat - это современное веб-приложение для обмена сообщениями, построенное с использованием Vue 3, TypeScript и Pinia. Приложение поддерживает как светлую, так и темную тему, и адаптировано для мобильных устройств.
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## Основные функции
 
-## Type Support for `.vue` Imports in TS
+### 1. Управление контактами
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+- **Список контактов**
 
-## Customize configuration
+    - Отображение списка всех контактов
+    - Сортировка контактов (активный контакт всегда сверху)
+    - Поиск контактов по имени
+    - Отображение статуса онлайн/оффлайн
+    - Отображение инициалов контакта в аватаре
+    - Количество непрочитанных сообщений
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+- **Управление контактами**
+    - Редактирование имени контакта через контекстное меню
+    - Удаление контакта через контекстное меню
+    - Выбор активного контакта для чата
 
-## Project Setup
+### 2. Чат
 
-```sh
-npm install
-```
+- **Отправка сообщений**
 
-### Compile and Hot-Reload for Development
+    - Отправка текстовых сообщений
+    - Поддержка многострочных сообщений (Shift + Enter)
+    - Индикация статуса отправки сообщения
+    - Автоматическая прокрутка к последнему сообщению
 
-```sh
-npm run dev
-```
+- **Управление сообщениями**
+    - Редактирование сообщений через контекстное меню
+    - Удаление сообщений через контекстное меню
+    - Отображение времени отправки сообщений
+    - Разделение сообщений по датам
 
-### Type-Check, Compile and Minify for Production
+### 3. Новости
 
-```sh
-npm run build
-```
+- **Лента новостей**
+    - Отображение списка новостей
+    - Счетчик непрочитанных новостей
+    - Переключение между чатом и новостями
+    - Автоматическое обновление статуса прочтения
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+### 4. Интерфейс
 
-```sh
-npm run test:unit
-```
+- **Адаптивный дизайн**
 
-### Run End-to-End Tests with [Playwright](https://playwright.dev)
+    - Поддержка мобильных устройств
+    - Адаптивная верстка для разных размеров экрана
+    - Скрытие/отображение списка контактов на мобильных устройствах
 
-```sh
-# Install browsers for the first run
-npx playwright install
+- **Темы оформления**
+    - Светлая тема
+    - Темная тема
+    - Автоматическое переключение темы
+    - Плавные анимации переходов
 
-# When testing on CI, must build the project first
-npm run build
+### 5. Управление состоянием
 
-# Runs the end-to-end tests
-npm run test:e2e
-# Runs the tests only on Chromium
-npm run test:e2e -- --project=chromium
-# Runs the tests of a specific file
-npm run test:e2e -- tests/example.spec.ts
-# Runs the tests in debug mode
-npm run test:e2e -- --debug
-```
+- **Хранение данных**
+    - Использование Pinia для управления состоянием
+    - Хранение контактов
+    - Хранение сообщений
+    - Хранение новостей
 
-### Lint with [ESLint](https://eslint.org/)
+### 6. Анимации и эффекты
 
-```sh
-npm run lint
-```
+- **Визуальные эффекты**
+    - Анимации при добавлении/удалении контактов
+    - Анимации при отправке сообщений
+    - Плавные переходы между состояниями
+    - Эффекты при наведении и кликах
+
+## Технические особенности
+
+### 1. Компоненты
+
+- `ContactsList.vue` - список контактов
+- `ChatArea.vue` - область чата
+- `NewsFeed.vue` - лента новостей
+- `MessageInput.vue` - поле ввода сообщений
+
+### 2. Хранилище (Pinia)
+
+- `contacts.ts` - управление контактами
+- `messages.ts` - управление сообщениями
+- `news.ts` - управление новостями
+
+### 3. Типы данных
+
+- `Contact` - интерфейс контакта
+- `Message` - интерфейс сообщения
+- `News` - интерфейс новости
+
+### 4. Стилизация
+
+- Использование CSS переменных для тем
+- Адаптивные стили с использованием медиа-запросов
+- Поддержка темной темы
+- Анимации и переходы
+
+## Управление приложением
+
+### 1. Горячие клавиши
+
+- `Enter` - отправка сообщения
+- `Shift + Enter` - новая строка в сообщении
+- `Esc` - отмена редактирования/закрытие меню
+
+### 2. Контекстные меню
+
+- Правый клик на контакте:
+    - Редактировать
+    - Удалить
+- Правый клик на сообщении:
+    - Редактировать
+    - Удалить
+
+### 3. Мобильная версия
+
+- Свайп для открытия/закрытия списка контактов
+- Адаптивное отображение элементов интерфейса
+- Оптимизированная навигация
