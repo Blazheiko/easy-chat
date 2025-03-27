@@ -22,10 +22,10 @@ const contextMenu = ref({
 })
 
 // Добавляем состояние для редактирования контакта
-const editingContact = ref({
-    index: -1,
-    name: '',
-})
+// const editingContact = ref({
+//     index: -1,
+//     name: '',
+// })
 
 // Функция для обработки клика по контакту
 const handleContactClick = (contact: Contact) => {
@@ -119,27 +119,27 @@ const deleteContact = () => {
 }
 
 // Функции для работы с редактированием контакта
-const startContactEdit = (index: number, name: string) => {
-    editingContact.value = {
-        index,
-        name,
-    }
-}
+// const startContactEdit = (index: number, name: string) => {
+//     editingContact.value = {
+//         index,
+//         name,
+//     }
+// }
 
-const saveContactEdit = () => {
-    if (editingContact.value.index !== -1 && editingContact.value.name.trim()) {
-        contactsStore.updateContact(editingContact.value.index, {
-            name: editingContact.value.name,
-        })
-        editingContact.value.index = -1
-        editingContact.value.name = ''
-    }
-}
+// const saveContactEdit = () => {
+//     if (editingContact.value.index !== -1 && editingContact.value.name.trim()) {
+//         contactsStore.updateContact(editingContact.value.index, {
+//             name: editingContact.value.name,
+//         })
+//         editingContact.value.index = -1
+//         editingContact.value.name = ''
+//     }
+// }
 
-const cancelContactEdit = () => {
-    editingContact.value.index = -1
-    editingContact.value.name = ''
-}
+// const cancelContactEdit = () => {
+//     editingContact.value.index = -1
+//     editingContact.value.name = ''
+// }
 
 onMounted(() => {
     // Добавляем обработчик клика вне контекстного меню

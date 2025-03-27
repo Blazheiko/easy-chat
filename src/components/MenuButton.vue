@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import api from '@/utils/api'
 
 const router = useRouter()
 
@@ -40,9 +41,14 @@ const goToAccount = () => {
 }
 
 // Выход из аккаунта
-const logout = () => {
-    localStorage.removeItem('user')
-    router.push('/')
+const logout = async () => {
+    const { error, data } = await api.http('POST', '/api/auth/logout')
+    if (error) {
+        console.error(error)
+    } else {
+        console.log(data)
+        router.push('/')
+    }
 }
 </script>
 
