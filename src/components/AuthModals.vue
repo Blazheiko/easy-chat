@@ -19,7 +19,7 @@ const props = defineProps({
     },
 })
 
-const emit = defineEmits(['close', 'show-login', 'show-register'])
+const emit = defineEmits(['close', 'show-login', 'show-register', 'auth-success'])
 
 const email = ref('')
 const password = ref('')
@@ -67,7 +67,7 @@ const handleLogin = async () => {
     if (!isValid) return
 
     try {
-        const {data, error } = await api.http('POST', '/api/auth/login', {
+        const { data, error } = await api.http('POST', '/api/auth/login', {
             email: email.value,
             password: password.value,
         })
@@ -77,6 +77,7 @@ const handleLogin = async () => {
         } else if (data && data.status === 'success' && data.user) {
             userStore.setUser(data.user as User)
             emit('close')
+            emit('auth-success')
             console.log('user', userStore.user)
             router.push({ name: 'News' })
         } else {
@@ -139,28 +140,27 @@ const handleRegister = async () => {
 
     if (!isValid) return
 
-    const { data, error }  = await api.http('POST', '/api/auth/register', {
+    const { data, error } = await api.http('POST', '/api/auth/register', {
         name: name.value,
         email: email.value,
         password: password.value,
     })
 
     if (error) {
-
-      if (error.code === 422) {
-        console.log(data)
-        registerError.value = error.message
-      } else {
-        registerError.value = error.message || 'Server error. Please try again later.'
-      }
-
-    }else if (data && data.status === 'success' && data.user) {
+        if (error.code === 422) {
+            console.log(data)
+            registerError.value = error.message
+        } else {
+            registerError.value = error.message || 'Server error. Please try again later.'
+        }
+    } else if (data && data.status === 'success' && data.user) {
         userStore.setUser(data.user as User)
         emit('close')
+        emit('auth-success')
         router.push({ name: 'News' })
-    } else if(data && data.status === 'error'){
+    } else if (data && data.status === 'error') {
         registerError.value = (data?.message as string) || 'Registration error'
-    }else{
+    } else {
         registerError.value = 'Server error. Please try again later.'
     }
 }

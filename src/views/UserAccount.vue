@@ -10,16 +10,7 @@ defineOptions({
 
 const userStore = useUserStore()
 const stateStore = useStateStore()
-const user = ref(
-    userStore.user || {
-        id: 0,
-        name: '',
-        email: 'user@example.com',
-        joinDate: '01/01/2023',
-        avatar: '',
-        status: 'Online',
-    },
-)
+const user = ref(userStore.user)
 
 // Настройки и темы
 const darkMode = ref(stateStore.darkMode)

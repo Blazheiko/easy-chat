@@ -64,6 +64,10 @@ export const useContactsStore = defineStore('contacts', () => {
         }
     }
 
+    function addContact(contact: Contact) {
+        contacts.value.push(contact)
+    }
+
     function resetContacts() {
         contacts.value = [
             {
@@ -102,6 +106,7 @@ export const useContactsStore = defineStore('contacts', () => {
         setActiveContact,
         updateContact,
         deleteContact,
+        addContact,
         resetContacts,
     }
 })

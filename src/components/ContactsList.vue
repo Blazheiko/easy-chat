@@ -8,6 +8,17 @@ const contactsStore = useContactsStore()
 const searchQuery = ref('')
 const showNews = ref(false)
 const unreadNewsCount = ref(3)
+const showAddContactModal = ref(false)
+const newContact = ref({
+    name: '',
+    lastMessage: '',
+    lastMessageTime: '',
+    isOnline: false,
+    unreadCount: 0,
+    isActive: false,
+})
+const shareLink = ref('')
+const copySuccess = ref(false)
 const emit = defineEmits(['toggle-contacts', 'toggle-news'])
 const editInput = ref<HTMLInputElement | null>(null)
 
@@ -141,6 +152,46 @@ const deleteContact = () => {
 //     editingContact.value.name = ''
 // }
 
+const generateShareLink = () => {
+    // Генерируем уникальный идентификатор для ссылки
+    const uniqueId = Math.random().toString(36).substring(2, 20)
+    shareLink.value = `${window.location.origin}/join-chat/${uniqueId}`
+}
+
+const copyToClipboard = async () => {
+    try {
+        await navigator.clipboard.writeText(shareLink.value)
+        copySuccess.value = true
+        setTimeout(() => {
+            copySuccess.value = false
+        }, 2000)
+    } catch (err) {
+        console.error('Failed to copy text: ', err)
+    }
+}
+
+// const handleAddContact = () => {
+//     if (newContact.value.name.trim()) {
+//         contactsStore.addContact({
+//             ...newContact.value,
+//             lastMessageTime: new Date().toLocaleTimeString([], {
+//                 hour: '2-digit',
+//                 minute: '2-digit',
+//             }),
+//         })
+//         showAddContactModal.value = false
+//         newContact.value = {
+//             name: '',
+//             lastMessage: '',
+//             lastMessageTime: '',
+//             isOnline: false,
+//             unreadCount: 0,
+//             isActive: false,
+//         }
+//         shareLink.value = ''
+//     }
+// }
+
 onMounted(() => {
     // Добавляем обработчик клика вне контекстного меню
     document.addEventListener('click', hideContextMenu)
@@ -207,6 +258,12 @@ onUnmounted(() => {
                     placeholder="Search contacts"
                 />
             </div>
+            <button class="add-contact-button" @click="showAddContactModal = true">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor" />
+                </svg>
+                Add
+            </button>
         </div>
 
         <div class="contacts-list-container">
@@ -286,6 +343,84 @@ onUnmounted(() => {
                 </button>
             </div>
         </div>
+
+        <!-- Модальное окно добавления контакта -->
+        <div v-if="showAddContactModal" class="modal-overlay" @click="showAddContactModal = false">
+            <div class="modal-content" @click.stop>
+                <div class="modal-header">
+                    <h3>Add New Contact</h3>
+                    <button class="close-modal-button" @click="showAddContactModal = false">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z"
+                                fill="currentColor"
+                            />
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-form">
+                    <div class="form-group">
+                        <label for="contactName">Name</label>
+                        <input
+                            id="contactName"
+                            v-model="newContact.name"
+                            type="text"
+                            class="form-input"
+                            placeholder="Enter contact name"
+                            @keyup.enter="generateShareLink"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label>Share Link</label>
+                        <div class="share-link-container">
+                            <input
+                                v-model="shareLink"
+                                type="text"
+                                class="form-input share-link-input"
+                                readonly
+                                placeholder="Click Generate to create link"
+                            />
+                            <button
+                                class="copy-button"
+                                @click="copyToClipboard"
+                                :class="{ success: copySuccess }"
+                            >
+                                <svg
+                                    v-if="!copySuccess"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M16 1H4C3 1 2 2 2 3V17H4V3H16V1ZM19 5H8C7 5 6 6 6 7V21C6 22 7 23 8 23H19C20 23 21 22 21 21V7C21 6 20 5 19 5ZM19 21H8V7H19V21Z"
+                                        fill="currentColor"
+                                    />
+                                </svg>
+                                <svg
+                                    v-else
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M9 16.17L4.83 12L3.41 13.41L9 19L21 7L19.59 5.59L9 16.17Z"
+                                        fill="currentColor"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button class="cancel-button" @click="showAddContactModal = false">
+                            Cancel
+                        </button>
+                        <button class="save-button" @click="generateShareLink">
+                            Generate Link
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -350,6 +485,9 @@ onUnmounted(() => {
 .search-container {
     padding: 16px 20px;
     border-bottom: 1px solid var(--border-color);
+    display: flex;
+    gap: 12px;
+    align-items: center;
 }
 
 .search-input-wrapper {
@@ -388,6 +526,32 @@ onUnmounted(() => {
     border-color: var(--primary-color);
     background-color: #444;
     box-shadow: 0 0 0 3px rgba(100, 181, 246, 0.2);
+}
+
+.add-contact-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 16px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 70px;
+    justify-content: center;
+}
+
+.add-contact-button svg {
+    width: 16px;
+    height: 16px;
+}
+
+.add-contact-button:hover {
+    background-color: var(--accent-color);
 }
 
 .contacts-list-container {
@@ -674,6 +838,7 @@ onUnmounted(() => {
 
     .search-container {
         padding: 12px 16px;
+        flex-direction: column;
     }
 
     .contact {
@@ -704,6 +869,17 @@ onUnmounted(() => {
         min-width: 18px;
         height: 18px;
         padding: 1px 5px;
+    }
+
+    .add-contact-button {
+        width: auto;
+        min-width: 60px;
+        padding: 6px 10px;
+    }
+
+    .modal-content {
+        width: 95%;
+        padding: 20px;
     }
 }
 
@@ -887,5 +1063,216 @@ onUnmounted(() => {
 
 .contact {
     cursor: pointer;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: white;
+    border-radius: 12px;
+    padding: 24px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.dark-theme .modal-content {
+    background-color: #2a2a2a;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.modal-content h3 {
+    margin: 0 0 20px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.form-input {
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 14px;
+    background-color: white;
+    color: var(--text-color);
+    outline: none;
+}
+
+.dark-theme .form-input {
+    background-color: #333;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+.form-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.1);
+}
+
+.dark-theme .form-input:focus {
+    box-shadow: 0 0 0 2px rgba(100, 181, 246, 0.2);
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.cancel-button,
+.save-button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cancel-button {
+    background-color: #e9ecef;
+    color: #6c757d;
+}
+
+.dark-theme .cancel-button {
+    background-color: #444;
+    color: #adb5bd;
+}
+
+.save-button {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.cancel-button:hover {
+    background-color: #dee2e6;
+}
+
+.dark-theme .cancel-button:hover {
+    background-color: #555;
+}
+
+.save-button:hover {
+    background-color: var(--accent-color);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.close-modal-button {
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    color: var(--text-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    background-color: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.dark-theme .close-modal-button {
+    background-color: #2a2a2a;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.close-modal-button svg {
+    width: 20px;
+    height: 20px;
+}
+
+.close-modal-button:hover {
+    background-color: #f8f9fa;
+    transform: scale(1.1);
+}
+
+.dark-theme .close-modal-button:hover {
+    background-color: #333;
+}
+
+.share-link-container {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.share-link-input {
+    flex: 1;
+}
+
+.copy-button {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    color: var(--text-color);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.copy-button svg {
+    width: 20px;
+    height: 20px;
+}
+
+.copy-button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.dark-theme .copy-button:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.copy-button.success {
+    color: #28a745;
+}
+
+.dark-theme .copy-button.success {
+    color: #2ecc71;
 }
 </style>

@@ -50,7 +50,9 @@ onMounted(async () => {
     const result = await initializeApp()
     if (result?.user) {
         userStore.setUser(result.user as User)
-        router.push({ name: 'News' })
+        if (route.name !== 'JoinChat') {
+            router.push({ name: 'Chat' })
+        }
         console.log('Data in initialization:')
     }
 
