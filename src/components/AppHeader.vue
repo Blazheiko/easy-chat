@@ -33,21 +33,24 @@ const goBack = () => {
 <template>
     <header class="app-header">
         <div class="header-content">
-            <button v-if="backPath" class="back-button" @click="goBack">
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    height="24"
-                    fill="currentColor"
-                >
-                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
-                </svg>
-                <span>{{ backLabel }}</span>
-            </button>
-            <h1 v-if="title">{{ title }}</h1>
-            <div v-else class="title-slot"><slot name="title"></slot></div>
-            <MenuButton />
+            <div class="left-side">
+                <button v-if="backPath" class="back-button" @click="goBack">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        height="24"
+                        fill="currentColor"
+                    >
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                    </svg>
+                    <span>{{ backLabel }}</span>
+                </button>
+            </div>
+
+            <div class="right-side">
+                <MenuButton />
+            </div>
         </div>
     </header>
 </template>
@@ -57,11 +60,11 @@ const goBack = () => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 0;
     background-color: var(--primary-color);
     color: white;
     box-shadow: var(--box-shadow);
     width: 100%;
+    padding: 12px 0;
 }
 
 .dark-theme .app-header {
@@ -77,6 +80,21 @@ const goBack = () => {
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+.left-side,
+.right-side {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.left-side {
+    justify-content: flex-start;
+}
+
+.right-side {
+    justify-content: flex-end;
 }
 
 .app-header h1 {
@@ -118,7 +136,7 @@ const goBack = () => {
 
 @media (max-width: 768px) {
     .app-header {
-        padding: 12px 0;
+        padding: 8px 0;
     }
 
     .header-content {

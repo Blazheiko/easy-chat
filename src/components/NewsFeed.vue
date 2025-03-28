@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import MenuButton from '@/components/MenuButton.vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 // Добавляем проп для управления отображением шапки
@@ -11,8 +12,8 @@ defineProps({
 })
 
 interface NewsItem {
-    id: number
-    userId: number
+    id: string | number
+    userId: string | number
     userName: string
     userAvatar?: string
     content: string
@@ -28,16 +29,17 @@ const newsItems = ref<NewsItem[]>([
     {
         id: 1,
         userId: 1,
-        userName: 'John Smith',
+        userName: 'John Doe',
+        // userAvatar: '/avatars/user1.png',
         content:
-            'Had an amazing day hiking in the mountains! The view was absolutely breathtaking.',
+            'Just found this amazing article about Vue 3 composition API and how it changes the way we build Vue apps!',
         images: [
-            'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
-            'https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
+            'https://images.unsplash.com/photo-1544947950-fa07a98d237f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80',
         ],
         likes: 24,
-        comments: 6,
-        timeAgo: '2 hours ago',
+        comments: 5,
+        timeAgo: '3h ago',
+        isLiked: true,
     },
     {
         id: 2,
@@ -112,52 +114,145 @@ const newsItems = ref<NewsItem[]>([
     },
 ])
 
-// Функция для лайка новости
-const toggleLike = (newsItem: NewsItem) => {
-    if (newsItem.isLiked) {
-        newsItem.likes--
-        newsItem.isLiked = false
+// Лайк новости
+const likeNewsItem = (item: NewsItem) => {
+    if (item.isLiked) {
+        item.likes--
     } else {
-        newsItem.likes++
-        newsItem.isLiked = true
+        item.likes++
     }
+    item.isLiked = !item.isLiked
 }
 
-// Получаем первую букву имени пользователя для аватара
-const getInitial = (name: string): string => {
-    return name.charAt(0)
+// Получение инициалов пользователя
+const getUserInitials = (name: string) => {
+    if (!name) return ''
+    const parts = name.split(' ')
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase()
+    return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase()
 }
 
 // Добавляем функцию для перехода к детальному просмотру
 const router = useRouter()
 
-const viewNewsDetail = (newsId: number) => {
+// Подробный просмотр новости
+const viewNewsDetail = (newsId: string | number) => {
     router.push(`/news/${newsId}`)
 }
 
+const showCreateNews = ref(false)
 const goToCreatePost = () => {
-    router.push('/news/create')
+    showCreateNews.value = true
+}
+
+const closeCreatePost = () => {
+    showCreateNews.value = false
+    // Reset form state
+    newsContent.value = ''
+    newsImages.value = []
+    error.value = ''
+}
+
+// Переменные для создания новости
+const newsContent = ref('')
+const newsImages = ref<string[]>([])
+const isLoading = ref(false)
+const error = ref('')
+
+// Обработка загрузки изображений
+const handleImageUpload = (event: Event) => {
+    const input = event.target as HTMLInputElement
+    if (!input.files || input.files.length === 0) return
+
+    // Максимум 5 изображений
+    if (newsImages.value.length + input.files.length > 5) {
+        error.value = 'You can upload maximum 5 images'
+        return
+    }
+
+    Array.from(input.files).forEach((file) => {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+            if (e.target?.result && typeof e.target.result === 'string') {
+                newsImages.value.push(e.target.result)
+            }
+        }
+        reader.readAsDataURL(file)
+    })
+
+    // Сбрасываем значение input чтобы можно было загружать одинаковые файлы
+    input.value = ''
+}
+
+// Удаление изображения из предпросмотра
+const removeImage = (index: number) => {
+    newsImages.value.splice(index, 1)
+}
+
+// Функция для публикации новости
+const postNews = async () => {
+    if (!newsContent.value.trim()) {
+        error.value = 'Please enter some content for your post'
+        return
+    }
+
+    isLoading.value = true
+    error.value = ''
+
+    try {
+        // Симуляция отправки на сервер
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        // Создаем новый объект новости
+        const newPost = {
+            id: `news-${Date.now()}`,
+            userId: 'current-user',
+            userName: 'You',
+            userAvatar: '/avatars/user1.png',
+            content: newsContent.value,
+            images: [...newsImages.value],
+            likes: 0,
+            comments: 0,
+            timeAgo: 'Just now',
+            isLiked: false,
+        }
+
+        // Добавляем в начало списка
+        newsItems.value.unshift(newPost)
+
+        // Сбрасываем форму
+        newsContent.value = ''
+        newsImages.value = []
+
+        // Закрываем форму создания новости
+        showCreateNews.value = false
+    } catch (err) {
+        error.value = 'Failed to post news. Please try again.'
+        console.error('Error posting news:', err)
+    } finally {
+        isLoading.value = false
+    }
+}
+
+const windowWidth = ref(window.innerWidth)
+
+onMounted(() => {
+    window.addEventListener('resize', updateWindowWidth)
+})
+
+onUnmounted(() => {
+    window.removeEventListener('resize', updateWindowWidth)
+})
+
+function updateWindowWidth() {
+    windowWidth.value = window.innerWidth
 }
 </script>
 
 <template>
-    <div class="news-feed">
-        <!-- Шапка отображается только если hideHeader=false -->
-        <div v-if="!hideHeader" class="news-header">
-            <button class="back-to-chat-button" @click="$emit('back-to-chat')">
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    width="24"
-                    height="24"
-                    fill="currentColor"
-                >
-                    <path
-                        d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"
-                    />
-                </svg>
-                <span>Back to Chat</span>
-            </button>
+    <div class="news-feed" :class="{ 'no-padding': hideHeader }">
+        <!-- Встроенная шапка для режима hideHeader=true (embedded режим) -->
+        <div v-if="hideHeader" class="chat-header">
             <h2>News Feed</h2>
             <button class="create-post-icon-button" @click="goToCreatePost" title="Create Post">
                 <svg
@@ -170,98 +265,247 @@ const goToCreatePost = () => {
                     <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
                 </svg>
             </button>
-        </div>
-
-        <div class="news-items-grid">
-            <div class="news-item" v-for="item in newsItems" :key="item.id">
-                <div class="news-header">
-                    <div class="user-avatar">{{ getInitial(item.userName) }}</div>
-                    <div class="user-info">
-                        <div class="user-name">{{ item.userName }}</div>
-                        <div class="post-time">{{ item.timeAgo }}</div>
-                    </div>
-                </div>
-
-                <div class="news-content" @click="viewNewsDetail(item.id)">
-                    <p>{{ item.content }}</p>
-
-                    <div
-                        v-if="item.images && item.images.length > 0"
-                        class="news-images"
-                        :class="{
-                            'single-image': item.images.length === 1,
-                            'multi-image': item.images.length > 1,
-                        }"
-                    >
-                        <div
-                            v-for="(image, index) in item.images"
-                            :key="index"
-                            class="image-container"
-                        >
-                            <img
-                                :src="image"
-                                :alt="`${item.userName}'s post image ${index + 1}`"
-                                loading="lazy"
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                <div class="news-actions">
-                    <button
-                        class="action-button"
-                        :class="{ liked: item.isLiked }"
-                        @click="toggleLike(item)"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            width="20"
-                            height="20"
-                            fill="currentColor"
-                        >
-                            <path
-                                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                            />
-                        </svg>
-                        <span>{{ item.likes }}</span>
-                    </button>
-
-                    <button class="action-button" @click="viewNewsDetail(item.id)">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            width="20"
-                            height="20"
-                            fill="currentColor"
-                        >
-                            <path
-                                d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"
-                            />
-                        </svg>
-                        <span>{{ item.comments }}</span>
-                    </button>
-
-                    <button class="action-button">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            width="20"
-                            height="20"
-                            fill="currentColor"
-                        >
-                            <path
-                                d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"
-                            />
-                        </svg>
-                        <span>Share</span>
-                    </button>
-                </div>
+            <div class="header-buttons">
+                <MenuButton />
             </div>
         </div>
 
-        <div class="load-more">
-            <button class="load-more-button">Load More</button>
+        <!-- Основная шапка для standalone режима -->
+        <div v-if="!hideHeader" class="news-header">
+            <button class="back-to-chat-button" @click="$emit('back-to-chat')">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    width="24"
+                    height="24"
+                    fill="currentColor"
+                >
+                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                </svg>
+                <span>Back to Chat</span>
+            </button>
+            <h2>News Feed</h2>
+            <button class="create-post-button" @click="goToCreatePost">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    width="24"
+                    height="24"
+                    fill="currentColor"
+                    class="add-icon"
+                >
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                </svg>
+                <span>Create Post</span>
+            </button>
+        </div>
+
+        <div
+            v-if="showCreateNews"
+            class="create-news-content"
+            :class="{ 'mobile-container': windowWidth <= 768 }"
+        >
+            <div class="news-form">
+                <div class="form-header">
+                    <h3>Create News Post</h3>
+                    <button class="close-button" @click="closeCreatePost">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            width="20"
+                            height="20"
+                            fill="currentColor"
+                        >
+                            <path
+                                d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"
+                            />
+                        </svg>
+                    </button>
+                </div>
+
+                <form @submit.prevent="postNews">
+                    <div class="error-message" v-if="error">{{ error }}</div>
+                    <div class="form-group">
+                        <textarea
+                            id="news-content"
+                            v-model="newsContent"
+                            class="content-input"
+                            placeholder="What's on your mind?"
+                            rows="4"
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group no-margin">
+                        <div class="upload-label">Add Photos</div>
+                        <div class="image-upload-container">
+                            <label for="image-upload" class="image-upload-label">
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 24 24"
+                                    width="20"
+                                    height="20"
+                                    fill="currentColor"
+                                >
+                                    <path
+                                        d="M19 7v2.99s-1.99.01-2 0V7h-3s.01-1.99 0-2h3V2h2v3h3v2h-3zm-3 4V8h-3V5H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-8h-3zM5 19l3-4 2 3 3-4 4 5H5z"
+                                    />
+                                </svg>
+                                <span>Upload Image</span>
+                            </label>
+                            <input
+                                type="file"
+                                id="image-upload"
+                                accept="image/*"
+                                multiple
+                                class="hidden-upload"
+                                @change="handleImageUpload"
+                            />
+                        </div>
+
+                        <!-- Preview of uploaded images -->
+                        <div v-if="newsImages.length > 0" class="image-previews">
+                            <div
+                                v-for="(image, index) in newsImages"
+                                :key="index"
+                                class="image-preview"
+                            >
+                                <img :src="image" alt="Preview" />
+                                <button class="remove-image" @click="removeImage(index)">
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 24 24"
+                                        width="16"
+                                        height="16"
+                                        fill="currentColor"
+                                    >
+                                        <path
+                                            d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                                        />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="publish-button" :disabled="isLoading">
+                        {{ isLoading ? 'Publishing...' : 'Publish' }}
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div v-else class="news-content-container">
+            <div class="news-items-grid">
+                <div class="news-item" v-for="item in newsItems" :key="item.id">
+                    <div class="news-header">
+                        <div class="news-user">
+                            <div class="user-avatar" v-if="item.userAvatar">
+                                <img :src="item.userAvatar" alt="User Avatar" />
+                            </div>
+                            <div class="user-avatar-placeholder" v-else>
+                                {{ getUserInitials(item.userName) }}
+                            </div>
+                            <div class="user-info">
+                                <div class="user-name">{{ item.userName }}</div>
+                                <div class="post-time">{{ item.timeAgo }}</div>
+                            </div>
+                        </div>
+                        <button class="more-button">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                width="24"
+                                height="24"
+                                fill="currentColor"
+                            >
+                                <path
+                                    d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
+                                />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="news-content" @click="viewNewsDetail(item.id)">
+                        <p>{{ item.content }}</p>
+
+                        <div
+                            v-if="item.images && item.images.length > 0"
+                            class="news-images"
+                            :class="{
+                                'single-image': item.images.length === 1,
+                                'multi-image': item.images.length > 1,
+                            }"
+                        >
+                            <div
+                                v-for="(image, index) in item.images"
+                                :key="index"
+                                class="news-image"
+                            >
+                                <img
+                                    :src="image"
+                                    :alt="`${item.userName}'s post image ${index + 1}`"
+                                    loading="lazy"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="news-actions">
+                        <button
+                            class="action-button"
+                            :class="{ liked: item.isLiked }"
+                            @click="likeNewsItem(item)"
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                width="20"
+                                height="20"
+                                fill="currentColor"
+                            >
+                                <path
+                                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                                />
+                            </svg>
+                            <span>{{ item.likes }}</span>
+                        </button>
+
+                        <button class="action-button" @click="viewNewsDetail(item.id)">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                width="20"
+                                height="20"
+                                fill="currentColor"
+                            >
+                                <path
+                                    d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"
+                                />
+                            </svg>
+                            <span>{{ item.comments }}</span>
+                        </button>
+
+                        <button class="action-button">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                width="20"
+                                height="20"
+                                fill="currentColor"
+                            >
+                                <path
+                                    d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"
+                                />
+                            </svg>
+                            <span>Share</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="load-more">
+                <button class="load-more-button">Load More</button>
+            </div>
         </div>
     </div>
 </template>
@@ -274,14 +518,45 @@ const goToCreatePost = () => {
     width: 100%;
     box-sizing: border-box;
     padding: 12px 12px 0;
+    height: 100vh;
+    min-width: 0;
+    overflow: hidden;
+    background-color: var(--background-color);
+}
+
+.news-feed.no-padding {
+    padding: 0;
+    height: 100%;
 }
 
 .news-items-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
     gap: 16px;
-    width: 100%;
-    padding: 0;
+}
+
+.dark-theme .news-items-grid {
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.news-items-grid::-webkit-scrollbar {
+    width: 5px;
+}
+
+.news-items-grid::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.news-items-grid::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+}
+
+.no-padding .news-items-grid {
+    padding: 12px;
 }
 
 .news-item {
@@ -294,9 +569,11 @@ const goToCreatePost = () => {
         box-shadow 0.2s ease;
     width: 100%;
     box-sizing: border-box;
-    height: 100%;
+    height: auto;
+    min-height: 160px;
     display: flex;
     flex-direction: column;
+    margin-bottom: 16px;
 }
 
 .dark-theme .news-item {
@@ -319,15 +596,13 @@ const goToCreatePost = () => {
 .news-item .news-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     padding: 12px 16px;
-    gap: 10px;
-    border-bottom: 1px solid #eaeaea;
-    background-color: white;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .dark-theme .news-item .news-header {
-    background-color: #242424;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .news-feed > .news-header {
@@ -370,33 +645,42 @@ const goToCreatePost = () => {
     opacity: 0.8;
 }
 
-.user-avatar {
-    width: 42px;
-    height: 42px;
+.news-user {
+    display: flex;
+    align-items: center;
+}
+
+.user-avatar,
+.user-avatar-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 12px;
+    overflow: hidden;
+}
+
+.user-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.user-avatar-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
     color: white;
     font-size: 18px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-radius: 50%;
-    box-shadow: 0 4px 10px rgba(26, 115, 232, 0.3);
-    font-weight: 500;
+    font-weight: 600;
     border: 2px solid white;
+    box-shadow: 0 4px 10px rgba(26, 115, 232, 0.3);
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     position: relative;
     z-index: 1;
 }
 
-.dark-theme .user-avatar {
-    background: linear-gradient(135deg, #0d47a1 0%, #1976d2 100%);
-    border-color: #333;
-    box-shadow: 0 4px 10px rgba(13, 71, 161, 0.5);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-}
-
-/* Добавляем светящийся эффект для лучшего визуального выделения */
-.user-avatar::after {
+.user-avatar-placeholder::after {
     content: '';
     position: absolute;
     top: -2px;
@@ -411,8 +695,15 @@ const goToCreatePost = () => {
     transition: opacity 0.3s ease;
 }
 
-.news-item:hover .user-avatar::after {
+.news-item:hover .user-avatar-placeholder::after {
     opacity: 1;
+}
+
+.dark-theme .user-avatar-placeholder {
+    background: linear-gradient(135deg, #0d47a1 0%, #1976d2 100%);
+    border-color: #333;
+    box-shadow: 0 4px 10px rgba(13, 71, 161, 0.5);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .user-info {
@@ -422,22 +713,47 @@ const goToCreatePost = () => {
 
 .user-name {
     font-weight: 600;
-    color: var(--text-color);
-    font-size: 15px;
+    font-size: 16px;
+    color: #111827;
 }
 
-.dark-theme .news-item .user-name {
-    color: #e0e0e0;
+.dark-theme .user-name {
+    color: #f3f4f6;
 }
 
 .post-time {
-    color: #6c757d;
-    font-size: 12px;
-    margin-top: 1px;
+    font-size: 13px;
+    color: #6b7280;
 }
 
 .dark-theme .post-time {
-    color: #adb5bd;
+    color: #9ca3af;
+}
+
+.more-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #6b7280;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.more-button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.dark-theme .more-button {
+    color: #9ca3af;
+}
+
+.dark-theme .more-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .news-content {
@@ -465,38 +781,134 @@ const goToCreatePost = () => {
 }
 
 .news-images {
-    margin-top: auto;
-    border-radius: 12px;
-    overflow: hidden;
-}
-
-.single-image .image-container {
-    width: 100%;
-    max-height: 500px;
-    overflow: hidden;
-}
-
-.multi-image {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 4px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+    width: 100%;
 }
 
-.image-container {
+.single-image.news-images {
+    display: block;
+    margin-top: 12px;
+}
+
+.news-image {
+    position: relative;
     overflow: hidden;
     border-radius: 8px;
+    width: 100%;
     aspect-ratio: 16/9;
 }
 
-.image-container img {
+.news-image img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     transition: transform 0.3s ease;
 }
 
-.image-container:hover img {
+.news-image:hover img {
     transform: scale(1.03);
+}
+
+/* Одиночные изображения */
+.single-image .news-image {
+    max-height: 500px;
+    aspect-ratio: auto;
+    padding-bottom: 60%; /* Соотношение сторон примерно 5:3 */
+}
+
+/* Мультиизображения */
+.multi-image {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+}
+
+.image-previews {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+    margin: 10px 0;
+}
+
+.image-preview {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    width: 100%;
+    padding-bottom: 75%; /* Соотношение сторон 4:3 */
+}
+
+.image-preview img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.remove-image {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: rgba(0, 0, 0, 0.5);
+    border: none;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.remove-image:hover {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.remove-image svg {
+    width: 16px;
+    height: 16px;
+}
+
+.hidden-upload {
+    display: none;
+}
+
+.image-upload-label {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    background-color: #f3f4f6;
+    color: #374151;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 14px;
+}
+
+.dark-theme .image-upload-label {
+    background-color: #2d2d2d;
+    color: #e0e0e0;
+}
+
+.image-upload-label:hover {
+    background-color: #e5e7eb;
+}
+
+.dark-theme .image-upload-label:hover {
+    background-color: #3d3d3d;
+}
+
+.image-upload-label svg {
+    width: 18px;
+    height: 18px;
+    margin-right: 6px;
 }
 
 .news-actions {
@@ -558,44 +970,39 @@ const goToCreatePost = () => {
 .load-more {
     display: flex;
     justify-content: center;
-    margin-top: 16px;
-    margin-bottom: 16px;
-    width: 100%;
-    box-sizing: border-box;
+    padding: 16px;
+    background-color: #ffffff;
+    border-top: 1px solid #e5e7eb;
+}
+
+.dark-theme .load-more {
+    background-color: #1e1e1e;
+    border-top: 1px solid #333;
 }
 
 .load-more-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    color: #495057;
+    background-color: #f3f4f6;
+    color: #4b5563;
+    border: none;
+    border-radius: 8px;
     padding: 10px 20px;
-    border-radius: 30px;
-    cursor: pointer;
     font-size: 14px;
     font-weight: 500;
-    transition: all 0.2s ease;
-    width: 200px;
-}
-
-.dark-theme .load-more-button {
-    background-color: #2a2a2a;
-    border-color: #444;
-    color: #e0e0e0;
+    cursor: pointer;
+    transition: background-color 0.2s;
 }
 
 .load-more-button:hover {
-    background-color: #e9ecef;
-    border-color: #ced4da;
-    transform: translateY(-1px);
+    background-color: #e5e7eb;
+}
+
+.dark-theme .load-more-button {
+    background-color: #2d2d2d;
+    color: #d1d5db;
 }
 
 .dark-theme .load-more-button:hover {
-    background-color: #333;
-    border-color: #555;
-    transform: translateY(-1px);
+    background-color: #3d3d3d;
 }
 
 .create-post-icon-button {
@@ -644,35 +1051,33 @@ const goToCreatePost = () => {
         margin: 0;
     }
 
+    .news-feed.no-padding {
+        padding: 0;
+        gap: 8px;
+    }
+
     .news-items-grid {
-        display: block;
-        gap: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+    }
+
+    .no-padding .news-items-grid {
         padding: 0;
     }
 
     .news-item {
-        border-radius: 12px;
         margin-bottom: 12px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-        width: 100%;
-        max-width: 100%;
-        height: auto;
-    }
-
-    .dark-theme .news-item {
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-        border-top: 1px solid #3a3a3a;
-        border-bottom: 1px solid #3a3a3a;
+        min-height: 120px;
     }
 
     .news-item:hover {
         transform: none;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
 
     .dark-theme .news-item:hover {
-        transform: none;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 1px 2px rgba(255, 255, 255, 0.05);
     }
 
     .news-feed > .news-header {
@@ -705,13 +1110,14 @@ const goToCreatePost = () => {
     }
 
     .news-images {
-        border-radius: 8px;
-        width: 100%;
+        margin-top: auto;
+        border-radius: 12px;
+        overflow: hidden;
     }
 
-    .multi-image {
-        grid-template-columns: 1fr;
-        gap: 8px;
+    .single-image.news-images {
+        display: block;
+        border-radius: 8px;
     }
 
     .news-actions {
@@ -744,6 +1150,480 @@ const goToCreatePost = () => {
         border-radius: 8px;
         padding: 10px 16px;
         margin: 0;
+    }
+}
+
+/* Стили для встроенной шапки */
+.chat-header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    width: 100%;
+    flex-shrink: 0;
+    box-shadow: var(--box-shadow);
+}
+
+.chat-header h2 {
+    padding-left: 40px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    font-weight: 600;
+    font-size: 18px;
+    color: white;
+}
+
+.header-buttons {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.toggle-contacts {
+    background: none;
+    border: none;
+    color: white;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.toggle-contacts svg {
+    width: 24px;
+    height: 24px;
+}
+
+.back-to-chat-button.embedded {
+    background-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    color: white;
+    padding: 8px 15px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.back-to-chat-button.embedded:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: white;
+    transform: translateY(-1px);
+}
+
+.back-to-chat-button.embedded:active {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+    .chat-header {
+        padding: 12px 16px;
+    }
+
+    .chat-header h2 {
+        font-size: 16px;
+    }
+
+    .toggle-contacts {
+        left: 16px;
+    }
+
+    .back-to-chat-button.embedded {
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+}
+
+/* Добавим отзывчивую сетку для широких экранов */
+@media (min-width: 992px) {
+    .news-items-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        gap: 16px;
+    }
+
+    .news-items-grid .news-item {
+        margin-bottom: 0;
+    }
+
+    .no-padding .news-items-grid {
+        display: block;
+    }
+
+    .no-padding .news-item {
+        margin-bottom: 16px;
+    }
+}
+
+/* Стили для create-news-content */
+.create-news-content {
+    width: 100%;
+    max-width: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 16px;
+    background-color: #f9fafb;
+    height: calc(100vh - 60px);
+}
+
+.dark-theme .create-news-content {
+    background-color: #111827;
+}
+
+.create-news-content::-webkit-scrollbar {
+    width: 5px;
+}
+
+.create-news-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.create-news-content::-webkit-scrollbar-thumb {
+    background-color: rgba(193, 201, 214, 0.5);
+    border-radius: 6px;
+}
+
+.dark-theme .create-news-content::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.no-padding .create-news-content {
+    height: calc(100vh - 60px);
+    padding: 12px;
+}
+
+.news-form {
+    background-color: #ffffff;
+    border-radius: 8px;
+    overflow: hidden;
+    width: 100%;
+    margin: 0 auto;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.dark-theme .news-form {
+    background-color: #1e1e1e;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.form-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #ffffff;
+}
+
+.dark-theme .form-header {
+    background-color: #1e1e1e;
+    border-bottom: 1px solid #333;
+}
+
+.form-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+    margin: 0;
+}
+
+.dark-theme .form-header h3 {
+    color: #f3f4f6;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #6b7280;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.close-button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.dark-theme .close-button {
+    color: #9ca3af;
+}
+
+.dark-theme .close-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.close-button svg {
+    width: 18px;
+    height: 18px;
+}
+
+.news-form form {
+    padding: 16px;
+}
+
+.error-message {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 14px;
+}
+
+.dark-theme .error-message {
+    background-color: rgba(185, 28, 28, 0.2);
+    color: #ef4444;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.content-input {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 15px;
+    color: #111827;
+    background-color: #ffffff;
+    resize: vertical;
+    min-height: 100px;
+    transition: border-color 0.2s;
+    font-family: inherit;
+}
+
+.dark-theme .content-input {
+    background-color: #2d2d2d;
+    border-color: #444;
+    color: #e5e7eb;
+}
+
+.content-input:focus {
+    outline: none;
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.dark-theme .content-input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.image-upload-container {
+    margin-bottom: 16px;
+}
+
+.publish-button {
+    background-color: #1a73e8;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    width: 100%;
+    margin-top: 8px;
+}
+
+.publish-button:hover {
+    background-color: #1765cc;
+}
+
+.publish-button:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+}
+
+.dark-theme .publish-button:disabled {
+    background-color: #4b5563;
+}
+
+@media (max-width: 768px) {
+    .news-form {
+        border-radius: 0;
+        box-shadow: none;
+        max-width: 100%;
+    }
+}
+
+.news-content-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+}
+
+.create-post-button {
+    display: flex;
+    align-items: center;
+    background-color: #4f46e5;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.create-post-button:hover {
+    background-color: #4338ca;
+}
+
+.create-post-button .add-icon {
+    margin-right: 6px;
+    width: 18px;
+    height: 18px;
+}
+
+.back-to-chat-button {
+    display: flex;
+    align-items: center;
+    background: none;
+    border: none;
+    color: #4b5563;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 20px;
+    transition: background-color 0.2s;
+}
+
+.back-to-chat-button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.dark-theme .back-to-chat-button {
+    color: #e0e0e0;
+}
+
+.dark-theme .back-to-chat-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.back-to-chat-button svg {
+    width: 20px;
+    height: 20px;
+    margin-right: 6px;
+}
+
+.news-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #ffffff;
+}
+
+.dark-theme .news-header {
+    background-color: #1e1e1e;
+    border-bottom: 1px solid #333;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.dark-theme .form-group label {
+    color: #e5e7eb;
+}
+
+.hidden-upload {
+    display: none;
+}
+
+.image-upload-container {
+    margin-bottom: 16px;
+}
+
+.form-group.no-margin {
+    margin-bottom: 12px;
+}
+
+.upload-label {
+    font-size: 14px;
+    color: #6b7280;
+    margin-bottom: 8px;
+}
+
+.dark-theme .upload-label {
+    color: #9ca3af;
+}
+
+@media (max-width: 768px) {
+    .create-news-content {
+        padding: 10px;
+        height: calc(100vh - 50px);
+    }
+
+    .no-padding .create-news-content {
+        padding: 0;
+        height: calc(100vh - 50px);
+    }
+
+    .news-form {
+        border-radius: 0;
+        box-shadow: none;
+        max-width: 100%;
+    }
+
+    .publish-button {
+        font-size: 15px;
+        padding: 10px;
+    }
+}
+
+@media (max-width: 768px) {
+    .news-images {
+        margin-top: auto;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .single-image.news-images {
+        display: block;
+        border-radius: 8px;
+    }
+
+    .multi-image {
+        grid-template-columns: 1fr;
+    }
+
+    .news-image {
+        border-radius: 4px;
     }
 }
 </style>

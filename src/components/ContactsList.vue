@@ -269,9 +269,9 @@ onUnmounted(() => {
                 />
             </div>
             <button class="add-contact-button" @click="showAddContactModal = true">
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor" />
-                </svg>
+                </svg> -->
                 Add
             </button>
         </div>
@@ -524,6 +524,7 @@ onUnmounted(() => {
     font-size: 14px;
     background-color: #f8f9fa;
     transition: all 0.2s ease;
+    height: 40px;
 }
 
 .dark-theme .search-input {
@@ -542,11 +543,12 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 12px;
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: 16px;
+    padding: 0 14px;
+    height: 40px;
+    background-color: transparent;
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    border-radius: 20px;
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
@@ -561,7 +563,20 @@ onUnmounted(() => {
 }
 
 .add-contact-button:hover {
-    background-color: var(--accent-color);
+    background-color: rgba(26, 115, 232, 0.05);
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.dark-theme .add-contact-button {
+    color: #e0e0e0;
+    border-color: #e0e0e0;
+}
+
+.dark-theme .add-contact-button:hover {
+    background-color: rgba(224, 224, 224, 0.1);
+    border-color: #e0e0e0;
+    color: #e0e0e0;
 }
 
 .contacts-list-container {
@@ -848,7 +863,12 @@ onUnmounted(() => {
 
     .search-container {
         padding: 12px 16px;
-        flex-direction: column;
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .search-input-wrapper {
+        flex: 1;
     }
 
     .contact {

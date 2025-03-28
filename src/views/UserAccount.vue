@@ -58,7 +58,7 @@ const toggleSound = () => {
                 <div class="avatar-container">
                     <div class="avatar">{{ user.name?.charAt(0) || 'U' }}</div>
                 </div>
-                <div class="user-info">
+                <div class="user-info" v-if="user">
                     <h2>{{ user.name || 'User' }}</h2>
                     <p>{{ user.email || 'email@example.com' }}</p>
                     <p class="user-status">{{ user.status || 'Online' }}</p>

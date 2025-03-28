@@ -281,7 +281,12 @@ onBeforeUnmount(() => {
                 @toggle-news="toggleNews"
             />
             <div class="main-content">
-                <NewsFeed v-if="showNews" :hide-header="false" @back-to-chat="showNews = false" />
+                <NewsFeed
+                    v-if="showNews"
+                    :hide-header="true"
+                    @back-to-chat="showNews = false"
+                    @toggle-contacts="toggleContacts"
+                />
                 <ChatArea
                     v-else
                     @toggle-contacts="toggleContacts"
