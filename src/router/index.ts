@@ -25,7 +25,7 @@ const routes: Array<RouteRecordRaw> = [
         meta: { requiresAuth: true },
     },
     {
-        path: '/join-chat/:id',
+        path: '/join-chat/:token',
         name: 'JoinChat',
         component: JoinChat,
     },

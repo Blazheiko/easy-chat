@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useContactsStore } from '@/stores/contacts'
+import { useUserStore } from '@/stores/user'
 import type { Contact } from '@/stores/contacts'
+import api from '@/utils/api'
 // import { TransitionGroup } from 'vue'
 
 const contactsStore = useContactsStore()
+const userStore = useUserStore()
 const searchQuery = ref('')
 const showNews = ref(false)
 const unreadNewsCount = ref(3)
@@ -152,10 +155,17 @@ const deleteContact = () => {
 //     editingContact.value.name = ''
 // }
 
-const generateShareLink = () => {
+const generateShareLink = async () => {
     // Генерируем уникальный идентификатор для ссылки
-    const uniqueId = Math.random().toString(36).substring(2, 20)
-    shareLink.value = `${window.location.origin}/join-chat/${uniqueId}`
+    const { error, data } = await api.http('POST', '/api/chat/invitations', {
+        name: newContact.value.name,
+        userId: userStore.user?.id,
+    })
+    if (error) {
+        console.error('Failed to generate share link: ', error)
+    } else if (data && data.status === 'success' && data.token) {
+        shareLink.value = `${window.location.origin}/join-chat/${data.token}`
+    }
 }
 
 const copyToClipboard = async () => {

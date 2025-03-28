@@ -10,13 +10,12 @@ const userStore = useUserStore()
 // const user = ref(userStore.user)
 
 const showAuthModal = ref(false)
-const chatId = ref('')
+const token = ref('')
 
 onMounted(() => {
     // Получаем ID чата из URL
-    const id = route.params.id as string
-    if (id) {
-        chatId.value = id
+    token.value = route.params.token as string
+    if (token.value) {
         // Если пользователь не авторизован, показываем модальное окно регистрации
         if (!userStore.user) {
             showAuthModal.value = true
@@ -26,11 +25,24 @@ onMounted(() => {
 
 const handleAuthSuccess = () => {
     // После успешной авторизации перенаправляем на страницу чата
-    router.push({ name: 'Chat', params: { id: chatId.value } })
+    router.push({ name: 'Chat'})
 }
 
 const handleCloseAuthModal = () => {
     showAuthModal.value = false
+}
+
+const isLoginModalVisible = ref(false)
+const isRegisterModalVisible = ref(true)
+
+const showLoginModal = () => {
+    isLoginModalVisible.value = true
+    isRegisterModalVisible.value = false
+}
+
+const showRegisterModal = () => {
+    isLoginModalVisible.value = false
+    isRegisterModalVisible.value = true
 }
 </script>
 
@@ -49,10 +61,14 @@ const handleCloseAuthModal = () => {
         </div>
 
         <AuthModals
-            :show-login="showAuthModal"
-            :show-register="showAuthModal"
+            :show-login="isLoginModalVisible"
+            :show-register="isRegisterModalVisible"
+            :token="token"
             @close="handleCloseAuthModal"
             @auth-success="handleAuthSuccess"
+            @show-login="showLoginModal"
+            @show-register="showRegisterModal"
+            v-if="showAuthModal"
         />
     </div>
 </template>

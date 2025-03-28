@@ -17,6 +17,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    token: {
+        type: String,
+        default: '',
+    },
 })
 
 const emit = defineEmits(['close', 'show-login', 'show-register', 'auth-success'])
@@ -70,6 +74,7 @@ const handleLogin = async () => {
         const { data, error } = await api.http('POST', '/api/auth/login', {
             email: email.value,
             password: password.value,
+            token: props.token,
         })
 
         if (error) {
@@ -144,6 +149,7 @@ const handleRegister = async () => {
         name: name.value,
         email: email.value,
         password: password.value,
+        token: props.token,
     })
 
     if (error) {
