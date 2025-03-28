@@ -62,7 +62,7 @@ const toggleSound = () => {
                     <h2>{{ user.name || 'User' }}</h2>
                     <p>{{ user.email || 'email@example.com' }}</p>
                     <p class="user-status">{{ user.status || 'Online' }}</p>
-                    <p class="join-date">Member since: {{ user.joinDate || '01/01/2023' }}</p>
+                    <p class="join-date">Member since: {{ user.createdAt  }}</p>
                 </div>
             </div>
 

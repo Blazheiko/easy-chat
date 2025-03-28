@@ -13,34 +13,34 @@ export interface Contact {
 
 export const useContactsStore = defineStore('contacts', () => {
     const contacts = ref<Contact[]>([
-        {
-            name: 'John Smith',
-            unreadCount: 2,
-            isActive: true,
-            isOnline: true,
-            lastMessage: 'Perfect, see you then!',
-            lastMessageTime: '10:30 AM',
-        },
-        {
-            name: 'Mary Johnson',
-            unreadCount: 5,
-            isOnline: true,
-            lastMessage: 'I just sent you the files you requested',
-            lastMessageTime: 'Yesterday',
-        },
-        {
-            name: 'Alex Wilson',
-            isOnline: false,
-            lastMessage: 'When are you planning to finish the project?',
-            lastMessageTime: '2 days ago',
-        },
-        {
-            name: 'Helen Brown',
-            unreadCount: 1,
-            isOnline: false,
-            lastMessage: 'Thank you for your help!',
-            lastMessageTime: 'Monday',
-        },
+        // {
+        //     name: 'John Smith',
+        //     unreadCount: 2,
+        //     isActive: true,
+        //     isOnline: true,
+        //     lastMessage: 'Perfect, see you then!',
+        //     lastMessageTime: '10:30 AM',
+        // },
+        // {
+        //     name: 'Mary Johnson',
+        //     unreadCount: 5,
+        //     isOnline: true,
+        //     lastMessage: 'I just sent you the files you requested',
+        //     lastMessageTime: 'Yesterday',
+        // },
+        // {
+        //     name: 'Alex Wilson',
+        //     isOnline: false,
+        //     lastMessage: 'When are you planning to finish the project?',
+        //     lastMessageTime: '2 days ago',
+        // },
+        // {
+        //     name: 'Helen Brown',
+        //     unreadCount: 1,
+        //     isOnline: false,
+        //     lastMessage: 'Thank you for your help!',
+        //     lastMessageTime: 'Monday',
+        // },
     ])
 
     function setActiveContact(contactName: string) {
@@ -64,46 +64,51 @@ export const useContactsStore = defineStore('contacts', () => {
         }
     }
 
+    function setContactList(contactList: Contact[]) {
+        contacts.value = contactList
+    }
+
     function addContact(contact: Contact) {
-        contacts.value.push(contact)
+        contacts.value.unshift(contact)
     }
 
     function resetContacts() {
         contacts.value = [
-            {
-                name: 'John Smith',
-                unreadCount: 2,
-                isActive: true,
-                isOnline: true,
-                lastMessage: 'Perfect, see you then!',
-                lastMessageTime: '10:30 AM',
-            },
-            {
-                name: 'Mary Johnson',
-                unreadCount: 5,
-                isOnline: true,
-                lastMessage: 'I just sent you the files you requested',
-                lastMessageTime: 'Yesterday',
-            },
-            {
-                name: 'Alex Wilson',
-                isOnline: false,
-                lastMessage: 'When are you planning to finish the project?',
-                lastMessageTime: '2 days ago',
-            },
-            {
-                name: 'Helen Brown',
-                unreadCount: 1,
-                isOnline: false,
-                lastMessage: 'Thank you for your help!',
-                lastMessageTime: 'Monday',
-            },
+            // {
+            //     name: 'John Smith',
+            //     unreadCount: 2,
+            //     isActive: true,
+            //     isOnline: true,
+            //     lastMessage: 'Perfect, see you then!',
+            //     lastMessageTime: '10:30 AM',
+            // },
+            // {
+            //     name: 'Mary Johnson',
+            //     unreadCount: 5,
+            //     isOnline: true,
+            //     lastMessage: 'I just sent you the files you requested',
+            //     lastMessageTime: 'Yesterday',
+            // },
+            // {
+            //     name: 'Alex Wilson',
+            //     isOnline: false,
+            //     lastMessage: 'When are you planning to finish the project?',
+            //     lastMessageTime: '2 days ago',
+            // },
+            // {
+            //     name: 'Helen Brown',
+            //     unreadCount: 1,
+            //     isOnline: false,
+            //     lastMessage: 'Thank you for your help!',
+            //     lastMessageTime: 'Monday',
+            // },
         ]
     }
 
     return {
         contacts,
         setActiveContact,
+        setContactList,
         updateContact,
         deleteContact,
         addContact,

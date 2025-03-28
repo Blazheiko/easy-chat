@@ -2,11 +2,28 @@
 import { ref, defineComponent, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import ContactsList from '../components/ContactsList.vue'
-import ChatArea from '../components/ChatArea.vue'
-import NewsFeed from '../components/NewsFeed.vue'
-import LoaderOverlay from '../components/LoaderOverlay.vue'
-import ConnectionStatus from '../components/ConnectionStatus.vue'
+import { useContactsStore } from '@/stores/contacts'
+import ContactsList from '@/components/ContactsList.vue'
+import ChatArea from '@/components/ChatArea.vue'
+import NewsFeed from '@/components/NewsFeed.vue'
+import LoaderOverlay from '@/components/LoaderOverlay.vue'
+import ConnectionStatus from '@/components/ConnectionStatus.vue'
+import api from '@/utils/api'
+
+interface ContactResponse {
+    rename?: string
+    contact: {
+        name: string
+    }
+    unreadCount: number
+    status: string
+    updatedAt: string
+}
+
+interface ApiResponse {
+    status: string
+    contactList: ContactResponse[]
+}
 
 defineComponent({
     name: 'ChatView',
@@ -14,6 +31,7 @@ defineComponent({
 
 const router = useRouter()
 const userStore = useUserStore()
+const contactsStore = useContactsStore()
 const isContactsVisible = ref(false)
 const isLoading = ref(false)
 const isOffline = ref(false)
@@ -36,6 +54,59 @@ const handleConnectionRetry = () => {
         isLoading.value = false
         isOffline.value = false
     }, 2000)
+}
+
+// Функция форматирования времени сообщения
+const formatMessageTime = (timestamp: string): string => {
+    const date = new Date(timestamp)
+    const now = new Date()
+    const yesterday = new Date(now)
+    yesterday.setDate(yesterday.getDate() - 1)
+
+    // Если сообщение сегодня
+    if (date.toDateString() === now.toDateString()) {
+        return date.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+        })
+    }
+
+    // Если сообщение вчера
+    if (date.toDateString() === yesterday.toDateString()) {
+        return 'Yesterday'
+    }
+
+    // Если сообщение на этой неделе
+    const daysAgo = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+    if (daysAgo < 7) {
+        return `${daysAgo} days ago`
+    }
+
+    // Если старше недели, показываем день недели
+    return date.toLocaleString('en-US', { weekday: 'long' })
+}
+
+const initChatData = async () => {
+    const { error, data } = await api.http<ApiResponse>('POST', '/api/chat/get-contact-list', {
+        userId: userStore.user?.id,
+    })
+    if (error) {
+        console.error('Failed to get contact list: ', error)
+    } else if (data?.status === 'ok' && data.contactList?.length > 0) {
+        console.log('Contact list: ', data.contactList)
+
+        const contactList = data.contactList.map((contact: ContactResponse) => ({
+            name: contact.rename || contact.contact.name,
+            unreadCount: contact.unreadCount,
+            isActive: false,
+            isOnline: false,
+            lastMessage: 'Hello, how are you?',
+            lastMessageTime: formatMessageTime(contact.updatedAt),
+        }))
+
+        contactsStore.setContactList(contactList)
+    }
 }
 
 // Проверяем состояние сети при загрузке и слушаем события
@@ -97,6 +168,8 @@ onMounted(() => {
     if (!userStore.hasUser()) {
         console.log('no user')
         router.push('/')
+    } else {
+        initChatData()
     }
 })
 
