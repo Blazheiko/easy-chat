@@ -22,7 +22,7 @@ const newContact = ref({
 })
 const shareLink = ref('')
 const copySuccess = ref(false)
-const emit = defineEmits(['toggle-contacts', 'toggle-news'])
+const emit = defineEmits(['toggle-contacts', 'toggle-news', 'select-contact'])
 const editInput = ref<HTMLInputElement | null>(null)
 
 // Добавляем состояние для контекстного меню
@@ -44,6 +44,7 @@ const contextMenu = ref({
 // Функция для обработки клика по контакту
 const handleContactClick = (contact: Contact) => {
     contactsStore.setActiveContact(contact.name)
+    emit('select-contact', contact)
 }
 
 // Функция для переключения отображения новостей

@@ -9,11 +9,15 @@ import NewsFeed from '@/components/NewsFeed.vue'
 import LoaderOverlay from '@/components/LoaderOverlay.vue'
 import ConnectionStatus from '@/components/ConnectionStatus.vue'
 import api from '@/utils/api'
+import { useMessagesStore } from '@/stores/messages'
+import type { Contact } from '@/stores/contacts'
 
+const messagesStore = useMessagesStore()
 interface ContactResponse {
     rename?: string
     contact: {
         name: string
+        id: number
     }
     unreadCount: number
     status: string
@@ -97,6 +101,8 @@ const initChatData = async () => {
         console.log('Contact list: ', data.contactList)
 
         const contactList = data.contactList.map((contact: ContactResponse) => ({
+            id: contact.contact.id,
+            contactId: contact.contact.id,
             name: contact.rename || contact.contact.name,
             unreadCount: contact.unreadCount,
             isActive: false,
@@ -161,6 +167,41 @@ const logout = () => {
     // localStorage.removeItem('user')
     router.push('/')
 }
+const sendMessage = async (newMessage: string) => {
+    console.log('sendMessage', newMessage)
+    if (newMessage && selectedContact.value && userStore.user) {
+        console.log('selectedContact', selectedContact.value)
+        const { error, data } = await api.http('POST', '/api/chat/send-chat-messages', {
+            contactId: selectedContact.value.contactId,
+            content: newMessage,
+            userId: userStore.user?.id,
+        })
+        if (error) {
+            console.error(error)
+        } else if (data && data.message) {
+            const message = data.message as { content: string; createdAt: string | number | Date }
+            messagesStore.addMessage({
+                text: message.content,
+                time: new Date(message.createdAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                }),
+                isSent: true,
+                status: 'delivered',
+            })
+        }
+        // newMessage.value = ''
+
+        // Прокрутка вниз после отправки сообщения
+        // setTimeout(scrollToBottom, 100)
+    }
+}
+const selectedContact = ref<Contact | null>(null)
+
+const selectContact = (contact: Contact) => {
+    console.log('selectContact', contact)
+    selectedContact.value = contact
+}
 
 onMounted(() => {
     setupNetworkListeners()
@@ -183,102 +224,12 @@ onBeforeUnmount(() => {
         <ConnectionStatus :show="isOffline" @retry="handleConnectionRetry" />
         <LoaderOverlay :show="isLoading" />
 
-        <!-- <div class="chat-header">
-      <button class="contact-toggle" @click="toggleContacts">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          width="24"
-          height="24"
-          fill="currentColor"
-        >
-          <path
-            d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-          />
-        </svg>
-        <span>Contacts</span>
-      </button>
-
-      <h1>Easy Chat</h1>
-
-      <div class="menu-container">
-        <button class="menu-button" @click.stop="toggleMenu">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            width="24"
-            height="24"
-            fill="currentColor"
-          >
-            <path
-              d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-            />
-          </svg>
-          <span>Menu</span>
-          <svg
-            class="arrow-icon"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            width="18"
-            height="18"
-            fill="currentColor"
-          >
-            <path d="M7 10l5 5 5-5z" />
-          </svg>
-        </button>
-
-        <div class="dropdown-menu" :class="{ show: isMenuOpen }">
-          <button class="menu-item" @click="goToAccount">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="currentColor"
-            >
-              <path
-                d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-              />
-            </svg>
-            My Account
-          </button>
-          <button class="menu-item" @click="goToNews">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="currentColor"
-            >
-              <path
-                d="M19 5v14H5V5h14m1-2H4c-.55 0-1 .45-1 1v16c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zm-5 4h-3v2h3V7zm0 4h-3v2h3v-2zm0 4h-3v2h3v-2zM7 7h5v2H7V7zm0 4h5v2H7v-2zm0 4h5v2H7v-2z"
-              />
-            </svg>
-            News Feed
-          </button>
-          <button class="menu-item logout" @click="logout">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="currentColor"
-            >
-              <path
-                d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
-              />
-            </svg>
-            Logout
-          </button>
-        </div>
-      </div>
-    </div> -->
-
         <div class="chat-main">
             <ContactsList
                 :class="{ show: isContactsVisible }"
                 @toggle-contacts="toggleContacts"
                 @toggle-news="toggleNews"
+                @select-contact="selectContact"
             />
             <div class="main-content">
                 <NewsFeed
@@ -286,6 +237,7 @@ onBeforeUnmount(() => {
                     :hide-header="true"
                     @back-to-chat="showNews = false"
                     @toggle-contacts="toggleContacts"
+
                 />
                 <ChatArea
                     v-else
@@ -294,6 +246,7 @@ onBeforeUnmount(() => {
                     @go-to-news="goToNews"
                     @go-to-manifesto="goToManifesto"
                     @logout="logout"
+                    @send-message="sendMessage"
                 />
             </div>
         </div>

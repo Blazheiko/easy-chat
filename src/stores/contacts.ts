@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export interface Contact {
+    id: number
+    contactId: number
     name: string
     unreadCount?: number
     isActive?: boolean

@@ -32,7 +32,7 @@ const newsItems = ref<NewsItem[]>([
         userName: 'John Doe',
         // userAvatar: '/avatars/user1.png',
         content:
-            'Just found this amazing article about Vue 3 composition API and how it changes the way we build Vue apps!',
+            'When using a language model for code completion, we typically want the model to produce a completion that begins with what the user has typed.However, modern language models operate on sequences of tokens, not characters, so naively tokenizing the users input and sending it to the model produces wrong results if the users cursor doesnt happen to lie on a token boundary.Instead, we need an algorithm that samples a sequence of tokens conditional on a prefix of characters, rather than the more typical case of sampling conditional on a prefix of tokens.We call this character prefix conditioning, an algorithm for sampling a sequence of tokens conditioned on a character prefix.Just found this amazing article about Vue 3 composition API and how it changes the way we build Vue apps!',
         images: [
             'https://images.unsplash.com/photo-1544947950-fa07a98d237f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80',
         ],
@@ -106,7 +106,8 @@ const newsItems = ref<NewsItem[]>([
         content:
             'Just completed my first marathon! It was tough but so rewarding. Thanks to everyone who supported me along the way.',
         images: [
-            'https://images.unsplash.com/photo-1530137073414-caacf9d82710?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
+            'https://images.unsplash.com/photo-1528360983277-13d401cdc186?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
+            'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
         ],
         likes: 89,
         comments: 31,

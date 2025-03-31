@@ -2,8 +2,13 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import MenuButton from '@/components/MenuButton.vue'
 import { useMessagesStore } from '@/stores/messages'
+// import api from '@/utils/api'
+// import { useUserStore } from '@/stores/user'
 
+// const userStore = useUserStore()
 // Тип звонка
+
+const emit = defineEmits(['send-message'])
 type CallType = 'video' | 'audio' | null
 
 const messagesStore = useMessagesStore()
@@ -39,14 +44,12 @@ const localVideoRef = ref<HTMLVideoElement | null>(null)
 const remoteVideoRef = ref<HTMLVideoElement | null>(null)
 const localStream = ref<MediaStream | null>(null)
 
-const sendMessage = () => {
-    if (newMessage.value.trim()) {
-        messagesStore.addMessage({
-            text: newMessage.value,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            isSent: true,
-            status: 'sent',
-        })
+const sendMessage = async () => {
+    const message = newMessage.value.trim()
+    if (message) {
+        console.log('sendMessage', message)
+        emit('send-message', message)
+
         newMessage.value = ''
 
         // Прокрутка вниз после отправки сообщения

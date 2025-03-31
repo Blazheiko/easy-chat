@@ -155,7 +155,7 @@ class WebsocketBase {
         reject,
         timeout: window.setTimeout(() => {
           reject()
-        }, 5000),
+        }, 10000),
       }
     })
   }
