@@ -43,7 +43,7 @@ const contextMenu = ref({
 
 // Функция для обработки клика по контакту
 const handleContactClick = (contact: Contact) => {
-    contactsStore.setActiveContact(contact.name)
+    console.log('handleContactClick')
     emit('select-contact', contact)
 }
 
@@ -115,7 +115,7 @@ const startEditing = () => {
 
 const saveEdit = () => {
     if (contextMenu.value.contactIndex !== -1 && contextMenu.value.editName.trim()) {
-        contactsStore.updateContact(contextMenu.value.contactIndex, {
+        contactsStore.updateContact({
             name: contextMenu.value.editName,
         })
         hideContextMenu()

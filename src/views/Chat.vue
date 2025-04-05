@@ -206,7 +206,7 @@ const sendMessage = async (newMessage: string) => {
                 }),
                 isSent: true,
                 status: 'delivered',
-                createdAt: message.createdAt,
+                createdAt: String(message.createdAt),
                 date: '',
             })
         }
@@ -239,6 +239,7 @@ const selectedContact = ref<Contact | null>(null)
 const selectContact = async (contact: Contact) => {
     console.log('selectContact', contact)
     selectedContact.value = contact
+    contactsStore.setActiveContact(contact)
     localStorage.setItem('current_contact_id', contact.contactId.toString())
     messagesStore.resetMessages()
     const { error, data } = await api.http<MessagesResponse>('POST', '/api/chat/get-messages', {
@@ -271,7 +272,7 @@ const selectContact = async (contact: Contact) => {
             console.log('acc', acc)
 
         messagesStore.setMessages(newMessages)
-        selectedContact.value = data.contact as Contact
+        contactsStore.updateContact(data.contact)
         nextTick(() => {
             scrollToBottom()
         })
@@ -320,6 +321,7 @@ onBeforeUnmount(() => {
                 <ChatArea
                     v-else
                     ref="chatAreaRef"
+                    :selected-contact="selectedContact as Contact"
                     @toggle-contacts="toggleContacts"
                     @go-to-account="goToAccount"
                     @go-to-news="goToNews"

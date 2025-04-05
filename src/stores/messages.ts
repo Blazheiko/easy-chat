@@ -1,6 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
+// {
+//     text: 'Would you like to grab lunch tomorrow?',
+//     time: '3:45 PM',
+//     isSent: false,
+//     date: 'Yesterday',
+// },
+
 export interface Message {
     text: string
     time: string
@@ -11,24 +18,7 @@ export interface Message {
 }
 
 export const useMessagesStore = defineStore('messages', () => {
-    const messages = ref<Message[]>([
-        // { text: 'Hi! How are you?', time: '10:30 AM', isSent: false, date: 'Today' },
-        // { text: "Hello! I'm fine, thanks!", time: '10:31 AM', isSent: false, status: 'read' },
-        // {
-        //     text: 'Would you like to grab lunch tomorrow?',
-        //     time: '3:45 PM',
-        //     isSent: false,
-        //     date: 'Yesterday',
-        // },
-        // { text: 'Sure, that sounds great!', time: '3:47 PM', isSent: false, status: 'read' },
-        // {
-        //     text: "Let's meet at the usual place?",
-        //     time: '3:47 PM',
-        //     isSent: false,
-        //     status: 'delivered',
-        // },
-        // { text: 'Perfect, see you then!', time: '3:50 PM', isSent: false },
-    ])
+    const messages = ref<Message[]>([])
 
     function addMessage(message: Message) {
         messages.value.push(message)
@@ -53,24 +43,7 @@ export const useMessagesStore = defineStore('messages', () => {
     }
 
     function resetMessages() {
-        messages.value = [
-            // { text: 'Hi! How are you?', time: '10:30 AM', isSent: false, date: 'Today' },
-            // { text: "Hello! I'm fine, thanks!", time: '10:31 AM', isSent: true, status: 'read' },
-            // {
-            //     text: 'Would you like to grab lunch tomorrow?',
-            //     time: '3:45 PM',
-            //     isSent: false,
-            //     date: 'Yesterday',
-            // },
-            // { text: 'Sure, that sounds great!', time: '3:47 PM', isSent: true, status: 'read' },
-            // {
-            //     text: "Let's meet at the usual place?",
-            //     time: '3:47 PM',
-            //     isSent: true,
-            //     status: 'delivered',
-            // },
-            // { text: 'Perfect, see you then!', time: '3:50 PM', isSent: false },
-        ]
+        messages.value = []
     }
 
     return {

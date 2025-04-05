@@ -1,6 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
+// {
+//     name: 'John Smith',
+//     unreadCount: 2,
+//     isActive: true,
+//     isOnline: true,
+//     lastMessage: 'Perfect, see you then!',
+//     lastMessageTime: '10:30 AM',
+// },
+
 export interface Contact {
     id: number
     contactId: number
@@ -14,50 +23,25 @@ export interface Contact {
 }
 
 export const useContactsStore = defineStore('contacts', () => {
-    const contacts = ref<Contact[]>([
-        // {
-        //     name: 'John Smith',
-        //     unreadCount: 2,
-        //     isActive: true,
-        //     isOnline: true,
-        //     lastMessage: 'Perfect, see you then!',
-        //     lastMessageTime: '10:30 AM',
-        // },
-        // {
-        //     name: 'Mary Johnson',
-        //     unreadCount: 5,
-        //     isOnline: true,
-        //     lastMessage: 'I just sent you the files you requested',
-        //     lastMessageTime: 'Yesterday',
-        // },
-        // {
-        //     name: 'Alex Wilson',
-        //     isOnline: false,
-        //     lastMessage: 'When are you planning to finish the project?',
-        //     lastMessageTime: '2 days ago',
-        // },
-        // {
-        //     name: 'Helen Brown',
-        //     unreadCount: 1,
-        //     isOnline: false,
-        //     lastMessage: 'Thank you for your help!',
-        //     lastMessageTime: 'Monday',
-        // },
-    ])
+    const contacts = ref<Contact[]>([])
 
-    function setActiveContact(contactName: string) {
+    function setActiveContact(activeContact: Contact) {
         contacts.value.forEach((contact) => {
-            contact.isActive = contact.name === contactName
+            contact.isActive = contact.contactId === activeContact.contactId
         })
     }
 
-    function updateContact(index: number, updatedContact: Partial<Contact>) {
-        if (index >= 0 && index < contacts.value.length) {
-            contacts.value[index] = {
-                ...contacts.value[index],
-                ...updatedContact,
+    function updateContact(updatedContact: Partial<Contact>) {
+
+        contacts.value = contacts.value.map((contact) => {
+            if (contact.contactId === updatedContact.contactId) {
+                return {
+                    ...contact,
+                    ...updatedContact,
+                }
             }
-        }
+            return contact
+        })
     }
 
     function deleteContact(index: number) {
@@ -75,36 +59,7 @@ export const useContactsStore = defineStore('contacts', () => {
     }
 
     function resetContacts() {
-        contacts.value = [
-            // {
-            //     name: 'John Smith',
-            //     unreadCount: 2,
-            //     isActive: true,
-            //     isOnline: true,
-            //     lastMessage: 'Perfect, see you then!',
-            //     lastMessageTime: '10:30 AM',
-            // },
-            // {
-            //     name: 'Mary Johnson',
-            //     unreadCount: 5,
-            //     isOnline: true,
-            //     lastMessage: 'I just sent you the files you requested',
-            //     lastMessageTime: 'Yesterday',
-            // },
-            // {
-            //     name: 'Alex Wilson',
-            //     isOnline: false,
-            //     lastMessage: 'When are you planning to finish the project?',
-            //     lastMessageTime: '2 days ago',
-            // },
-            // {
-            //     name: 'Helen Brown',
-            //     unreadCount: 1,
-            //     isOnline: false,
-            //     lastMessage: 'Thank you for your help!',
-            //     lastMessageTime: 'Monday',
-            // },
-        ]
+        contacts.value = []
     }
 
     return {

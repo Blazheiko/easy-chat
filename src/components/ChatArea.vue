@@ -1,12 +1,25 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import type { PropType } from 'vue'
 import MenuButton from '@/components/MenuButton.vue'
 import { useMessagesStore } from '@/stores/messages'
+import type { Contact } from '@/stores/contacts'
 // import api from '@/utils/api'
 // import { useUserStore } from '@/stores/user'
 
 // const userStore = useUserStore()
 // Тип звонка
+
+// interface Props {
+//     selectedContact: Contact | null
+// }
+
+defineProps({
+    selectedContact: {
+        type: Object as PropType<Contact>,
+        default: null,
+    },
+})
 
 const emit = defineEmits(['send-message', 'toggle-contacts'])
 type CallType = 'video' | 'audio' | null
@@ -98,6 +111,7 @@ const receiveRandomMessage = () => {
         text: randomMessages[randomIndex],
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         isSent: false,
+        createdAt: new Date().toISOString(),
     })
 
     // Прокрутка вниз после получения сообщения
@@ -292,7 +306,7 @@ onUnmounted(() => {
                     />
                 </svg>
             </button>
-            <h2>John Smith</h2>
+            <h2 v-if="selectedContact">{{ selectedContact.name }}</h2>
 
             <div class="header-buttons">
                 <MenuButton />
