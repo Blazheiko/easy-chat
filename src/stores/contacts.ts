@@ -20,6 +20,7 @@ export interface Contact {
     avatar?: string
     lastMessage?: string
     lastMessageTime?: string
+    updatedAt: string
 }
 
 export const useContactsStore = defineStore('contacts', () => {

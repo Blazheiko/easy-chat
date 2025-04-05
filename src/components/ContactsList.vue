@@ -59,6 +59,7 @@ const toggleNews = () => {
 // Фильтрация и сортировка контактов
 const filteredContacts = computed(() => {
     let filtered = contactsStore.contacts
+    filtered = filtered.sort((a, b) => (new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()))
 
     // Применяем фильтр по поисковому запросу
     if (searchQuery.value) {

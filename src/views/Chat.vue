@@ -94,6 +94,7 @@ const initChatData = async () => {
             isOnline: false,
             lastMessage: '',
             lastMessageTime: formatMessageDate(contact.updatedAt),
+            updatedAt: contact.updatedAt,
         }))
 
         contactsStore.setContactList(contactList)
@@ -163,8 +164,9 @@ const sendMessage = async (newMessage: string) => {
     console.log('sendMessage', newMessage)
     if (newMessage && selectedContact.value && userStore.user) {
         console.log('selectedContact', selectedContact.value)
+        const contactId = selectedContact.value.contactId
         const { error, data } = await api.http('POST', '/api/chat/send-chat-messages', {
-            contactId: selectedContact.value.contactId,
+            contactId,
             content: newMessage,
             userId: userStore.user?.id,
         })
@@ -182,6 +184,10 @@ const sendMessage = async (newMessage: string) => {
                 status: 'delivered',
                 createdAt: String(message.createdAt),
                 date: formatMessageDate(String(message.createdAt)),
+            })
+            contactsStore.updateContact({
+                contactId: contactId,
+                updatedAt: new Date().toISOString(),
             })
         }
     }
@@ -259,6 +265,7 @@ const selectContact = async (contact: Contact) => {
             isOnline: false,
             lastMessage: '',
             lastMessageTime: formatMessageDate(contact.updatedAt),
+            updatedAt: contact.updatedAt,
         } as Contact)
         nextTick(() => {
             scrollToBottom()
