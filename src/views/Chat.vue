@@ -23,6 +23,10 @@ interface ContactResponse {
         name: string
         id: number
     }
+    lastMessage?: {
+        content: string
+        createdAt: string
+    }
     unreadCount: number
     status: string
     updatedAt: string
@@ -92,7 +96,7 @@ const initChatData = async () => {
             unreadCount: contact.unreadCount,
             isActive: false,
             isOnline: false,
-            lastMessage: '',
+            lastMessage: contact.lastMessage ? contact.lastMessage.content : '',
             lastMessageTime: formatMessageDate(contact.updatedAt),
             updatedAt: contact.updatedAt,
         }))
@@ -256,6 +260,7 @@ const selectContact = async (contact: Contact) => {
 
         messagesStore.setMessages(newMessages)
         const contact = data.contact
+        const lastMessage = newMessages.length > 0 ? newMessages[newMessages.length - 1].text : ''
         contactsStore.updateContact({
             id: contact.id,
             contactId: contact.contactId,
@@ -263,7 +268,7 @@ const selectContact = async (contact: Contact) => {
             unreadCount: contact.unreadCount,
             isActive: true,
             isOnline: false,
-            lastMessage: '',
+            lastMessage: lastMessage,
             lastMessageTime: formatMessageDate(contact.updatedAt),
             updatedAt: contact.updatedAt,
         } as Contact)
