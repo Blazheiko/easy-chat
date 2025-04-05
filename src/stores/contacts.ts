@@ -26,8 +26,9 @@ export const useContactsStore = defineStore('contacts', () => {
     const contacts = ref<Contact[]>([])
 
     function setActiveContact(activeContact: Contact) {
+        console.log('setActiveContact', activeContact.contactId)
         contacts.value.forEach((contact) => {
-            contact.isActive = contact.contactId === activeContact.contactId
+            contact.isActive = (contact.contactId === activeContact.contactId)
         })
     }
 
@@ -44,10 +45,8 @@ export const useContactsStore = defineStore('contacts', () => {
         })
     }
 
-    function deleteContact(index: number) {
-        if (index >= 0 && index < contacts.value.length) {
-            contacts.value.splice(index, 1)
-        }
+    function deleteContact(id: number) {
+        contacts.value = contacts.value.filter((contact) => contact.id !== id)
     }
 
     function setContactList(contactList: Contact[]) {

@@ -8,12 +8,16 @@ import ChatArea from '@/components/ChatArea.vue'
 import NewsFeed from '@/components/NewsFeed.vue'
 import LoaderOverlay from '@/components/LoaderOverlay.vue'
 import ConnectionStatus from '@/components/ConnectionStatus.vue'
+import formatMessageDate from '@/utils/formatMessageDate'
 import api from '@/utils/api'
 import { useMessagesStore, type Message } from '@/stores/messages'
 import type { Contact } from '@/stores/contacts'
 
 const messagesStore = useMessagesStore()
 interface ContactResponse {
+    id: number
+    userId: number
+    contactId: number
     rename?: string
     contact: {
         name: string
@@ -22,6 +26,7 @@ interface ContactResponse {
     unreadCount: number
     status: string
     updatedAt: string
+    createdAt: string
 }
 
 interface ApiMessage {
@@ -31,7 +36,7 @@ interface ApiMessage {
 
 interface MessagesResponse {
     messages: ApiMessage[]
-    contact: Contact
+    contact: ContactResponse
 }
 
 interface ApiResponse {
@@ -71,37 +76,6 @@ const handleConnectionRetry = () => {
     }, 2000)
 }
 
-// Функция форматирования времени сообщения
-const formatMessageTime = (timestamp: string): string => {
-    const date = new Date(timestamp)
-    const now = new Date()
-    const yesterday = new Date(now)
-    yesterday.setDate(yesterday.getDate() - 1)
-
-    // Если сообщение сегодня
-    if (date.toDateString() === now.toDateString()) {
-        return date.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true,
-        })
-    }
-
-    // Если сообщение вчера
-    if (date.toDateString() === yesterday.toDateString()) {
-        return 'Yesterday'
-    }
-
-    // Если сообщение на этой неделе
-    const daysAgo = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
-    if (daysAgo < 7) {
-        return `${daysAgo} days ago`
-    }
-
-    // Если старше недели, показываем день недели
-    return date.toLocaleString('en-US', { weekday: 'long' })
-}
-
 const initChatData = async () => {
     const { error, data } = await api.http<ApiResponse>('POST', '/api/chat/get-contact-list', {
         userId: userStore.user?.id,
@@ -112,14 +86,14 @@ const initChatData = async () => {
         console.log('Contact list: ', data.contactList)
 
         const contactList = data.contactList.map((contact: ContactResponse) => ({
-            id: contact.contact.id,
+            id: contact.id,
             contactId: contact.contact.id,
             name: contact.rename || contact.contact.name,
             unreadCount: contact.unreadCount,
             isActive: false,
             isOnline: false,
-            lastMessage: 'Hello, how are you?',
-            lastMessageTime: formatMessageTime(contact.updatedAt),
+            lastMessage: '',
+            lastMessageTime: formatMessageDate(contact.updatedAt),
         }))
 
         contactsStore.setContactList(contactList)
@@ -207,7 +181,7 @@ const sendMessage = async (newMessage: string) => {
                 isSent: true,
                 status: 'delivered',
                 createdAt: String(message.createdAt),
-                date: '',
+                date: formatMessageDate(String(message.createdAt)),
             })
         }
     }
@@ -220,19 +194,21 @@ const isToday = (date: Date) => {
            date.getFullYear() === today.getFullYear()
 }
 
-const isYesterday = (date: Date) => {
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
-    return date.getDate() === yesterday.getDate() &&
-           date.getMonth() === yesterday.getMonth() &&
-           date.getFullYear() === yesterday.getFullYear()
-}
+// const isYesterday = (date: Date) => {
+//     const yesterday = new Date()
+//     yesterday.setDate(yesterday.getDate() - 1)
+//     return (
+//         date.getDate() === yesterday.getDate() &&
+//         date.getMonth() === yesterday.getMonth() &&
+//         date.getFullYear() === yesterday.getFullYear()
+//     )
+// }
 
-const setDate = (date: Date) => {
-    if (isToday(date)) return 'Today'
-    if (isYesterday(date)) return 'Yesterday'
-    return date.toLocaleDateString()
-}
+// const setDate = (date: Date) => {
+//     if (isToday(date)) return 'Today'
+//     if (isYesterday(date)) return 'Yesterday'
+//     return date.toLocaleDateString()
+// }
 
 const selectedContact = ref<Contact | null>(null)
 
@@ -240,10 +216,10 @@ const selectContact = async (contact: Contact) => {
     console.log('selectContact', contact)
     selectedContact.value = contact
     contactsStore.setActiveContact(contact)
-    localStorage.setItem('current_contact_id', contact.contactId.toString())
+    localStorage.setItem('current_contact_id', selectedContact.value.contactId.toString())
     messagesStore.resetMessages()
     const { error, data } = await api.http<MessagesResponse>('POST', '/api/chat/get-messages', {
-        contactId: contact.contactId,
+        contactId: selectedContact.value.contactId,
         userId: userStore.user?.id,
     })
     if (error) {
@@ -261,18 +237,29 @@ const selectContact = async (contact: Contact) => {
                 isSent: true,
                 status: 'delivered',
                 createdAt: message.createdAt,
-                date: setDate(new Date(message.createdAt)),
+                // date: setDate(new Date(message.createdAt)),
+                date: isToday(new Date(message.createdAt))? 'Today': formatMessageDate(String(message.createdAt)),
             }))
-            const acc = newMessages.reduce((acc, message) => {
-                if (acc === message.date) message.date = ''
-                else if(message.date) acc = message.date
+        const acc = newMessages.reduce((acc, message) => {
+            if (acc === message.date) message.date = ''
+            else if (message.date) acc = message.date
 
-                return acc
-            }, '')
-            console.log('acc', acc)
+            return acc
+        }, '')
+        console.log('acc', acc)
 
         messagesStore.setMessages(newMessages)
-        contactsStore.updateContact(data.contact)
+        const contact = data.contact
+        contactsStore.updateContact({
+            id: contact.id,
+            contactId: contact.contactId,
+            name: contact.rename || contact.contact.name,
+            unreadCount: contact.unreadCount,
+            isActive: true,
+            isOnline: false,
+            lastMessage: '',
+            lastMessageTime: formatMessageDate(contact.updatedAt),
+        } as Contact)
         nextTick(() => {
             scrollToBottom()
         })

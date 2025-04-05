@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted , computed} from 'vue'
 import { useContactsStore } from '@/stores/contacts'
 import { useUserStore } from '@/stores/user'
 import type { Contact } from '@/stores/contacts'
@@ -30,8 +30,8 @@ const contextMenu = ref({
     show: false,
     x: 0,
     y: 0,
-    contactIndex: -1,
     isEditing: false,
+    contact: null as Contact | null,
     editName: '',
 })
 
@@ -57,7 +57,7 @@ const toggleNews = () => {
 }
 
 // Фильтрация и сортировка контактов
-const filteredContacts = () => {
+const filteredContacts = computed(() => {
     let filtered = contactsStore.contacts
 
     // Применяем фильтр по поисковому запросу
@@ -67,13 +67,15 @@ const filteredContacts = () => {
         )
     }
 
+    return filtered
+
     // Сортируем контакты: активный контакт всегда сверху
-    return filtered.sort((a, b) => {
-        if (a.isActive && !b.isActive) return -1
-        if (!a.isActive && b.isActive) return 1
-        return 0
-    })
-}
+    // return filtered.sort((a, b) => {
+    //     if (a.isActive && !b.isActive) return -1
+    //     if (!a.isActive && b.isActive) return 1
+    //     return 0
+    // })
+})
 
 // Получение инициалов пользователя из имени
 const getInitials = (name: string) => {
@@ -85,22 +87,22 @@ const getInitials = (name: string) => {
 }
 
 // Функции для работы с контекстным меню
-const showContextMenu = (event: MouseEvent, index: number, name: string) => {
+const showContextMenu = (event: MouseEvent, contact: Contact) => {
     event.preventDefault()
     contextMenu.value = {
         show: true,
         x: event.clientX,
         y: event.clientY,
-        contactIndex: index,
+        contact: contact,
         isEditing: false,
-        editName: name,
+        editName: '',
     }
 }
 
 const hideContextMenu = () => {
     contextMenu.value.show = false
-    contextMenu.value.contactIndex = -1
     contextMenu.value.isEditing = false
+    contextMenu.value.contact = null
     contextMenu.value.editName = ''
 }
 
@@ -114,7 +116,7 @@ const startEditing = () => {
 }
 
 const saveEdit = () => {
-    if (contextMenu.value.contactIndex !== -1 && contextMenu.value.editName.trim()) {
+    if (contextMenu.value.contact && contextMenu.value.editName.trim()) {
         contactsStore.updateContact({
             name: contextMenu.value.editName,
         })
@@ -127,8 +129,8 @@ const cancelEdit = () => {
 }
 
 const deleteContact = () => {
-    if (contextMenu.value.contactIndex !== -1) {
-        contactsStore.deleteContact(contextMenu.value.contactIndex)
+    if (contextMenu.value.contact) {
+        contactsStore.deleteContact(contextMenu.value.contact.id)
         hideContextMenu()
     }
 }
@@ -280,12 +282,12 @@ onUnmounted(() => {
         <div class="contacts-list-container">
             <TransitionGroup name="contact-list" tag="div">
                 <div
-                    v-for="(contact, index) in filteredContacts()"
-                    :key="contact.name"
+                    v-for="(contact) in filteredContacts"
+                    :key="contact.id"
                     class="contact"
                     :class="{ active: contact.isActive }"
                     @click="handleContactClick(contact)"
-                    @contextmenu="showContextMenu($event, index, contact.name)"
+                    @contextmenu="showContextMenu($event, contact)"
                 >
                     <div class="contact-avatar">
                         <div class="avatar">{{ getInitials(contact.name) }}</div>
@@ -307,7 +309,7 @@ onUnmounted(() => {
                 </div>
             </TransitionGroup>
 
-            <div v-if="filteredContacts().length === 0" class="no-results">
+            <div v-if="filteredContacts.length === 0" class="no-results">
                 No contacts found for "{{ searchQuery }}"
             </div>
         </div>
