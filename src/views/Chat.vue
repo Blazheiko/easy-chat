@@ -123,10 +123,12 @@ const initChatData = async () => {
         }))
 
         contactsStore.setContactList(contactList)
-        const currentContactId = localStorage.getItem('current_contact_id')
-        if (currentContactId) {
-            const contact = contactList.find((c) => c.contactId === parseInt(currentContactId))
-            if (contact) selectContact(contact)
+        if (!selectedContact.value) {
+            const currentContactId = localStorage.getItem('current_contact_id')
+            if (currentContactId) {
+                const contact = contactList.find((c) => c.contactId === parseInt(currentContactId))
+                if (contact) selectContact(contact)
+            }
         }
     }
 }
@@ -204,10 +206,34 @@ const sendMessage = async (newMessage: string) => {
                 }),
                 isSent: true,
                 status: 'delivered',
+                createdAt: message.createdAt,
+                date: '',
             })
         }
     }
 }
+
+const isToday = (date: Date) => {
+    const today = new Date()
+    return date.getDate() === today.getDate() &&
+           date.getMonth() === today.getMonth() &&
+           date.getFullYear() === today.getFullYear()
+}
+
+const isYesterday = (date: Date) => {
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    return date.getDate() === yesterday.getDate() &&
+           date.getMonth() === yesterday.getMonth() &&
+           date.getFullYear() === yesterday.getFullYear()
+}
+
+const setDate = (date: Date) => {
+    if (isToday(date)) return 'Today'
+    if (isYesterday(date)) return 'Yesterday'
+    return date.toLocaleDateString()
+}
+
 const selectedContact = ref<Contact | null>(null)
 
 const selectContact = async (contact: Contact) => {
@@ -233,7 +259,16 @@ const selectContact = async (contact: Contact) => {
                 }),
                 isSent: true,
                 status: 'delivered',
+                createdAt: message.createdAt,
+                date: setDate(new Date(message.createdAt)),
             }))
+            const acc = newMessages.reduce((acc, message) => {
+                if (acc === message.date) message.date = ''
+                else if(message.date) acc = message.date
+
+                return acc
+            }, '')
+            console.log('acc', acc)
 
         messagesStore.setMessages(newMessages)
         selectedContact.value = data.contact as Contact
