@@ -47,24 +47,28 @@ export const useMessagesStore = defineStore('messages', () => {
         }
     }
 
+    function setMessages(newMessages: Message[]) {
+        messages.value = newMessages
+    }
+
     function resetMessages() {
         messages.value = [
-            { text: 'Hi! How are you?', time: '10:30 AM', isSent: false, date: 'Today' },
-            { text: "Hello! I'm fine, thanks!", time: '10:31 AM', isSent: true, status: 'read' },
-            {
-                text: 'Would you like to grab lunch tomorrow?',
-                time: '3:45 PM',
-                isSent: false,
-                date: 'Yesterday',
-            },
-            { text: 'Sure, that sounds great!', time: '3:47 PM', isSent: true, status: 'read' },
-            {
-                text: "Let's meet at the usual place?",
-                time: '3:47 PM',
-                isSent: true,
-                status: 'delivered',
-            },
-            { text: 'Perfect, see you then!', time: '3:50 PM', isSent: false },
+            // { text: 'Hi! How are you?', time: '10:30 AM', isSent: false, date: 'Today' },
+            // { text: "Hello! I'm fine, thanks!", time: '10:31 AM', isSent: true, status: 'read' },
+            // {
+            //     text: 'Would you like to grab lunch tomorrow?',
+            //     time: '3:45 PM',
+            //     isSent: false,
+            //     date: 'Yesterday',
+            // },
+            // { text: 'Sure, that sounds great!', time: '3:47 PM', isSent: true, status: 'read' },
+            // {
+            //     text: "Let's meet at the usual place?",
+            //     time: '3:47 PM',
+            //     isSent: true,
+            //     status: 'delivered',
+            // },
+            // { text: 'Perfect, see you then!', time: '3:50 PM', isSent: false },
         ]
     }
 
@@ -74,5 +78,6 @@ export const useMessagesStore = defineStore('messages', () => {
         deleteMessage,
         updateMessage,
         resetMessages,
+        setMessages,
     }
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, defineComponent, onMounted, onBeforeUnmount } from 'vue'
+import { ref, defineComponent, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useContactsStore } from '@/stores/contacts'
@@ -9,7 +9,7 @@ import NewsFeed from '@/components/NewsFeed.vue'
 import LoaderOverlay from '@/components/LoaderOverlay.vue'
 import ConnectionStatus from '@/components/ConnectionStatus.vue'
 import api from '@/utils/api'
-import { useMessagesStore } from '@/stores/messages'
+import { useMessagesStore, type Message } from '@/stores/messages'
 import type { Contact } from '@/stores/contacts'
 
 const messagesStore = useMessagesStore()
@@ -22,6 +22,16 @@ interface ContactResponse {
     unreadCount: number
     status: string
     updatedAt: string
+}
+
+interface ApiMessage {
+    content: string
+    createdAt: string
+}
+
+interface MessagesResponse {
+    messages: ApiMessage[]
+    contact: Contact
 }
 
 interface ApiResponse {
@@ -41,6 +51,7 @@ const isLoading = ref(false)
 const isOffline = ref(false)
 const isMenuOpen = ref(false)
 const showNews = ref(false)
+const chatAreaRef = ref<InstanceType<typeof ChatArea> | null>(null)
 
 const toggleContacts = () => {
     isContactsVisible.value = !isContactsVisible.value
@@ -112,6 +123,11 @@ const initChatData = async () => {
         }))
 
         contactsStore.setContactList(contactList)
+        const currentContactId = localStorage.getItem('current_contact_id')
+        if (currentContactId) {
+            const contact = contactList.find((c) => c.contactId === parseInt(currentContactId))
+            if (contact) selectContact(contact)
+        }
     }
 }
 
@@ -190,17 +206,45 @@ const sendMessage = async (newMessage: string) => {
                 status: 'delivered',
             })
         }
-        // newMessage.value = ''
-
-        // Прокрутка вниз после отправки сообщения
-        // setTimeout(scrollToBottom, 100)
     }
 }
 const selectedContact = ref<Contact | null>(null)
 
-const selectContact = (contact: Contact) => {
+const selectContact = async (contact: Contact) => {
     console.log('selectContact', contact)
     selectedContact.value = contact
+    localStorage.setItem('current_contact_id', contact.contactId.toString())
+    messagesStore.resetMessages()
+    const { error, data } = await api.http<MessagesResponse>('POST', '/api/chat/get-messages', {
+        contactId: contact.contactId,
+        userId: userStore.user?.id,
+    })
+    if (error) {
+        console.error(error)
+    } else if (data && data.messages && data.messages.length > 0 && data.contact) {
+        console.log(data)
+        const newMessages: Message[] = data.messages
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+            .map((message: ApiMessage) => ({
+                text: message.content,
+                time: new Date(message.createdAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                }),
+                isSent: true,
+                status: 'delivered',
+            }))
+
+        messagesStore.setMessages(newMessages)
+        selectedContact.value = data.contact as Contact
+        nextTick(() => {
+            scrollToBottom()
+        })
+    }
+}
+
+const scrollToBottom = () => {
+    chatAreaRef.value?.scrollToBottom()
 }
 
 onMounted(() => {
@@ -237,10 +281,10 @@ onBeforeUnmount(() => {
                     :hide-header="true"
                     @back-to-chat="showNews = false"
                     @toggle-contacts="toggleContacts"
-
                 />
                 <ChatArea
                     v-else
+                    ref="chatAreaRef"
                     @toggle-contacts="toggleContacts"
                     @go-to-account="goToAccount"
                     @go-to-news="goToNews"

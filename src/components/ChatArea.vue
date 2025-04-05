@@ -8,7 +8,7 @@ import { useMessagesStore } from '@/stores/messages'
 // const userStore = useUserStore()
 // Тип звонка
 
-const emit = defineEmits(['send-message'])
+const emit = defineEmits(['send-message', 'toggle-contacts'])
 type CallType = 'video' | 'audio' | null
 
 const messagesStore = useMessagesStore()
@@ -44,6 +44,18 @@ const localVideoRef = ref<HTMLVideoElement | null>(null)
 const remoteVideoRef = ref<HTMLVideoElement | null>(null)
 const localStream = ref<MediaStream | null>(null)
 
+// Функция прокрутки чата вниз
+const scrollToBottom = () => {
+    if (messageContainerRef.value) {
+        const container = messageContainerRef.value as HTMLElement
+        container.scrollTop = container.scrollHeight
+    }
+}
+
+defineExpose({
+    scrollToBottom,
+})
+
 const sendMessage = async () => {
     const message = newMessage.value.trim()
     if (message) {
@@ -54,14 +66,6 @@ const sendMessage = async () => {
 
         // Прокрутка вниз после отправки сообщения
         setTimeout(scrollToBottom, 100)
-    }
-}
-
-// Функция прокрутки чата вниз
-const scrollToBottom = () => {
-    if (messageContainerRef.value) {
-        const container = messageContainerRef.value as HTMLElement
-        container.scrollTop = container.scrollHeight
     }
 }
 
@@ -256,7 +260,7 @@ const cancelMessageEdit = () => {
 
 onMounted(() => {
     // Прокрутка к последнему сообщению при загрузке
-    setTimeout(scrollToBottom, 100)
+    // setTimeout(scrollToBottom, 100)
 
     // Добавляем обработчик клика вне контекстного меню
     document.addEventListener('click', hideContextMenu)
@@ -681,17 +685,21 @@ onUnmounted(() => {
 }
 
 .messages {
-    flex: 1;
+    flex: 1 1 auto;
     padding: 20px;
     padding-bottom: 20px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     width: 100%;
-    min-height: 0;
+    height: 100%;
     scrollbar-width: thin;
     scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
     background-color: var(--background-color);
+}
+
+.messages > :first-child {
+    margin-top: auto;
 }
 
 .dark-theme .messages {
