@@ -18,10 +18,18 @@ export function useAppInitialization() {
                 console.error('Error in initialization:', error)
                 return null
             } else if (data && data.status === 'ok' && data.user && data.wsUrl) {
-                const websocketBase = new WebsocketBase(data.wsUrl as string)
+                const websocketBase = new WebsocketBase(data.wsUrl as string, {
+                    callbacks: {
+                        onReauthorize: async () => {
+                            console.error('onReauthorize')
+                            api.setWebSocketClient(null)
+                            await initializeApp()
+                        },
+                    },
+                })
                 api.setWebSocketClient(websocketBase)
                 return data
-            } else {
+            } else if (data && data.status === 'unauthorized') {
                 return null
             }
         } catch (error) {

@@ -2,12 +2,15 @@
 // Главный компонент приложения
 import { onMounted, ref, computed, onBeforeUnmount } from 'vue'
 import { useStateStore } from '@/stores/state'
-import { useAppInitialization } from '@/composables/useAppInitialization'
+// import { useAppInitialization } from '@/composables/useAppInitialization'
 import { useUserStore } from '@/stores/user'
 import { useRouter, useRoute } from 'vue-router'
 import type { User } from '@/stores/user'
 import { useContactsStore } from '@/stores/contacts'
 import { useMessagesStore } from '@/stores/messages'
+import api from '@/utils/api'
+import WebsocketBase from '@/utils/websocket-base'
+import type { WebsocketMessage } from '@/utils/websocket-base'
 
 const router = useRouter()
 const route = useRoute()
@@ -18,7 +21,7 @@ const windowWidth = ref(window.innerWidth)
 const stateStore = useStateStore()
 const contactsStore = useContactsStore()
 const messagesStore = useMessagesStore()
-const { initializeApp } = useAppInitialization()
+// const { initializeApp } = useAppInitialization()
 
 // Вычисляем, нужно ли показывать кнопку переключения темы
 const showThemeToggle = computed(() => {
@@ -47,14 +50,8 @@ onMounted(async () => {
     })
 
     // Инициализация данных при загрузке приложения
-    const result = await initializeApp()
-    if (result?.user) {
-        userStore.setUser(result.user as User)
-        if (route.name !== 'JoinChat') {
-            router.push({ name: 'Chat' })
-        }
-        console.log('Data in initialization:')
-    }
+    await initializeApp()
+
 
     // Инициализация контактов
     contactsStore.resetContacts()
@@ -70,8 +67,64 @@ onBeforeUnmount(() => {
     window.removeEventListener('resize', handleResize)
 })
 
+const onReauthorize = async () => {
+    console.error('onReauthorize')
+    api.setWebSocketClient(null)
+    await initializeApp()
+}
+
+const eventHandler = {
+    'user_online': (data: WebsocketMessage) => {
+        console.log('user_online')
+        console.log(data)
+    },
+    'new_message': (data: WebsocketMessage) => {
+        console.log('new_message')
+        console.log(data)
+    },
+}
+const onBroadcast = async (data: WebsocketMessage) => {
+    console.log('onBroadcast')
+    console.log(data)
+    const event = data.event.split(':')[1]
+    if (event in eventHandler) {
+        eventHandler[event as keyof typeof eventHandler](data)
+    } else {
+        console.error('Unknown event:', event)
+    }
+
+}
+
+const initializeApp = async () => {
+    try {
+        const { data, error } = await api.http('GET', '/api/init')
+        console.log(data)
+
+        if (error ) {
+            console.error('Error in initialization:', error)
+            return null
+        } else if (data && data.status === 'ok' && data.user && data.wsUrl) {
+            userStore.setUser(data.user as User)
+            if (route.name !== 'JoinChat') router.push({ name: 'Chat' })
+
+            console.log('Data in initialization:')
+
+            const websocketBase = new WebsocketBase(data.wsUrl as string, {
+                callbacks: { onReauthorize, onBroadcast},
+            })
+            api.setWebSocketClient(websocketBase)
+
+        } else if (data && data.status === 'unauthorized') {
+            userStore.setUser(null as unknown as User)
+            router.push({ name: 'Login' })
+        }
+    } catch (error) {
+        console.error('Error in initialization:', error)
+    }
+}
+
 // Переключение темы
-function toggleTheme() {
+const toggleTheme = () => {
     stateStore.setDarkMode(!stateStore.darkMode)
 }
 </script>

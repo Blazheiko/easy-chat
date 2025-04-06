@@ -256,7 +256,7 @@ const selectContact = async (contact: Contact) => {
 
             return acc
         }, '')
-        console.log('acc', acc)
+        // console.log('acc', acc)
 
         messagesStore.setMessages(newMessages)
         const contact = data.contact

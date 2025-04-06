@@ -17,7 +17,7 @@ interface ApiMethods {
         body?: Record<string, unknown>,
     ) => Promise<ApiResponse<T>>
     ws: <T = HttpResponse>(route: string, body?: Record<string, unknown>) => Promise<T | null>
-    setWebSocketClient: (client: WebsocketBase) => void
+    setWebSocketClient: (client: WebsocketBase | null) => void
 }
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | string
@@ -90,7 +90,7 @@ const api: ApiMethods = {
         }
     },
 
-    setWebSocketClient: (client: WebsocketBase) => {
+    setWebSocketClient: (client: WebsocketBase | null) => {
         webSocketClient = client
     },
 
