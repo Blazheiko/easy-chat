@@ -129,7 +129,7 @@ class WebsocketBase {
 
         this.wsConnection.ws.onmessage = (message: MessageEvent): void => {
             try {
-                console.log('onmessage: ', message.data)
+                // console.log('onmessage: ', message.data)
                 const data: WebsocketMessage = JSON.parse(message.data as string)
                 if (!this.validateMessage(data)) {
                     console.error('Invalid message format:', data)

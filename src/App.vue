@@ -11,6 +11,7 @@ import { useMessagesStore } from '@/stores/messages'
 import api from '@/utils/api'
 import WebsocketBase from '@/utils/websocket-base'
 import type { WebsocketMessage } from '@/utils/websocket-base'
+import { useEventBus } from '@/utils/event-bus'
 
 const router = useRouter()
 const route = useRoute()
@@ -21,6 +22,7 @@ const windowWidth = ref(window.innerWidth)
 const stateStore = useStateStore()
 const contactsStore = useContactsStore()
 const messagesStore = useMessagesStore()
+const eventBus = useEventBus()
 // const { initializeApp } = useAppInitialization()
 
 // Вычисляем, нужно ли показывать кнопку переключения темы
@@ -52,7 +54,6 @@ onMounted(async () => {
     // Инициализация данных при загрузке приложения
     await initializeApp()
 
-
     // Инициализация контактов
     contactsStore.resetContacts()
 
@@ -73,14 +74,35 @@ const onReauthorize = async () => {
     await initializeApp()
 }
 
+// interface UserOnlineData {
+//     userId: number
+//     isOnline: boolean
+// }
+
+interface NewMessageData {
+    contactId: number
+    content: string
+}
+
 const eventHandler = {
-    'user_online': (data: WebsocketMessage) => {
+    user_online: (event: any) => {
         console.log('user_online')
-        console.log(data)
+        console.log(event)
+        if (event.data) {
+            const eventData = event.data
+            eventBus.emit('user_online', {
+                userId: eventData.userId,
+                isOnline: eventData.isOnline,
+            })
+        }
     },
-    'new_message': (data: WebsocketMessage) => {
+    new_message: (event: any) => {
         console.log('new_message')
-        console.log(data)
+        console.log(event)
+        if (event.data) {
+            const message = event.data.message
+            eventBus.emit('new_message', message)
+        }
     },
 }
 const onBroadcast = async (data: WebsocketMessage) => {
@@ -92,7 +114,6 @@ const onBroadcast = async (data: WebsocketMessage) => {
     } else {
         console.error('Unknown event:', event)
     }
-
 }
 
 const initializeApp = async () => {
@@ -100,7 +121,7 @@ const initializeApp = async () => {
         const { data, error } = await api.http('GET', '/api/init')
         console.log(data)
 
-        if (error ) {
+        if (error) {
             console.error('Error in initialization:', error)
             return null
         } else if (data && data.status === 'ok' && data.user && data.wsUrl) {
@@ -110,10 +131,9 @@ const initializeApp = async () => {
             console.log('Data in initialization:')
 
             const websocketBase = new WebsocketBase(data.wsUrl as string, {
-                callbacks: { onReauthorize, onBroadcast},
+                callbacks: { onReauthorize, onBroadcast },
             })
             api.setWebSocketClient(websocketBase)
-
         } else if (data && data.status === 'unauthorized') {
             userStore.setUser(null as unknown as User)
             router.push({ name: 'Login' })

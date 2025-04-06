@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 
 export interface User {
-  id?: string
+  id: number
   name?: string
   email?: string
   [key: string]: string | number | boolean | undefined

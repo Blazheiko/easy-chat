@@ -12,8 +12,11 @@ import formatMessageDate from '@/utils/formatMessageDate'
 import api from '@/utils/api'
 import { useMessagesStore, type Message } from '@/stores/messages'
 import type { Contact } from '@/stores/contacts'
+import { useEventBus } from '@/utils/event-bus'
 
 const messagesStore = useMessagesStore()
+const eventBus = useEventBus()
+
 interface ContactResponse {
     id: number
     userId: number
@@ -34,8 +37,10 @@ interface ContactResponse {
 }
 
 interface ApiMessage {
+    id: number
     content: string
     createdAt: string
+    senderId: number
 }
 
 interface MessagesResponse {
@@ -199,9 +204,11 @@ const sendMessage = async (newMessage: string) => {
 
 const isToday = (date: Date) => {
     const today = new Date()
-    return date.getDate() === today.getDate() &&
-           date.getMonth() === today.getMonth() &&
-           date.getFullYear() === today.getFullYear()
+    return (
+        date.getDate() === today.getDate() &&
+        date.getMonth() === today.getMonth() &&
+        date.getFullYear() === today.getFullYear()
+    )
 }
 
 // const isYesterday = (date: Date) => {
@@ -244,19 +251,23 @@ const selectContact = async (contact: Contact) => {
                     hour: '2-digit',
                     minute: '2-digit',
                 }),
-                isSent: true,
+                isSent: (userStore.user?.id === message.senderId),
                 status: 'delivered',
                 createdAt: message.createdAt,
-                // date: setDate(new Date(message.createdAt)),
-                date: isToday(new Date(message.createdAt))? 'Today': formatMessageDate(String(message.createdAt)),
+                date: isToday(new Date(message.createdAt))
+                    ? 'Today'
+                    : formatMessageDate(String(message.createdAt)),
             }))
-        const acc = newMessages.reduce((acc, message) => {
-            if (acc === message.date) message.date = ''
-            else if (message.date) acc = message.date
 
-            return acc
-        }, '')
-        // console.log('acc', acc)
+        // Обработка дат сообщений
+        let lastDate = ''
+        newMessages.forEach((message) => {
+            if (lastDate === message.date) {
+                message.date = ''
+            } else if (message.date) {
+                lastDate = message.date
+            }
+        })
 
         messagesStore.setMessages(newMessages)
         const contact = data.contact
@@ -282,9 +293,42 @@ const scrollToBottom = () => {
     chatAreaRef.value?.scrollToBottom()
 }
 
+// Подписываемся на события
 onMounted(() => {
     setupNetworkListeners()
     document.addEventListener('click', closeMenuOnClickOutside)
+
+    // Подписка на события
+    eventBus.on('new_message', (message: ApiMessage) => {
+        console.log('event new_message', message)
+        if (selectedContact.value && message?.senderId === selectedContact.value.contactId) {
+            console.log('new_message')
+            messagesStore.addMessage({
+                text: message.content,
+                time: new Date().toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                }),
+                isSent: false,
+                status: 'delivered',
+                createdAt: new Date().toISOString(),
+                date: isToday(new Date()) ? 'Today' : formatMessageDate(new Date().toISOString()),
+            })
+            nextTick(() => {
+                scrollToBottom()
+            })
+        }
+    })
+
+    eventBus.on('user_online', (data) => {
+        if (selectedContact.value && data.userId === selectedContact.value.contactId) {
+            contactsStore.updateContact({
+                ...selectedContact.value,
+                isOnline: data.isOnline,
+            })
+        }
+    })
+
     if (!userStore.hasUser()) {
         console.log('no user')
         router.push('/')
@@ -293,8 +337,11 @@ onMounted(() => {
     }
 })
 
+// Отписываемся от событий при размонтировании
 onBeforeUnmount(() => {
     document.removeEventListener('click', closeMenuOnClickOutside)
+    eventBus.off('new_message')
+    eventBus.off('user_online')
 })
 </script>
 
