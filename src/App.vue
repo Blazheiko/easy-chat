@@ -98,6 +98,11 @@ const eventHandler = {
         console.log('event_typing')
         eventBus.emit('event_typing', event.payload as { userId: number; contactId: number })
     },
+    change_online: (event: WebsocketMessage) => {
+        console.log('change_online', event.payload)
+        contactsStore.updateContactById(Number(event.payload.userId), { isOnline: event.payload.status === 'online' })
+        // eventBus.emit('change_online', event.payload as { userId: number; status: string })
+    },
 }
 const onBroadcast = async (data: WebsocketMessage) => {
     console.log('onBroadcast')

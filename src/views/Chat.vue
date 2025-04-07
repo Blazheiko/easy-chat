@@ -47,11 +47,13 @@ export interface ApiMessage {
 interface MessagesResponse {
     messages: ApiMessage[]
     contact: ContactResponse
+    onlineUsers: number[]
 }
 
-interface ApiResponse {
+interface ApiInitialResponse {
     status: string
     contactList: ContactResponse[]
+    onlineUsers: number[]
 }
 
 defineComponent({
@@ -88,7 +90,7 @@ const handleConnectionRetry = () => {
 }
 
 const initChatData = async () => {
-    const { error, data } = await api.http<ApiResponse>('POST', '/api/chat/get-contact-list', {
+    const { error, data } = await api.http<ApiInitialResponse>('POST', '/api/chat/get-contact-list', {
         userId: userStore.user?.id,
     })
     if (error) {
@@ -96,13 +98,15 @@ const initChatData = async () => {
     } else if (data?.status === 'ok' && data.contactList?.length > 0) {
         console.log('Contact list: ', data.contactList)
 
+        const onlineContacts = data.onlineUsers
+
         const contactList = data.contactList.map((contact: ContactResponse) => ({
             id: contact.id,
-            contactId: contact.contact.id,
+            contactId: contact.contactId,
             name: contact.rename || contact.contact.name,
             unreadCount: contact.unreadCount,
             isActive: false,
-            isOnline: false,
+            isOnline: onlineContacts.includes(contact.contactId),
             lastMessage: contact.lastMessage ? contact.lastMessage.content : '',
             lastMessageTime: formatMessageDate(contact.updatedAt),
             updatedAt: contact.updatedAt,
@@ -228,22 +232,6 @@ const isToday = (date: Date) => {
     )
 }
 
-// const isYesterday = (date: Date) => {
-//     const yesterday = new Date()
-//     yesterday.setDate(yesterday.getDate() - 1)
-//     return (
-//         date.getDate() === yesterday.getDate() &&
-//         date.getMonth() === yesterday.getMonth() &&
-//         date.getFullYear() === yesterday.getFullYear()
-//     )
-// }
-
-// const setDate = (date: Date) => {
-//     if (isToday(date)) return 'Today'
-//     if (isYesterday(date)) return 'Yesterday'
-//     return date.toLocaleDateString()
-// }
-
 const selectedContact = ref<Contact | null>(null)
 
 const selectContact = async (contact: Contact) => {
@@ -273,17 +261,19 @@ const selectContact = async (contact: Contact) => {
                 lastDate = message.date
             }
         })
+        const onlineContacts = data.onlineUsers
+        console.log('onlineContacts', onlineContacts)
 
         messagesStore.setMessages(newMessages)
         const contact = data.contact
         const lastMessage = newMessages.length > 0 ? newMessages[newMessages.length - 1].text : ''
         contactsStore.updateContact({
             id: contact.id,
-            contactId: contact.contactId,
+            contactId: contact.contact.id,
             name: contact.rename || contact.contact.name,
             unreadCount: contact.unreadCount,
             isActive: true,
-            isOnline: false,
+            isOnline: (onlineContacts && onlineContacts.length > 0) ? onlineContacts.includes(contact.contact.id) : false,
             lastMessage: lastMessage,
             lastMessageTime: formatMessageDate(contact.updatedAt),
             updatedAt: contact.updatedAt,
