@@ -66,6 +66,7 @@ const isLoading = ref(false)
 const isOffline = ref(false)
 const isMenuOpen = ref(false)
 const showNews = ref(false)
+const isTyping = ref(false)
 const chatAreaRef = ref<InstanceType<typeof ChatArea> | null>(null)
 
 const toggleContacts = () => {
@@ -170,6 +171,21 @@ const logout = () => {
     // localStorage.removeItem('user')
     router.push('/')
 }
+
+const formatChatMesssage = (message: ApiMessage): Message => ({
+    text: message.content,
+    time: new Date(message.createdAt).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+    }),
+    isSent: (userStore.user?.id === message.senderId),
+    status: 'delivered',
+    createdAt: message.createdAt,
+    date: isToday(new Date(message.createdAt))
+        ? 'Today'
+        : formatMessageDate(String(message.createdAt)),
+})
+
 const sendMessage = async (newMessage: string) => {
     console.log('sendMessage', newMessage)
     if (newMessage && selectedContact.value && userStore.user) {
@@ -183,21 +199,19 @@ const sendMessage = async (newMessage: string) => {
         if (error) {
             console.error(error)
         } else if (data && data.message) {
-            const message = data.message as { content: string; createdAt: string | number | Date }
-            messagesStore.addMessage({
-                text: message.content,
-                time: new Date(message.createdAt).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                }),
-                isSent: true,
-                status: 'delivered',
-                createdAt: String(message.createdAt),
-                date: formatMessageDate(String(message.createdAt)),
-            })
+            const message = formatChatMesssage(data.message as ApiMessage)
+            if(messagesStore.messages.length > 0) {
+                const lastMessage = messagesStore.messages[messagesStore.messages.length - 1]
+                const date = isToday(new Date(lastMessage.createdAt))? 'Today': formatMessageDate(String(lastMessage.createdAt))
+                if(date === message.date) {
+                    message.date = ''
+                }
+            }
+            messagesStore.addMessage(message)
+
             contactsStore.updateContact({
                 contactId: contactId,
-                lastMessage: message.content,
+                lastMessage: message.text,
                 lastMessageTime: formatMessageDate(String(message.createdAt)),
                 updatedAt: new Date().toISOString(),
             })
@@ -248,19 +262,7 @@ const selectContact = async (contact: Contact) => {
         console.log(data)
         const newMessages: Message[] = data.messages
             .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-            .map((message: ApiMessage) => ({
-                text: message.content,
-                time: new Date(message.createdAt).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                }),
-                isSent: (userStore.user?.id === message.senderId),
-                status: 'delivered',
-                createdAt: message.createdAt,
-                date: isToday(new Date(message.createdAt))
-                    ? 'Today'
-                    : formatMessageDate(String(message.createdAt)),
-            }))
+            .map(formatChatMesssage)
 
         // Обработка дат сообщений
         let lastDate = ''
@@ -295,6 +297,7 @@ const selectContact = async (contact: Contact) => {
 const scrollToBottom = () => {
     chatAreaRef.value?.scrollToBottom()
 }
+let typingTimeout: number | null = null
 
 // Подписываемся на события
 onMounted(() => {
@@ -338,6 +341,17 @@ onMounted(() => {
         }
     })
 
+    eventBus.on('event_typing', (payload: WebsocketPayload)=>{
+        if (selectedContact.value && payload.userId === selectedContact.value.contactId) {
+            console.log('event_typing in chat', payload)
+            isTyping.value = true
+            if(typingTimeout) window.clearTimeout(typingTimeout)
+            typingTimeout = setTimeout(() => {
+                isTyping.value = false
+            }, 3000)
+        }
+    })
+
     if (!userStore.hasUser()) {
         console.log('no user')
         router.push('/')
@@ -345,6 +359,14 @@ onMounted(() => {
         initChatData()
     }
 })
+
+const eventTyping = async () => {
+    console.log('eventTyping')
+    if(selectedContact.value) {
+        const res = await api.ws( 'event_typing', {userId: userStore.user?.id, contactId: selectedContact.value?.contactId})
+        console.log('eventTyping res', res)
+    }
+}
 
 // Отписываемся от событий при размонтировании
 onBeforeUnmount(() => {
@@ -377,12 +399,14 @@ onBeforeUnmount(() => {
                     v-else
                     ref="chatAreaRef"
                     :selected-contact="selectedContact as Contact"
+                    :is-typing="isTyping"
                     @toggle-contacts="toggleContacts"
                     @go-to-account="goToAccount"
                     @go-to-news="goToNews"
                     @go-to-manifesto="goToManifesto"
                     @logout="logout"
                     @send-message="sendMessage"
+                    @event-typing="eventTyping"
                 />
             </div>
         </div>

@@ -94,6 +94,10 @@ const eventHandler = {
         console.log('new_message')
         eventBus.emit('new_message', event.payload as { message: ApiMessage })
     },
+    event_typing: (event: WebsocketMessage) => {
+        console.log('event_typing')
+        eventBus.emit('event_typing', event.payload as { userId: number; contactId: number })
+    },
 }
 const onBroadcast = async (data: WebsocketMessage) => {
     console.log('onBroadcast')

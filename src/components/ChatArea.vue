@@ -19,14 +19,17 @@ defineProps({
         type: Object as PropType<Contact>,
         default: null,
     },
+    isTyping: {
+        type: Boolean,
+        default: false,
+    },
 })
 
-const emit = defineEmits(['send-message', 'toggle-contacts'])
+const emit = defineEmits(['send-message', 'toggle-contacts', 'event-typing'])
 type CallType = 'video' | 'audio' | null
 
 const messagesStore = useMessagesStore()
 const newMessage = ref('')
-const isTyping = ref(false)
 const messageContainerRef = ref(null)
 
 // Добавляем состояние для контекстного меню
@@ -82,41 +85,42 @@ const sendMessage = async () => {
     }
 }
 
+let userTyping = false
+
 // Демонстрационная функция для имитации печатания
 const simulateTyping = () => {
-    isTyping.value = true
+    if(userTyping) return
+    userTyping = true
+    emit('event-typing')
+
     setTimeout(() => {
-        isTyping.value = false
-        // Имитация получения сообщения после печатания
-        setTimeout(() => {
-            receiveRandomMessage()
-        }, 1000)
-    }, 3000)
+        userTyping = false
+    }, 2500)
 }
 
-const randomMessages = [
-    "Sure, I'll be there!",
-    "That's interesting, tell me more.",
-    'I agree with you.',
-    'Let me think about it.',
-    'Can we discuss this later?',
-    'Great idea!',
-    "I'm not sure about that.",
-    'Absolutely!',
-]
+// const randomMessages = [
+//     "Sure, I'll be there!",
+//     "That's interesting, tell me more.",
+//     'I agree with you.',
+//     'Let me think about it.',
+//     'Can we discuss this later?',
+//     'Great idea!',
+//     "I'm not sure about that.",
+//     'Absolutely!',
+// ]
 
-const receiveRandomMessage = () => {
-    const randomIndex = Math.floor(Math.random() * randomMessages.length)
-    messagesStore.addMessage({
-        text: randomMessages[randomIndex],
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isSent: false,
-        createdAt: new Date().toISOString(),
-    })
+// const receiveRandomMessage = () => {
+//     const randomIndex = Math.floor(Math.random() * randomMessages.length)
+//     messagesStore.addMessage({
+//         text: randomMessages[randomIndex],
+//         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+//         isSent: false,
+//         createdAt: new Date().toISOString(),
+//     })
 
-    // Прокрутка вниз после получения сообщения
-    setTimeout(scrollToBottom, 100)
-}
+//     // Прокрутка вниз после получения сообщения
+//     setTimeout(scrollToBottom, 100)
+// }
 
 // Функция для начала видеозвонка
 const startVideoCall = async () => {
@@ -417,8 +421,8 @@ onUnmounted(() => {
             </div>
         </div>
 
-        <div class="typing-indicator" v-if="isTyping">
-            <span>John is typing</span>
+        <div class="typing-indicator" v-if="isTyping && selectedContact">
+            <span>{{ selectedContact.name }} is typing</span>
             <div class="typing-dots">
                 <div class="typing-dot"></div>
                 <div class="typing-dot"></div>
@@ -459,7 +463,7 @@ onUnmounted(() => {
                 class="message-input"
                 placeholder="Type a message..."
                 @keyup.enter="sendMessage"
-                @focus="simulateTyping"
+                @keypress="simulateTyping"
             />
             <button class="send-button" @click="sendMessage" :disabled="!newMessage.trim()">
                 <svg
