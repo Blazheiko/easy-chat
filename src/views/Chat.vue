@@ -13,6 +13,7 @@ import api from '@/utils/api'
 import { useMessagesStore, type Message } from '@/stores/messages'
 import type { Contact } from '@/stores/contacts'
 import { useEventBus } from '@/utils/event-bus'
+import type { WebsocketPayload } from '@/utils/websocket-base'
 
 const messagesStore = useMessagesStore()
 const eventBus = useEventBus()
@@ -36,7 +37,7 @@ interface ContactResponse {
     createdAt: string
 }
 
-interface ApiMessage {
+export interface ApiMessage {
     id: number
     content: string
     createdAt: string
@@ -299,8 +300,10 @@ onMounted(() => {
     document.addEventListener('click', closeMenuOnClickOutside)
 
     // Подписка на события
-    eventBus.on('new_message', (message: ApiMessage) => {
-        console.log('event new_message', message)
+    eventBus.on('new_message', (payload: WebsocketPayload) => {
+        console.log('event new_message', payload)
+        const message: ApiMessage = payload.message as ApiMessage
+
         if (selectedContact.value && message?.senderId === selectedContact.value.contactId) {
             console.log('new_message')
             messagesStore.addMessage({
@@ -317,15 +320,15 @@ onMounted(() => {
             nextTick(() => {
                 scrollToBottom()
             })
+        } else {
+            console.log('new_message not for this contact')
+            if(message?.senderId) contactsStore.incrementUnreadCount(message.senderId)
         }
     })
 
-    eventBus.on('user_online', (data) => {
-        if (selectedContact.value && data.userId === selectedContact.value.contactId) {
-            contactsStore.updateContact({
-                ...selectedContact.value,
-                isOnline: data.isOnline,
-            })
+    eventBus.on('user_online', (payload: WebsocketPayload) => {
+        if (selectedContact.value && payload.userId === selectedContact.value.contactId) {
+            selectedContact.value.isOnline = payload.isOnline as boolean
         }
     })
 

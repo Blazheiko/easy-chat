@@ -10,21 +10,14 @@ interface ApiResolveItem {
     timeout: number
 }
 
-interface WebsocketPayload {
-    message?: string
-    messages?: string[]
-    data?: unknown
-    timestamp?: number
+export interface WebsocketPayload {
     [key: string]: unknown
 }
 
 export interface WebsocketMessage {
     event: string
-    status?: number
-    payload?: WebsocketPayload
-    data?: ServiceError
-    timestamp?: number
-    [key: string]: unknown
+    status: number
+    payload: WebsocketPayload
 }
 
 interface ApiError {
@@ -35,7 +28,7 @@ interface ApiError {
 
 interface SendPayload {
     event: string
-    payload?: Record<string, unknown>
+    payload: Record<string, unknown>
 }
 
 enum ConnectionStatus {
@@ -50,10 +43,10 @@ interface WebsocketCallbacks {
     onBroadcast?: (message: WebsocketMessage) => void
 }
 
-interface ServiceError {
-    code: number
-    message: string
-}
+// interface ServiceError {
+//     code: number
+//     message: string
+// }
 
 interface WebsocketConfig {
     reconnectDelay?: number
@@ -245,7 +238,7 @@ class WebsocketBase {
             console.warn('Ping only can be sent when connection is ready.')
             return
         }
-        this.send({ event: 'service:ping' })
+        this.send({ event: 'service:ping', payload: {} })
     }
 
     send(payload: SendPayload): void {
@@ -295,13 +288,14 @@ class WebsocketBase {
     }
 
     private service(data: WebsocketMessage): void {
-        const serviceHandlers: Record<string, () => void | boolean> = {
+        const serviceHandlers: Record<string, (payload: WebsocketPayload) => void | boolean> = {
             pong: () => {
                 if (this.timerClose) window.clearTimeout(this.timerClose)
             },
-            connection_established: () => {
+            connection_established: (payload: WebsocketPayload) => {
                 this.connectionEstablished = true
-                return this.connectionEstablished
+                console.log('connection_established', payload)
+                // return this.connectionEstablished
             },
         }
 
@@ -310,7 +304,7 @@ class WebsocketBase {
             if (arr.length < 2) return
             const handlerName = arr[1]
             const handler = serviceHandlers[handlerName]
-            if (handler) handler()
+            if (handler) handler(data.payload)
         }
     }
 
@@ -327,8 +321,8 @@ class WebsocketBase {
         else if (cb.reject)
             cb.reject({
                 status: data?.status,
-                message: data?.payload?.message,
-                messages: data?.payload?.messages,
+                message: data?.payload?.message as string | undefined,
+                messages: data?.payload?.messages as string[] | undefined,
             })
     }
 
@@ -344,8 +338,8 @@ class WebsocketBase {
     }
 
     private handleServiceError(data: WebsocketMessage): void {
-        if (data.data?.code === 4001) {
-            console.warn('Token expired or invalid:', data.data.message)
+        if (data.status === 4001) {
+            console.warn('Token expired or invalid:', data.payload.message)
             this.handleReauthorize()
         }
     }

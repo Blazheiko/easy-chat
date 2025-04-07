@@ -33,6 +33,22 @@ export const useContactsStore = defineStore('contacts', () => {
         })
     }
 
+    function incrementUnreadCount(contactId: number) {
+        contacts.value.forEach((contact) => {
+            if (contact.contactId === contactId) {
+                contact.unreadCount = (contact.unreadCount || 0) + 1
+            }
+        })
+    }
+
+    function resetUnreadCount(contactId: number) {
+        contacts.value.forEach((contact) => {
+            if (contact.contactId === contactId) {
+                contact.unreadCount = 0
+            }
+        })
+    }
+
     function updateContact(updatedContact: Partial<Contact>) {
 
         contacts.value = contacts.value.map((contact) => {
@@ -70,5 +86,7 @@ export const useContactsStore = defineStore('contacts', () => {
         deleteContact,
         addContact,
         resetContacts,
+        incrementUnreadCount,
+        resetUnreadCount,
     }
 })

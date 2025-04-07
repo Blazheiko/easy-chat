@@ -12,6 +12,7 @@ import api from '@/utils/api'
 import WebsocketBase from '@/utils/websocket-base'
 import type { WebsocketMessage } from '@/utils/websocket-base'
 import { useEventBus } from '@/utils/event-bus'
+import type { ApiMessage } from '@/views/Chat.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -79,30 +80,21 @@ const onReauthorize = async () => {
 //     isOnline: boolean
 // }
 
-interface NewMessageData {
-    contactId: number
-    content: string
-}
+// interface NewMessageData {
+//     contactId: number
+//     content: string
+// }
 
 const eventHandler = {
-    user_online: (event: any) => {
+    user_online: (event: WebsocketMessage) => {
         console.log('user_online')
         console.log(event)
-        if (event.data) {
-            const eventData = event.data
-            eventBus.emit('user_online', {
-                userId: eventData.userId,
-                isOnline: eventData.isOnline,
-            })
-        }
+        eventBus.emit('user_online', event.payload as { userId: number; isOnline: boolean })
     },
-    new_message: (event: any) => {
+    new_message: (event: WebsocketMessage) => {
         console.log('new_message')
         console.log(event)
-        if (event.data) {
-            const message = event.data.message
-            eventBus.emit('new_message', message)
-        }
+        eventBus.emit('new_message', event.payload as { message: ApiMessage })
     },
 }
 const onBroadcast = async (data: WebsocketMessage) => {

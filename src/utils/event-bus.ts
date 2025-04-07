@@ -7,10 +7,12 @@ type Events = {
 
 const emitter = mitt<Events>()
 
-export const useEventBus = () => {
-    return {
-        emit: emitter.emit,
-        on: emitter.on,
-        off: emitter.off,
-    }
-}
+export const useEventBus = () => emitter
+
+// export const useEventBus = () => {
+//     return {
+//         emit: emitter.emit,
+//         on: emitter.on,
+//         off: emitter.off,
+//     }
+// }
