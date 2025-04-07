@@ -197,6 +197,8 @@ const sendMessage = async (newMessage: string) => {
             })
             contactsStore.updateContact({
                 contactId: contactId,
+                lastMessage: message.content,
+                lastMessageTime: formatMessageDate(String(message.createdAt)),
                 updatedAt: new Date().toISOString(),
             })
         }
@@ -303,26 +305,30 @@ onMounted(() => {
     eventBus.on('new_message', (payload: WebsocketPayload) => {
         console.log('event new_message', payload)
         const message: ApiMessage = payload.message as ApiMessage
-
-        if (selectedContact.value && message?.senderId === selectedContact.value.contactId) {
-            console.log('new_message')
-            messagesStore.addMessage({
-                text: message.content,
-                time: new Date().toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                }),
-                isSent: false,
-                status: 'delivered',
-                createdAt: new Date().toISOString(),
-                date: isToday(new Date()) ? 'Today' : formatMessageDate(new Date().toISOString()),
+        if(message?.senderId) {
+            contactsStore.updateContactById(Number(message.senderId), {
+                lastMessage: message.content,
             })
-            nextTick(() => {
-                scrollToBottom()
-            })
-        } else {
-            console.log('new_message not for this contact')
-            if(message?.senderId) contactsStore.incrementUnreadCount(message.senderId)
+            if (selectedContact.value && message.senderId === selectedContact.value.contactId) {
+                console.log('new_message')
+                messagesStore.addMessage({
+                    text: message.content,
+                    time: new Date().toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                    }),
+                    isSent: false,
+                    status: 'delivered',
+                    createdAt: new Date().toISOString(),
+                    date: isToday(new Date()) ? 'Today' : formatMessageDate(new Date().toISOString()),
+                })
+                nextTick(() => {
+                    scrollToBottom()
+                })
+            } else {
+                console.log('new_message not for this contact')
+                contactsStore.incrementUnreadCount(message.senderId)
+            }
         }
     })
 

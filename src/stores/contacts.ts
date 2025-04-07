@@ -62,6 +62,20 @@ export const useContactsStore = defineStore('contacts', () => {
         })
     }
 
+    function updateContactById(contactId: number, updatedContact: Partial<Contact>) {
+
+      console.log('updateContactById', contactId)
+      contacts.value = contacts.value.map((contact) => {
+          if (contactId === contact.contactId) {
+              return {
+                  ...contact,
+                  ...updatedContact,
+              }
+          }
+          return contact
+      })
+  }
+
     function deleteContact(id: number) {
         contacts.value = contacts.value.filter((contact) => contact.id !== id)
     }
@@ -88,5 +102,6 @@ export const useContactsStore = defineStore('contacts', () => {
         resetContacts,
         incrementUnreadCount,
         resetUnreadCount,
+        updateContactById
     }
 })

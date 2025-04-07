@@ -88,12 +88,10 @@ const onReauthorize = async () => {
 const eventHandler = {
     user_online: (event: WebsocketMessage) => {
         console.log('user_online')
-        console.log(event)
         eventBus.emit('user_online', event.payload as { userId: number; isOnline: boolean })
     },
     new_message: (event: WebsocketMessage) => {
         console.log('new_message')
-        console.log(event)
         eventBus.emit('new_message', event.payload as { message: ApiMessage })
     },
 }
