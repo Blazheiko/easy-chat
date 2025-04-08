@@ -18,7 +18,8 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const isLoading = ref(true)
-const windowWidth = ref(window.innerWidth)
+// const windowWidth = ref(window.innerWidth)
+
 
 const stateStore = useStateStore()
 const contactsStore = useContactsStore()
@@ -26,24 +27,25 @@ const messagesStore = useMessagesStore()
 const eventBus = useEventBus()
 // const { initializeApp } = useAppInitialization()
 
+const windowWidth = stateStore.windowWidth
 // Вычисляем, нужно ли показывать кнопку переключения темы
 const showThemeToggle = computed(() => {
     // Скрываем кнопку на странице чата в мобильной версии
-    if ((route.name === 'Chat' || route.name === 'UserAccount') && windowWidth.value <= 1400) {
+    if ((route.name === 'Chat' || route.name === 'UserAccount') && windowWidth <= 1400) {
         return false
     }
     return true
 })
 
 // Обработчик изменения размера окна
-const handleResize = () => {
-    windowWidth.value = window.innerWidth
-}
+// const handleResize = () => {
+//     windowWidth.value = window.innerWidth
+// }
 
 // Определяем тему при загрузке приложения
 onMounted(async () => {
     // Добавляем слушатель изменения размера окна
-    window.addEventListener('resize', handleResize)
+    // window.addEventListener('resize', handleResize)
 
     // Слушаем изменения предпочтений системы
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {

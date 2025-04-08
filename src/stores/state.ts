@@ -4,7 +4,17 @@ import { defineStore } from 'pinia'
 export const useStateStore = defineStore('state', () => {
   const theme = localStorage.getItem('theme')
   const darkMode = ref(theme === 'dark')
+  // const isLoading = ref(false)
+  // const isOffline = ref(false)
+  // const isMenuOpen = ref(false)
+  const windowWidth = ref(window.innerWidth)
   // const doubleCount = computed(() => count.value * 2)
+
+  const handleResize = () => {
+    windowWidth.value = window.innerWidth
+}
+
+  window.addEventListener('resize', handleResize)
 
   // Применение темы
   function applyTheme() {
@@ -28,5 +38,5 @@ export const useStateStore = defineStore('state', () => {
   // Отслеживаем изменения темы
   watch(darkMode, applyTheme)
 
-  return { darkMode, setDarkMode }
+  return { darkMode, setDarkMode, windowWidth }
 })

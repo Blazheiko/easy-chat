@@ -14,7 +14,7 @@ import { useMessagesStore, type Message } from '@/stores/messages'
 import type { Contact } from '@/stores/contacts'
 import { useEventBus } from '@/utils/event-bus'
 import type { WebsocketPayload } from '@/utils/websocket-base'
-
+import { useStateStore } from '@/stores/state'
 const messagesStore = useMessagesStore()
 const eventBus = useEventBus()
 
@@ -63,12 +63,13 @@ defineComponent({
 const router = useRouter()
 const userStore = useUserStore()
 const contactsStore = useContactsStore()
-const isContactsVisible = ref(false)
+const isContactsVisible = ref(true)
 const isLoading = ref(false)
 const isOffline = ref(false)
 const isMenuOpen = ref(false)
 const showNews = ref(false)
 const isTyping = ref(false)
+const windowWidth = useStateStore().windowWidth
 const chatAreaRef = ref<InstanceType<typeof ChatArea> | null>(null)
 
 const toggleContacts = () => {
@@ -113,7 +114,7 @@ const initChatData = async () => {
         }))
 
         contactsStore.setContactList(contactList)
-        if (!selectedContact.value) {
+        if (!selectedContact.value && windowWidth > 600) {
             const currentContactId = localStorage.getItem('current_contact_id')
             if (currentContactId) {
                 const contact = contactList.find((c) => c.contactId === parseInt(currentContactId))
@@ -279,6 +280,7 @@ const selectContact = async (contact: Contact) => {
             updatedAt: contact.updatedAt,
         } as Contact)
         nextTick(() => {
+            isContactsVisible.value = false
             scrollToBottom()
         })
     }
@@ -321,6 +323,12 @@ onMounted(() => {
             } else {
                 console.log('new_message not for this contact')
                 contactsStore.incrementUnreadCount(message.senderId)
+                contactsStore.updateContactById(Number(message.senderId), {
+                    isOnline: true,
+                    lastMessage: message.content,
+                    lastMessageTime: formatMessageDate(String(message.createdAt)),
+                    updatedAt: new Date().toISOString(),
+                })
             }
         }
     })
@@ -549,7 +557,7 @@ onBeforeUnmount(() => {
     transform: translateY(0);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 600px) {
     .chat-header {
         padding: 0 16px;
     }
