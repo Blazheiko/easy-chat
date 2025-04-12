@@ -1,5 +1,5 @@
 interface WebsocketConnection {
-    ws?: WebSocket
+    ws: WebSocket | null
     closeInitiated?: boolean
     timerPing?: number
 }
@@ -77,11 +77,15 @@ class WebsocketBase {
         this.reconnectDelay = options.reconnectDelay || 5000
         this.maxReconnectAttempts = options.maxReconnectAttempts || 500
         this.reconnectAttempts = 0
-        this.pingInterval = options.pingInterval || 5000
-        this.timeout = options.timeout || 10000
+        this.pingInterval = options.pingInterval || 10000
+        this.timeout = options.timeout || 20000
         this.authToken = options.authToken
         this.callbacks = options.callbacks
-        this.wsConnection = {}
+        this.wsConnection = {
+            ws: null,
+            closeInitiated: false,
+            timerPing: undefined,
+        }
         this.apiResolve = {}
         this.connectionEstablished = false
         this.initConnect(url)
@@ -89,8 +93,8 @@ class WebsocketBase {
 
     isConnected(): boolean {
         return (
-            this.wsConnection.ws !== undefined &&
-            this.wsConnection.ws.readyState === ConnectionStatus.OPEN
+            Boolean(this.wsConnection.ws) &&
+            this.wsConnection.ws?.readyState === ConnectionStatus.OPEN
         )
     }
 
@@ -109,11 +113,11 @@ class WebsocketBase {
             console.log(`Open to WebSocket server: ${url}`)
             this.reconnectAttempts = 0
 
-            if (this.authToken) {
-                this.send({ event: 'auth', payload: { token: this.authToken } })
-            }
+            // if (this.authToken) {
+            //     this.send({ event: 'auth', payload: { token: this.authToken } })
+            // }
 
-            this.wsConnection.timerPing = window.setInterval(() => {
+            this.wsConnection.timerPing = window.setTimeout(() => {
                 this.pingServer()
             }, this.pingInterval)
 
@@ -190,7 +194,7 @@ class WebsocketBase {
                         this.wsConnection.ws.onerror = null
                         this.wsConnection.ws.onmessage = null
                         this.wsConnection.ws.onopen = null
-                        this.wsConnection.ws = undefined
+                        this.wsConnection.ws = null
                     }
                     this.initConnect(url)
                 }
@@ -238,6 +242,7 @@ class WebsocketBase {
             console.warn('Ping only can be sent when connection is ready.')
             return
         }
+        console.log('Ping server')
         this.send({ event: 'service:ping', payload: {} })
     }
 
@@ -262,7 +267,11 @@ class WebsocketBase {
 
         if (this.wsConnection.ws) {
             try {
+                if (this.wsConnection.timerPing) window.clearTimeout(this.wsConnection.timerPing)
                 this.wsConnection.ws.send(JSON.stringify(payload))
+                this.wsConnection.timerPing = window.setTimeout(() => {
+                    this.pingServer()
+                }, this.pingInterval)
             } catch (error) {
                 console.error('Error sending message:', error)
                 this.messageQueue.push(payload)

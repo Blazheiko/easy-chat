@@ -49,9 +49,10 @@ onMounted(async () => {
 
     // Слушаем изменения предпочтений системы
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-        if (localStorage.getItem('theme') === null) {
-            stateStore.setDarkMode(e.matches)
-        }
+      stateStore.setDarkMode(e.matches)
+        // if (localStorage.getItem('theme') === null) {
+        //     stateStore.setDarkMode(e.matches)
+        // }
     })
 
     // Инициализация данных при загрузке приложения
@@ -68,7 +69,7 @@ onMounted(async () => {
 
 // Удаляем слушатель при размонтировании компонента
 onBeforeUnmount(() => {
-    window.removeEventListener('resize', handleResize)
+    // window.removeEventListener('resize', handleResize)
 })
 
 const onReauthorize = async () => {
@@ -169,8 +170,8 @@ const toggleTheme = () => {
 
 <style>
 :root {
-    --primary-color: #1a73e8;
-    --accent-color: #4285f4;
+    --primary-color: #145fc2;
+    --accent-color: #195cc6;
     --background-color: #f8f9fa;
     --text-color: #212529;
     --border-color: #dee2e6;
