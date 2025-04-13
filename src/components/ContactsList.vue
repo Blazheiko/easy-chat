@@ -22,7 +22,7 @@ const newContact = ref({
 })
 const shareLink = ref('')
 const copySuccess = ref(false)
-const emit = defineEmits(['toggle-contacts', 'toggle-news', 'select-contact'])
+const emit = defineEmits(['toggle-contacts', 'toggle-news', 'select-contact', 'toggle-calendar'])
 const editInput = ref<HTMLInputElement | null>(null)
 // Добавляем состояние для поиска
 const isSearchActive = ref(false)
@@ -237,6 +237,11 @@ const hideSearchOnBlur = () => {
         isSearchActive.value = false
     }
 }
+
+// Функция для переключения отображения календаря
+const toggleCalendar = () => {
+    emit('toggle-calendar')
+}
 </script>
 
 <template>
@@ -287,7 +292,7 @@ const hideSearchOnBlur = () => {
                 </button>
 
                 <!-- Иконка календаря -->
-                <button class="icon-button calendar-icon">
+                <button class="icon-button calendar-icon" @click="toggleCalendar">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
@@ -302,7 +307,7 @@ const hideSearchOnBlur = () => {
                 </button>
 
                 <!-- Иконка блогов -->
-                <button class="icon-button blog-icon">
+                <button class="icon-button blog-icon" @click="toggleNews">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"

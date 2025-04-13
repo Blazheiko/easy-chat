@@ -5,6 +5,7 @@ import { useUserStore } from '@/stores/user'
 import { useContactsStore } from '@/stores/contacts'
 import ContactsList from '@/components/ContactsList.vue'
 import ChatArea from '@/components/ChatArea.vue'
+import Calendar from '@/components/Calendar.vue'
 import NewsFeed from '@/components/NewsFeed.vue'
 import LoaderOverlay from '@/components/LoaderOverlay.vue'
 import ConnectionStatus from '@/components/ConnectionStatus.vue'
@@ -17,6 +18,38 @@ import type { WebsocketPayload } from '@/utils/websocket-base'
 import { useStateStore } from '@/stores/state'
 const messagesStore = useMessagesStore()
 const eventBus = useEventBus()
+
+// Аудио-элементы для звуковых уведомлений
+const notificationSound = ref<HTMLAudioElement | null>(null)
+const clickSound = ref<HTMLAudioElement | null>(null)
+// Включены ли звуковые уведомления
+const notificationsEnabled = ref(localStorage.getItem('notifications_enabled') !== 'false')
+
+// Функция для воспроизведения звука уведомления
+const playNotificationSound = () => {
+    if (notificationSound.value && notificationsEnabled.value) {
+        notificationSound.value.currentTime = 0
+        notificationSound.value.play().catch((error) => {
+            console.error('Ошибка воспроизведения звука:', error)
+        })
+    }
+}
+
+// Функция для воспроизведения звука щелчка (для активного чата)
+const playClickSound = () => {
+    if (clickSound.value && notificationsEnabled.value) {
+        clickSound.value.currentTime = 0
+        clickSound.value.play().catch((error) => {
+            console.error('Ошибка воспроизведения звука щелчка:', error)
+        })
+    }
+}
+
+// Функция для переключения звуковых уведомлений
+const toggleNotifications = () => {
+    notificationsEnabled.value = !notificationsEnabled.value
+    localStorage.setItem('notifications_enabled', notificationsEnabled.value.toString())
+}
 
 interface ContactResponse {
     id: number
@@ -68,6 +101,7 @@ const isLoading = ref(false)
 const isOffline = ref(false)
 const isMenuOpen = ref(false)
 const showNews = ref(false)
+const showCalendar = ref(false)
 const isTyping = ref(false)
 const windowWidth = useStateStore().windowWidth
 const chatAreaRef = ref<InstanceType<typeof ChatArea> | null>(null)
@@ -78,6 +112,16 @@ const toggleContacts = () => {
 
 const toggleNews = (newsState: boolean) => {
     showNews.value = newsState
+    if (newsState) {
+        showCalendar.value = false
+    }
+}
+
+const toggleCalendar = () => {
+    showCalendar.value = !showCalendar.value
+    if (showCalendar.value) {
+        showNews.value = false
+    }
 }
 
 const handleConnectionRetry = () => {
@@ -91,9 +135,13 @@ const handleConnectionRetry = () => {
 }
 
 const initChatData = async () => {
-    const { error, data } = await api.http<ApiInitialResponse>('POST', '/api/chat/get-contact-list', {
-        userId: userStore.user?.id,
-    })
+    const { error, data } = await api.http<ApiInitialResponse>(
+        'POST',
+        '/api/chat/get-contact-list',
+        {
+            userId: userStore.user?.id,
+        },
+    )
     if (error) {
         console.error('Failed to get contact list: ', error)
     } else if (data?.status === 'ok' && data.contactList?.length > 0) {
@@ -183,7 +231,7 @@ const formatChatMesssage = (message: ApiMessage): Message => ({
         hour: '2-digit',
         minute: '2-digit',
     }),
-    isSent: (userStore.user?.id === message.senderId),
+    isSent: userStore.user?.id === message.senderId,
     status: 'delivered',
     createdAt: message.createdAt,
     date: isToday(new Date(message.createdAt))
@@ -205,10 +253,12 @@ const sendMessage = async (newMessage: string) => {
             console.error(error)
         } else if (data && data.message) {
             const message = formatChatMesssage(data.message as ApiMessage)
-            if(messagesStore.messages.length > 0) {
+            if (messagesStore.messages.length > 0) {
                 const lastMessage = messagesStore.messages[messagesStore.messages.length - 1]
-                const date = isToday(new Date(lastMessage.createdAt))? 'Today': formatMessageDate(String(lastMessage.createdAt))
-                if(date === message.date) {
+                const date = isToday(new Date(lastMessage.createdAt))
+                    ? 'Today'
+                    : formatMessageDate(String(lastMessage.createdAt))
+                if (date === message.date) {
                     message.date = ''
                 }
             }
@@ -274,7 +324,10 @@ const selectContact = async (contact: Contact) => {
             name: contact.rename || contact.contact.name,
             unreadCount: contact.unreadCount,
             isActive: true,
-            isOnline: (onlineContacts && onlineContacts.length > 0) ? onlineContacts.includes(contact.contact.id) : false,
+            isOnline:
+                onlineContacts && onlineContacts.length > 0
+                    ? onlineContacts.includes(contact.contact.id)
+                    : false,
             lastMessage: lastMessage,
             lastMessageTime: formatMessageDate(contact.updatedAt),
             updatedAt: contact.updatedAt,
@@ -293,6 +346,13 @@ let typingTimeout: number | null = null
 
 // Подписываемся на события
 onMounted(() => {
+    // Инициализация аудио-элементов
+    notificationSound.value = new Audio('/audio/notification.mp3')
+    clickSound.value = new Audio('/audio/click.mp3')
+
+    // Получение сохраненной настройки уведомлений из localStorage
+    notificationsEnabled.value = localStorage.getItem('notifications_enabled') !== 'false'
+
     setupNetworkListeners()
     document.addEventListener('click', closeMenuOnClickOutside)
 
@@ -300,7 +360,7 @@ onMounted(() => {
     eventBus.on('new_message', (payload: WebsocketPayload) => {
         console.log('event new_message', payload)
         const message: ApiMessage = payload.message as ApiMessage
-        if(message?.senderId) {
+        if (message?.senderId) {
             contactsStore.updateContactById(Number(message.senderId), {
                 lastMessage: message.content,
             })
@@ -315,13 +375,19 @@ onMounted(() => {
                     isSent: false,
                     status: 'delivered',
                     createdAt: new Date().toISOString(),
-                    date: isToday(new Date()) ? 'Today' : formatMessageDate(new Date().toISOString()),
+                    date: isToday(new Date())
+                        ? 'Today'
+                        : formatMessageDate(new Date().toISOString()),
                 })
+                // Воспроизводим звук щелчка при получении сообщения в активный чат
+                playClickSound()
                 nextTick(() => {
                     scrollToBottom()
                 })
             } else {
                 console.log('new_message not for this contact')
+                // Воспроизводим звук при получении нового сообщения в неактивный чат
+                playNotificationSound()
                 contactsStore.incrementUnreadCount(message.senderId)
                 contactsStore.updateContactById(Number(message.senderId), {
                     isOnline: true,
@@ -339,11 +405,11 @@ onMounted(() => {
         }
     })
 
-    eventBus.on('event_typing', (payload: WebsocketPayload)=>{
+    eventBus.on('event_typing', (payload: WebsocketPayload) => {
         if (selectedContact.value && payload.userId === selectedContact.value.contactId) {
             console.log('event_typing in chat', payload)
             isTyping.value = true
-            if(typingTimeout) window.clearTimeout(typingTimeout)
+            if (typingTimeout) window.clearTimeout(typingTimeout)
             typingTimeout = setTimeout(() => {
                 isTyping.value = false
             }, 3000)
@@ -360,8 +426,11 @@ onMounted(() => {
 
 const eventTyping = async () => {
     console.log('eventTyping')
-    if(selectedContact.value) {
-        const res = await api.ws( 'event_typing', {userId: userStore.user?.id, contactId: selectedContact.value?.contactId})
+    if (selectedContact.value) {
+        const res = await api.ws('event_typing', {
+            userId: userStore.user?.id,
+            contactId: selectedContact.value?.contactId,
+        })
         console.log('eventTyping res', res)
     }
 }
@@ -379,12 +448,27 @@ onBeforeUnmount(() => {
         <ConnectionStatus :show="isOffline" @retry="handleConnectionRetry" />
         <LoaderOverlay :show="isLoading" />
 
+        <!-- Аудио-элементы для звуковых уведомлений -->
+        <audio
+            ref="notificationSound"
+            preload="auto"
+            src="/audio/notification_1.mp3"
+            style="display: none"
+        ></audio>
+        <audio
+            ref="clickSound"
+            preload="auto"
+            src="/audio/click-button-140881.mp3"
+            style="display: none"
+        ></audio>
+
         <div class="chat-main">
             <ContactsList
                 :class="{ show: isContactsVisible }"
                 @toggle-contacts="toggleContacts"
                 @toggle-news="toggleNews"
                 @select-contact="selectContact"
+                @toggle-calendar="toggleCalendar"
             />
             <div class="main-content">
                 <NewsFeed
@@ -393,11 +477,17 @@ onBeforeUnmount(() => {
                     @back-to-chat="showNews = false"
                     @toggle-contacts="toggleContacts"
                 />
+                <Calendar
+                    v-else-if="showCalendar"
+                    @back-to-chat="showCalendar = false"
+                    @toggle-contacts="toggleContacts"
+                />
                 <ChatArea
                     v-else
                     ref="chatAreaRef"
                     :selected-contact="selectedContact as Contact"
                     :is-typing="isTyping"
+                    :notifications-enabled="notificationsEnabled"
                     @toggle-contacts="toggleContacts"
                     @go-to-account="goToAccount"
                     @go-to-news="goToNews"
@@ -405,6 +495,7 @@ onBeforeUnmount(() => {
                     @logout="logout"
                     @send-message="sendMessage"
                     @event-typing="eventTyping"
+                    @toggle-notifications="toggleNotifications"
                 />
             </div>
         </div>
