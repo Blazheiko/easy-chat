@@ -4,9 +4,10 @@ import api from '@/utils/api'
 import { useUserStore } from '@/stores/user'
 import type { User } from '@/stores/user'
 import { useRouter } from 'vue-router'
-
+import { useEventBus } from '@/utils/event-bus'
 const router = useRouter()
 const userStore = useUserStore()
+const eventBus = useEventBus()
 
 const props = defineProps({
     showLogin: {
@@ -84,7 +85,8 @@ const handleLogin = async () => {
             emit('close')
             emit('auth-success')
             console.log('user', userStore.user)
-            router.push({ name: 'News' })
+            router.push({ name: 'Chat' })
+            eventBus.emit('init_app')
         } else {
             loginError.value = (data?.message as string) || 'Authorization error'
         }
@@ -163,7 +165,8 @@ const handleRegister = async () => {
         userStore.setUser(data.user as User)
         emit('close')
         emit('auth-success')
-        router.push({ name: 'News' })
+        router.push({ name: 'Chat' })
+        eventBus.emit('init_app')
     } else if (data && data.status === 'error') {
         registerError.value = (data?.message as string) || 'Registration error'
     } else {

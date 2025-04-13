@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted , computed} from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useContactsStore } from '@/stores/contacts'
 import { useUserStore } from '@/stores/user'
 import type { Contact } from '@/stores/contacts'
@@ -24,6 +24,8 @@ const shareLink = ref('')
 const copySuccess = ref(false)
 const emit = defineEmits(['toggle-contacts', 'toggle-news', 'select-contact'])
 const editInput = ref<HTMLInputElement | null>(null)
+// Добавляем состояние для поиска
+const isSearchActive = ref(false)
 
 // Добавляем состояние для контекстного меню
 const contextMenu = ref({
@@ -59,7 +61,9 @@ const toggleNews = () => {
 // Фильтрация и сортировка контактов
 const filteredContacts = computed(() => {
     let filtered = contactsStore.contacts
-    filtered = filtered.sort((a, b) => (new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()))
+    filtered = filtered.sort(
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    )
 
     // Применяем фильтр по поисковому запросу
     if (searchQuery.value) {
@@ -215,6 +219,24 @@ onUnmounted(() => {
     // Удаляем обработчик клика
     document.removeEventListener('click', hideContextMenu)
 })
+
+// Функция для переключения отображения поискового поля
+const toggleSearch = () => {
+    isSearchActive.value = !isSearchActive.value
+    if (isSearchActive.value) {
+        setTimeout(() => {
+            const searchInput = document.querySelector('.search-input') as HTMLInputElement
+            if (searchInput) searchInput.focus()
+        }, 100)
+    }
+}
+
+// Функция для скрытия поискового поля при потере фокуса (если в поле ничего не введено)
+const hideSearchOnBlur = () => {
+    if (!searchQuery.value) {
+        isSearchActive.value = false
+    }
+}
 </script>
 
 <template>
@@ -231,7 +253,122 @@ onUnmounted(() => {
             <h2>Contacts</h2>
         </div>
 
-        <div class="news-button-container">
+        <!-- Переделанный блок search-container -->
+        <div class="search-container">
+            <div class="icons-wrapper">
+                <!-- Иконка таск-менеджера -->
+                <button class="icon-button tasks-icon">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        height="24"
+                        fill="currentColor"
+                    >
+                        <path
+                            d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm-2 14l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"
+                        />
+                    </svg>
+                </button>
+
+                <!-- Иконка избранного -->
+                <button class="icon-button favorites-icon">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        height="24"
+                        fill="currentColor"
+                    >
+                        <path
+                            d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
+                        />
+                    </svg>
+                </button>
+
+                <!-- Иконка календаря -->
+                <button class="icon-button calendar-icon">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        height="24"
+                        fill="currentColor"
+                    >
+                        <path
+                            d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"
+                        />
+                    </svg>
+                </button>
+
+                <!-- Иконка блогов -->
+                <button class="icon-button blog-icon">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        height="24"
+                        fill="currentColor"
+                    >
+                        <path
+                            d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"
+                        />
+                        <path d="M14 17H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
+                    </svg>
+                </button>
+
+                <!-- Кнопка добавления контакта (человечек с плюсиком) -->
+                <button class="icon-button add-contact-button" @click="showAddContactModal = true">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        height="24"
+                        fill="currentColor"
+                    >
+                        <path
+                            d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                        />
+                    </svg>
+                </button>
+
+                <!-- Кнопка поиска, которая активирует поле ввода -->
+                <button class="icon-button search-toggle-button" @click="toggleSearch">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        height="24"
+                        fill="currentColor"
+                    >
+                        <path
+                            d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+                        />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Скрытый инпут для поиска, который будет показываться при нажатии на кнопку поиска -->
+            <div class="search-input-wrapper" :class="{ active: isSearchActive }">
+                <input
+                    v-model="searchQuery"
+                    type="text"
+                    class="search-input"
+                    placeholder="Search contacts"
+                    @blur="hideSearchOnBlur"
+                />
+                <button class="close-search-button" @click="isSearchActive = false">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z"
+                            fill="currentColor"
+                        />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- <div class="news-button-container">
             <button class="news-button" :class="{ active: showNews }" @click="toggleNews">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -249,41 +386,12 @@ onUnmounted(() => {
                     unreadNewsCount
                 }}</span>
             </button>
-        </div>
-
-        <div class="search-container">
-            <div class="search-input-wrapper">
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    width="20"
-                    height="20"
-                    fill="currentColor"
-                    class="search-icon"
-                >
-                    <path
-                        d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
-                    />
-                </svg>
-                <input
-                    v-model="searchQuery"
-                    type="text"
-                    class="search-input"
-                    placeholder="Search contacts"
-                />
-            </div>
-            <button class="add-contact-button" @click="showAddContactModal = true">
-                <!-- <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor" />
-                </svg> -->
-                Add
-            </button>
-        </div>
+        </div> -->
 
         <div class="contacts-list-container">
             <TransitionGroup name="contact-list" tag="div">
                 <div
-                    v-for="(contact) in filteredContacts"
+                    v-for="contact in filteredContacts"
                     :key="contact.id"
                     class="contact"
                     :class="{ active: contact.isActive }"
@@ -497,38 +605,147 @@ onUnmounted(() => {
 }
 
 .search-container {
-    padding: 16px 20px;
+    padding: 12px 15px;
     border-bottom: 1px solid var(--border-color);
     display: flex;
-    gap: 12px;
+    gap: 14px;
     align-items: center;
+    position: relative;
+    min-height: 66px;
+}
+
+.icons-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    width: 100%;
+    justify-content: space-around;
+    padding: 0 5px;
+}
+
+.icon-button {
+    background: none;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s ease;
+    color: var(--text-color);
+    position: relative;
+}
+
+.icon-button svg {
+    width: 40px;
+    height: 40px;
+}
+
+.icon-button:after {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    right: -5px;
+    bottom: -5px;
+    border-radius: 50%;
+    z-index: -1;
+    opacity: 0;
+    transition: all 0.25s ease;
+}
+
+.icon-button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    transform: scale(1.15);
+}
+
+.dark-theme .icon-button:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.icon-button:hover:after {
+    opacity: 0.15;
+}
+
+.tasks-icon:hover:after {
+    background-color: #4caf50;
+}
+
+.favorites-icon:hover:after {
+    background-color: #ffc107;
+}
+
+.calendar-icon:hover:after {
+    background-color: #ff9800;
+}
+
+.blog-icon:hover:after {
+    background-color: #03a9f4;
+}
+
+.add-contact-button:hover:after {
+    background-color: var(--primary-color);
+}
+
+.search-toggle-button:hover:after {
+    background-color: #607d8b;
 }
 
 .search-input-wrapper {
-    position: relative;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: white;
     display: flex;
     align-items: center;
+    padding: 0 20px;
+    z-index: 10;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.2s ease;
 }
 
-.search-icon {
-    position: absolute;
-    left: 12px;
-    color: #adb5bd;
+.dark-theme .search-input-wrapper {
+    background-color: #1e1e1e;
 }
 
-.dark-theme .search-icon {
-    color: #777;
+.search-input-wrapper.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
 }
 
 .search-input {
-    width: 100%;
-    padding: 10px 10px 10px 40px;
+    flex: 1;
+    padding: 10px;
     border: 1px solid var(--border-color);
     border-radius: 20px;
     font-size: 14px;
     background-color: #f8f9fa;
     transition: all 0.2s ease;
     height: 40px;
+}
+
+.close-search-button {
+    background: none;
+    border: none;
+    padding: 8px;
+    margin-left: 8px;
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-color);
+}
+
+.close-search-button svg {
+    width: 18px;
+    height: 18px;
 }
 
 .dark-theme .search-input {
@@ -544,43 +761,28 @@ onUnmounted(() => {
 }
 
 .add-contact-button {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0 14px;
-    height: 40px;
-    background-color: transparent;
     color: var(--primary-color);
-    border: 1px solid var(--primary-color);
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    min-width: 70px;
-    justify-content: center;
+    font-size: 0;
 }
 
-.add-contact-button svg {
-    width: 16px;
-    height: 16px;
+.blog-icon {
+    color: #03a9f4; /* Голубой цвет для блогов */
+    font-size: 0;
 }
 
-.add-contact-button:hover {
-    background-color: rgba(26, 115, 232, 0.05);
-    border-color: var(--accent-color);
-    color: var(--accent-color);
+.calendar-icon {
+    color: #ff9800; /* Оранжевый цвет для календаря */
+    font-size: 0;
 }
 
-.dark-theme .add-contact-button {
-    color: #e0e0e0;
-    border-color: #e0e0e0;
+.tasks-icon {
+    color: #4caf50; /* Зеленый цвет для задач */
+    font-size: 0;
 }
 
-.dark-theme .add-contact-button:hover {
-    background-color: rgba(224, 224, 224, 0.1);
-    border-color: #e0e0e0;
-    color: #e0e0e0;
+.favorites-icon {
+    color: #ffc107; /* Золотистый цвет для избранного */
+    font-size: 0;
 }
 
 .contacts-list-container {
@@ -866,9 +1068,10 @@ onUnmounted(() => {
     }
 
     .search-container {
-        padding: 12px 16px;
+        padding: 8px 12px;
         flex-direction: row;
         align-items: center;
+        min-height: 54px;
     }
 
     .search-input-wrapper {
@@ -914,6 +1117,11 @@ onUnmounted(() => {
     .modal-content {
         width: 95%;
         padding: 20px;
+    }
+
+    .icon-button svg {
+        width: 32px;
+        height: 32px;
     }
 }
 
@@ -1308,5 +1516,10 @@ onUnmounted(() => {
 
 .dark-theme .copy-button.success {
     color: #2ecc71;
+}
+
+.search-toggle-button {
+    color: #607d8b; /* Серо-синий цвет для поиска */
+    font-size: 0;
 }
 </style>

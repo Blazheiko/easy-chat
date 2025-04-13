@@ -56,7 +56,7 @@ onMounted(async () => {
     })
 
     // Инициализация данных при загрузке приложения
-    await initializeApp()
+
 
     // Инициализация контактов
     contactsStore.resetContacts()
@@ -64,7 +64,11 @@ onMounted(async () => {
     // Инициализация сообщений
     messagesStore.resetMessages()
 
+
+    await initializeApp()
     isLoading.value = false
+    eventBus.on('init_app', initializeApp)
+
 })
 
 // Удаляем слушатель при размонтировании компонента

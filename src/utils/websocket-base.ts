@@ -410,7 +410,11 @@ class WebsocketBase {
 
         // Сбрасываем состояние
         this.connectionEstablished = false
-        this.wsConnection = {}
+        this.wsConnection = {
+            ws: null,
+            closeInitiated: false,
+            timerPing: undefined,
+        }
     }
 }
 
