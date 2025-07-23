@@ -650,6 +650,30 @@ function updateWindowWidth() {
     transition: opacity 0.2s;
 }
 
+.back-button,
+.menu-button {
+    background: transparent;
+    border: none;
+    padding: 8px;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.back-button svg,
+.menu-button svg {
+    width: 24px;
+    height: 24px;
+}
+
+.back-button:hover,
+.menu-button:hover {
+    opacity: 0.8;
+}
+
 .back-to-chat-button svg {
     width: 20px;
     height: 20px;
