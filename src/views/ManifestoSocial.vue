@@ -71,7 +71,7 @@ const logout = () => {
                     >
                         <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
                     </svg>
-                    <span>Back to News</span>
+                    <span>Back</span>
                 </button>
                 <div class="menu-container">
                     <button class="menu-button" @click.stop="toggleMenu">
@@ -137,18 +137,17 @@ const logout = () => {
             <div class="content-container">
                 <div class="news-item">
                     <div class="news-item-content">
-                        <h1 class="manifesto-title">MANIFESTO OF A FREE SOCIAL NETWORK</h1>
+                        <h1 class="manifesto-title">LIGHTWEIGHT TASK MANAGER MANIFESTO</h1>
 
                         <div class="manifesto-point">
                             <div class="point-number">1</div>
                             <div class="point-content">
-                                <h3>Freedom of Speech, Respect, and Responsibility</h3>
+                                <h3>Simplicity and Intuitiveness</h3>
                                 <p>
-                                    A free social network ensures every user the right to freely
-                                    express their thoughts, opinions, and ideas without censorship
-                                    within their circle of friends. However, users must show respect
-                                    for others and take responsibility for their words to prevent
-                                    the abuse of free speech.
+                                    An effective task manager should be as simple as possible to
+                                    use. Any team member can start working within minutes without
+                                    lengthy training. The interface should be intuitive and not
+                                    distract from the main tasks.
                                 </p>
                             </div>
                         </div>
@@ -156,12 +155,12 @@ const logout = () => {
                         <div class="manifesto-point">
                             <div class="point-number">2</div>
                             <div class="point-content">
-                                <h3>Transparency, Openness, and Accountability</h3>
+                                <h3>Transparency and Visibility</h3>
                                 <p>
-                                    Users have the right to know how their news feed is formed. The
-                                    platform excludes any algorithmic manipulations—users receive
-                                    news only from their circle of friends, without hidden
-                                    priorities or promotions.
+                                    Every team member should see the overall project picture. Task
+                                    statuses, priorities, and assignees should be visible to all
+                                    participants. Work transparency promotes better coordination and
+                                    trust within the team.
                                 </p>
                             </div>
                         </div>
@@ -169,13 +168,11 @@ const logout = () => {
                         <div class="manifesto-point">
                             <div class="point-number">3</div>
                             <div class="point-content">
-                                <h3>Decentralization, Independence, and Compatibility</h3>
+                                <h3>Flexibility and Adaptability</h3>
                                 <p>
-                                    A free social network avoids monopolization and control by a
-                                    single corporation or state. It is supported by user donations,
-                                    without involving advertisers and without the goal of generating
-                                    commercial profit. Open standards and protocols are used to
-                                    prevent dependence on a single platform.
+                                    The system should adapt to various work methodologies - from
+                                    simple task lists to Kanban and Scrum. Teams should be able to
+                                    customize workflows to their needs.
                                 </p>
                             </div>
                         </div>
@@ -183,12 +180,11 @@ const logout = () => {
                         <div class="manifesto-point">
                             <div class="point-number">4</div>
                             <div class="point-content">
-                                <h3>Privacy, Data Protection, and the Right to Deletion</h3>
+                                <h3>Effective Communication</h3>
                                 <p>
-                                    User data belongs to the users themselves. Any transfer of data
-                                    to third parties is possible only with user consent. Encryption
-                                    of messages and personal data is a standard. Users must have the
-                                    ability to easily delete their data and accounts.
+                                    Built-in tools for task discussions, comments, and feedback. All
+                                    communication should be tied to task context to avoid losing
+                                    important information.
                                 </p>
                             </div>
                         </div>
@@ -196,13 +192,11 @@ const logout = () => {
                         <div class="manifesto-point">
                             <div class="point-number">5</div>
                             <div class="point-content">
-                                <h3>No Advertising and Commercial Control</h3>
+                                <h3>Security and Privacy</h3>
                                 <p>
-                                    A free social network strictly excludes advertisements and
-                                    commercial algorithms that impose content. The absence of
-                                    advertising promotes more honest and open communication. Support
-                                    can be provided through voluntary contributions, decentralized
-                                    funding models, or transparent paid features.
+                                    Project data should be protected by modern encryption methods.
+                                    Information access should be clearly role-based. Regular backups
+                                    ensure data preservation.
                                 </p>
                             </div>
                         </div>
@@ -210,13 +204,11 @@ const logout = () => {
                         <div class="manifesto-point">
                             <div class="point-number">6</div>
                             <div class="point-content">
-                                <h3>Fair and Voluntary Moderation Process</h3>
+                                <h3>High Performance</h3>
                                 <p>
-                                    Users decide which news from which people and with what priority
-                                    appears in their feed. Moderators should be elected from among
-                                    the users and act in the interests of the community. Transparent
-                                    mechanisms for submitting complaints and appealing moderation
-                                    decisions must be provided.
+                                    The system should work fast and stable even with large numbers
+                                    of tasks and users. Interface response time should be minimal,
+                                    and data synchronization should be instant.
                                 </p>
                             </div>
                         </div>
@@ -224,13 +216,11 @@ const logout = () => {
                         <div class="manifesto-point">
                             <div class="point-number">7</div>
                             <div class="point-content">
-                                <h3>Accessibility, Inclusivity, and Protection of Minors</h3>
+                                <h3>Integration and Compatibility</h3>
                                 <p>
-                                    A free social network should be accessible to all, regardless of
-                                    social status, nationality, age, or physical abilities. The
-                                    interface should consider the needs of different groups, support
-                                    multilingualism, and be adapted for people with disabilities.
-                                    Measures must be implemented to protect minors.
+                                    Easy integration with popular development tools, calendars,
+                                    version control systems, and other services. API should allow
+                                    creating custom integrations.
                                 </p>
                             </div>
                         </div>
@@ -238,13 +228,12 @@ const logout = () => {
                         <div class="manifesto-point">
                             <div class="point-number">8</div>
                             <div class="point-content">
-                                <h3>Exclusion of Manipulation and Algorithmic Control</h3>
+                                <h3>Smart Notifications</h3>
                                 <p>
-                                    News and updates are displayed exclusively from the user's
-                                    circle of friends. There are no algorithms that promote content
-                                    or hide publications based on commercial interests. Users must
-                                    have the ability to verify and confirm the authenticity of
-                                    information.
+                                    The notification system should be customizable and not distract
+                                    from work. Only important updates and critical changes should
+                                    require immediate attention. Ability to configure notification
+                                    frequency and channels.
                                 </p>
                             </div>
                         </div>
@@ -252,14 +241,11 @@ const logout = () => {
                         <div class="manifesto-point">
                             <div class="point-number">9</div>
                             <div class="point-content">
-                                <h3>
-                                    Self-Governance, User Participation, and Democratic Mechanisms
-                                </h3>
+                                <h3>Analytics and Reporting</h3>
                                 <p>
-                                    The user community must participate in the governance of the
-                                    social network through democratic mechanisms, including voting,
-                                    regular surveys, and discussions on important platform
-                                    development issues.
+                                    Built-in tools for analyzing team productivity, task completion
+                                    times, and process bottlenecks. Data should help improve
+                                    workflows and planning.
                                 </p>
                             </div>
                         </div>
@@ -267,14 +253,11 @@ const logout = () => {
                         <div class="manifesto-point">
                             <div class="point-number">10</div>
                             <div class="point-content">
-                                <h3>Combating Disinformation, Harassment, and Illegal Content</h3>
+                                <h3>Scalability</h3>
                                 <p>
-                                    Despite freedom of speech, the social network must combat the
-                                    spread of deliberately false information, fraud, and harassment.
-                                    The community should have tools for rapid response, as well as
-                                    self-regulation mechanisms and transparent verification
-                                    processes. The platform is obligated to promptly remove illegal
-                                    content, including hate speech and incitement to violence.
+                                    The system should work equally well for small teams of 3-5
+                                    people and large organizations with hundreds of users.
+                                    Architecture should allow horizontal scaling.
                                 </p>
                             </div>
                         </div>
@@ -282,17 +265,11 @@ const logout = () => {
                         <div class="manifesto-point">
                             <div class="point-number">11</div>
                             <div class="point-content">
-                                <h3>
-                                    Information Hygiene, Digital Literacy, and Educational
-                                    Initiatives
-                                </h3>
+                                <h3>Openness and Development Transparency</h3>
                                 <p>
-                                    Modern users must approach content consumption consciously. A
-                                    free social network encourages critical thinking, source
-                                    verification, and responsible information sharing. The
-                                    implementation of educational initiatives and built-in tools
-                                    will help users navigate the information flow without overload
-                                    and manipulation.
+                                    Product development roadmap should be open. Users should be able
+                                    to influence development priorities through voting and feature
+                                    suggestions.
                                 </p>
                             </div>
                         </div>
@@ -300,12 +277,11 @@ const logout = () => {
                         <div class="manifesto-point">
                             <div class="point-number">12</div>
                             <div class="point-content">
-                                <h3>Cooperation with Regulators and Ensuring Legality</h3>
+                                <h3>Support and Community</h3>
                                 <p>
-                                    The platform must comply with legal requirements, including the
-                                    Digital Services Act (DSA). This includes complaint mechanisms,
-                                    user identification, personal data protection, and cooperation
-                                    with regulators to ensure digital security.
+                                    Quality technical support and active user community.
+                                    Comprehensive documentation, educational materials, and quick
+                                    help when questions or problems arise.
                                 </p>
                             </div>
                         </div>

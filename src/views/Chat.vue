@@ -6,7 +6,8 @@ import { useContactsStore } from '@/stores/contacts'
 import ContactsList from '@/components/ContactsList.vue'
 import ChatArea from '@/components/ChatArea.vue'
 import Calendar from '@/components/Calendar.vue'
-import NewsFeed from '@/components/NewsFeed.vue'
+import TaskManager from '@/components/TaskManager.vue'
+import MyNotes from '@/components/MyNotes.vue'
 import LoaderOverlay from '@/components/LoaderOverlay.vue'
 import ConnectionStatus from '@/components/ConnectionStatus.vue'
 import formatMessageDate from '@/utils/formatMessageDate'
@@ -102,11 +103,13 @@ const isOffline = ref(false)
 const isMenuOpen = ref(false)
 const showNews = ref(false)
 const showCalendar = ref(false)
+const showTaskManager = ref(false)
 const isTyping = ref(false)
 const windowWidth = useStateStore().windowWidth
 const chatAreaRef = ref<InstanceType<typeof ChatArea> | null>(null)
 
 const toggleContacts = () => {
+    console.log('toggleContacts')
     isContactsVisible.value = !isContactsVisible.value
 }
 
@@ -114,6 +117,7 @@ const toggleNews = (newsState: boolean) => {
     showNews.value = newsState
     if (newsState) {
         showCalendar.value = false
+        showTaskManager.value = false
     }
 }
 
@@ -121,6 +125,15 @@ const toggleCalendar = () => {
     showCalendar.value = !showCalendar.value
     if (showCalendar.value) {
         showNews.value = false
+        showTaskManager.value = false
+    }
+}
+
+const toggleTaskManager = () => {
+    showTaskManager.value = !showTaskManager.value
+    if (showTaskManager.value) {
+        showNews.value = false
+        showCalendar.value = false
     }
 }
 
@@ -469,9 +482,10 @@ onBeforeUnmount(() => {
                 @toggle-news="toggleNews"
                 @select-contact="selectContact"
                 @toggle-calendar="toggleCalendar"
+                @toggle-task="toggleTaskManager"
             />
             <div class="main-content">
-                <NewsFeed
+                <MyNotes
                     v-if="showNews"
                     :hide-header="true"
                     @back-to-chat="showNews = false"
@@ -480,6 +494,11 @@ onBeforeUnmount(() => {
                 <Calendar
                     v-else-if="showCalendar"
                     @back-to-chat="showCalendar = false"
+                    @toggle-contacts="toggleContacts"
+                />
+                <TaskManager
+                    v-else-if="showTaskManager"
+                    @back-to-chat="showTaskManager = false"
                     @toggle-contacts="toggleContacts"
                 />
                 <ChatArea

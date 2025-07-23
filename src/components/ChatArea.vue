@@ -240,6 +240,15 @@ const deleteMessage = () => {
     }
 }
 
+const createTask = () => {
+    if (contextMenu.value.messageIndex !== -1) {
+        const message = messagesStore.messages[contextMenu.value.messageIndex]
+        // Здесь можно добавить логику создания задачи из сообщения
+        console.log('Creating task from message:', message.text)
+        hideContextMenu()
+    }
+}
+
 // Функции для работы с редактированием сообщения
 const startMessageEdit = (index: number, text: string) => {
     editingMessage.value = {
@@ -623,6 +632,19 @@ onUnmounted(() => {
                         />
                     </svg>
                     Edit
+                </button>
+                <button @click="createTask" class="menu-item">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M9 16.17L4.83 12l-1.42 1.41L9 19L21 7l-1.41-1.41L9 16.17z"
+                            fill="currentColor"
+                        />
+                        <path
+                            d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"
+                            fill="currentColor"
+                        />
+                    </svg>
+                    Task
                 </button>
                 <button @click="deleteMessage" class="menu-item delete">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

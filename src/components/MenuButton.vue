@@ -40,6 +40,12 @@ const goToAccount = () => {
     router.push('/account')
 }
 
+// Переход к проектам
+const goToProjects = () => {
+    closeMenu()
+    router.push('/projects')
+}
+
 // Выход из аккаунта
 const logout = async () => {
     const { error, data } = await api.http('POST', '/api/auth/logout')
@@ -92,6 +98,20 @@ const logout = async () => {
                     />
                 </svg>
                 My Account
+            </button>
+            <button class="menu-item" @click="goToProjects">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    width="20"
+                    height="20"
+                    fill="currentColor"
+                >
+                    <path
+                        d="M20 6h-2l-2-2H8L6 6H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5 3c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zM6 12h4v4H6v-4z"
+                    />
+                </svg>
+                My Projects
             </button>
             <button class="menu-item" @click="logout">
                 <svg

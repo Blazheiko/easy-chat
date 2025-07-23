@@ -355,7 +355,7 @@ function getEventColor(index: number): string {
     <div class="calendar-container">
         <!-- Хедер календаря -->
         <div class="calendar-header">
-            <button class="back-button" @click="emit('back-to-chat')">
+            <!-- <button class="back-button" @click="emit('back-to-chat')">
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path
                         d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"
@@ -363,13 +363,20 @@ function getEventColor(index: number): string {
                     />
                 </svg>
                 <span>Назад к чату</span>
-            </button>
-            <h2>Календарь</h2>
-            <button class="menu-button" @click="emit('toggle-contacts')">
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" fill="currentColor" />
+            </button> -->
+            <button class="back-button" @click="emit('toggle-contacts')">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M15 18L9 12L15 6"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
                 </svg>
             </button>
+            <h2>Calendar</h2>
+
         </div>
 
         <div v-if="!showDateDetails" class="calendar-view">

@@ -22,7 +22,13 @@ const newContact = ref({
 })
 const shareLink = ref('')
 const copySuccess = ref(false)
-const emit = defineEmits(['toggle-contacts', 'toggle-news', 'select-contact', 'toggle-calendar'])
+const emit = defineEmits([
+    'toggle-contacts',
+    'toggle-news',
+    'select-contact',
+    'toggle-calendar',
+    'toggle-task',
+])
 const editInput = ref<HTMLInputElement | null>(null)
 // Добавляем состояние для поиска
 const isSearchActive = ref(false)
@@ -50,12 +56,13 @@ const handleContactClick = (contact: Contact) => {
 }
 
 // Функция для переключения отображения новостей
-const toggleNews = () => {
+const toggleNotes = () => {
     showNews.value = !showNews.value
     if (showNews.value) {
         unreadNewsCount.value = 0
     }
     emit('toggle-news', showNews.value)
+    emit('toggle-contacts')
 }
 
 // Фильтрация и сортировка контактов
@@ -241,6 +248,13 @@ const hideSearchOnBlur = () => {
 // Функция для переключения отображения календаря
 const toggleCalendar = () => {
     emit('toggle-calendar')
+    emit('toggle-contacts')
+}
+
+// Функция для переключения отображения task manager
+const toggleTask = () => {
+    emit('toggle-task')
+    emit('toggle-contacts')
 }
 </script>
 
@@ -262,7 +276,7 @@ const toggleCalendar = () => {
         <div class="search-container">
             <div class="icons-wrapper">
                 <!-- Иконка таск-менеджера -->
-                <button class="icon-button tasks-icon">
+                <!-- <button class="icon-button tasks-icon">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
@@ -274,9 +288,9 @@ const toggleCalendar = () => {
                             d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm-2 14l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"
                         />
                     </svg>
-                </button>
+                </button> -->
 
-                <!-- Иконка избранного -->
+                <!-- Иконка избранного
                 <button class="icon-button favorites-icon">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -289,7 +303,7 @@ const toggleCalendar = () => {
                             d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
                         />
                     </svg>
-                </button>
+                </button> -->
 
                 <!-- Иконка календаря -->
                 <button class="icon-button calendar-icon" @click="toggleCalendar">
@@ -298,16 +312,147 @@ const toggleCalendar = () => {
                         viewBox="0 0 24 24"
                         width="24"
                         height="24"
-                        fill="currentColor"
+                        fill="none"
                     >
+                        <!-- Основа календаря -->
+                        <rect
+                            x="3"
+                            y="4"
+                            width="18"
+                            height="18"
+                            rx="3"
+                            ry="3"
+                            fill="white"
+                            stroke="#DDD"
+                            stroke-width="1"
+                        />
+
+                        <!-- Красная шапка -->
+                        <rect x="3" y="4" width="18" height="5" rx="3" ry="3" fill="#FF3B30" />
+                        <rect x="3" y="7" width="18" height="2" fill="#FF3B30" />
+
+                        <!-- Отверстия для пружин -->
+                        <rect x="7" y="1" width="1.5" height="4" rx="0.75" fill="#CCC" />
+                        <rect x="15.5" y="1" width="1.5" height="4" rx="0.75" fill="#CCC" />
+
+                        <!-- Белые кольца на пружинах -->
+                        <rect x="6.5" y="2" width="2.5" height="0.8" rx="0.4" fill="white" />
+                        <rect x="15" y="2" width="2.5" height="0.8" rx="0.4" fill="white" />
+
+                        <!-- Дата (крупная цифра) -->
+                        <text
+                            x="12"
+                            y="18"
+                            text-anchor="middle"
+                            font-family="Arial, sans-serif"
+                            font-size="8"
+                            font-weight="bold"
+                            fill="#333"
+                        >
+                            24
+                        </text>
+
+                        <!-- Дни недели (маленькие точки или линии) -->
+                        <circle cx="6" cy="12" r="0.8" fill="#DDD" />
+                        <circle cx="9" cy="12" r="0.8" fill="#DDD" />
+                        <circle cx="12" cy="12" r="0.8" fill="#FF3B30" />
+                        <circle cx="15" cy="12" r="0.8" fill="#DDD" />
+                        <circle cx="18" cy="12" r="0.8" fill="#DDD" />
+                    </svg>
+                </button>
+
+                <!-- Иконка task manager -->
+                <button class="icon-button task-icon" @click="toggleTask">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        height="24"
+                        fill="none"
+                    >
+                        <!-- Основа планшета -->
+                        <rect
+                            x="3"
+                            y="2"
+                            width="18"
+                            height="20"
+                            rx="2"
+                            ry="2"
+                            fill="#E8F5E8"
+                            stroke="#4CAF50"
+                            stroke-width="1"
+                        />
+
+                        <!-- Заголовок -->
+                        <rect x="3" y="2" width="18" height="4" rx="2" ry="2" fill="#4CAF50" />
+                        <circle cx="6" cy="4" r="0.5" fill="white" />
+                        <circle cx="8" cy="4" r="0.5" fill="white" />
+                        <circle cx="10" cy="4" r="0.5" fill="white" />
+
+                        <!-- Чекбокс 1 (выполнен) -->
+                        <rect x="5" y="8" width="2" height="2" rx="0.3" fill="#4CAF50" />
                         <path
-                            d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"
+                            d="M5.4 9L6 9.6L7.6 8"
+                            stroke="white"
+                            stroke-width="0.3"
+                            fill="none"
+                        />
+                        <line x1="8.5" y1="9" x2="16" y2="9" stroke="#4CAF50" stroke-width="0.8" />
+
+                        <!-- Чекбокс 2 (выполнен) -->
+                        <rect x="5" y="11.5" width="2" height="2" rx="0.3" fill="#4CAF50" />
+                        <path
+                            d="M5.4 12.5L6 13.1L7.6 11.5"
+                            stroke="white"
+                            stroke-width="0.3"
+                            fill="none"
+                        />
+                        <line
+                            x1="8.5"
+                            y1="12.5"
+                            x2="14"
+                            y2="12.5"
+                            stroke="#4CAF50"
+                            stroke-width="0.8"
+                        />
+
+                        <!-- Чекбокс 3 (невыполнен) -->
+                        <rect
+                            x="5"
+                            y="15"
+                            width="2"
+                            height="2"
+                            rx="0.3"
+                            fill="white"
+                            stroke="#DDD"
+                            stroke-width="0.5"
+                        />
+                        <line x1="8.5" y1="16" x2="18" y2="16" stroke="#BBB" stroke-width="0.8" />
+
+                        <!-- Чекбокс 4 (невыполнен) -->
+                        <rect
+                            x="5"
+                            y="18.5"
+                            width="2"
+                            height="2"
+                            rx="0.3"
+                            fill="white"
+                            stroke="#DDD"
+                            stroke-width="0.5"
+                        />
+                        <line
+                            x1="8.5"
+                            y1="19.5"
+                            x2="15"
+                            y2="19.5"
+                            stroke="#BBB"
+                            stroke-width="0.8"
                         />
                     </svg>
                 </button>
 
                 <!-- Иконка блогов -->
-                <button class="icon-button blog-icon" @click="toggleNews">
+                <!-- <button class="icon-button blog-icon" @click="toggleNews">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
@@ -320,6 +465,29 @@ const toggleCalendar = () => {
                         />
                         <path d="M14 17H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" />
                     </svg>
+                </button> -->
+
+                <!-- Иконка заметок -->
+                <button class="icon-button notes-icon" @click="toggleNotes">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        width="24"
+                        height="24"
+                        fill="none"
+                    >
+                        <!-- Основа блокнота -->
+                        <rect x="3" y="2" width="18" height="20" rx="3" ry="3" fill="#FFC107" />
+                        <!-- Белая область для линий -->
+                        <rect x="3" y="8" width="18" height="14" rx="0" ry="0" fill="white" />
+                        <!-- Линии на странице -->
+                        <line x1="5" y1="11" x2="19" y2="11" stroke="#E0E0E0" stroke-width="1" />
+                        <line x1="5" y1="14" x2="19" y2="14" stroke="#E0E0E0" stroke-width="1" />
+                        <line x1="5" y1="17" x2="19" y2="17" stroke="#E0E0E0" stroke-width="1" />
+                        <line x1="5" y1="20" x2="19" y2="20" stroke="#E0E0E0" stroke-width="1" />
+                        <!-- Красная полоса слева -->
+                        <line x1="6.5" y1="8" x2="6.5" y2="22" stroke="#FF5252" stroke-width="1" />
+                    </svg>
                 </button>
 
                 <!-- Кнопка добавления контакта (человечек с плюсиком) -->
@@ -329,10 +497,88 @@ const toggleCalendar = () => {
                         viewBox="0 0 24 24"
                         width="24"
                         height="24"
-                        fill="currentColor"
+                        fill="none"
                     >
+                        <!-- Фон карточки контакта -->
+                        <rect
+                            x="2"
+                            y="4"
+                            width="20"
+                            height="16"
+                            rx="3"
+                            ry="3"
+                            fill="#F8F9FA"
+                            stroke="#E0E0E0"
+                            stroke-width="1"
+                        />
+
+                        <!-- Аватар пользователя -->
+                        <circle cx="8" cy="10" r="2.5" fill="#007AFF" />
                         <path
-                            d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                            d="M6.5 9.2C6.5 8.5 7 8 7.5 8S8.5 8.5 8.5 9.2C8.5 9.9 8 10.4 7.5 10.4S6.5 9.9 6.5 9.2Z"
+                            fill="white"
+                        />
+                        <path
+                            d="M5.5 12.5C5.5 11.7 6.3 11 7.5 11S9.5 11.7 9.5 12.5V13H5.5V12.5Z"
+                            fill="white"
+                        />
+
+                        <!-- Линии информации -->
+                        <rect x="12" y="8" width="6" height="1" rx="0.5" fill="#DDD" />
+                        <rect x="12" y="10.5" width="8" height="1" rx="0.5" fill="#DDD" />
+                        <rect x="12" y="13" width="4" height="1" rx="0.5" fill="#DDD" />
+
+                        <!-- Плюсик -->
+                        <!-- Тень плюсика -->
+                        <circle cx="17.7" cy="6.7" r="4" fill="rgba(0,0,0,0.15)" />
+                        <!-- Основной круг плюсика -->
+                        <circle
+                            cx="17.5"
+                            cy="6.5"
+                            r="4"
+                            fill="#28A745"
+                            stroke="white"
+                            stroke-width="2.5"
+                        />
+                        <!-- Черная обводка вертикальной линии -->
+                        <line
+                            x1="17.5"
+                            y1="3.5"
+                            x2="17.5"
+                            y2="9.5"
+                            stroke="#000"
+                            stroke-width="4"
+                            stroke-linecap="round"
+                        />
+                        <!-- Черная обводка горизонтальной линии -->
+                        <line
+                            x1="14.5"
+                            y1="6.5"
+                            x2="20.5"
+                            y2="6.5"
+                            stroke="#000"
+                            stroke-width="4"
+                            stroke-linecap="round"
+                        />
+                        <!-- Белая вертикальная линия плюса -->
+                        <line
+                            x1="17.5"
+                            y1="3.5"
+                            x2="17.5"
+                            y2="9.5"
+                            stroke="white"
+                            stroke-width="2.5"
+                            stroke-linecap="round"
+                        />
+                        <!-- Белая горизонтальная линия плюса -->
+                        <line
+                            x1="14.5"
+                            y1="6.5"
+                            x2="20.5"
+                            y2="6.5"
+                            stroke="white"
+                            stroke-width="2.5"
+                            stroke-linecap="round"
                         />
                     </svg>
                 </button>
@@ -682,15 +928,23 @@ const toggleCalendar = () => {
 }
 
 .calendar-icon:hover:after {
-    background-color: #ff9800;
+    background-color: #ff3b30;
+}
+
+.task-icon:hover:after {
+    background-color: #4caf50;
 }
 
 .blog-icon:hover:after {
     background-color: #03a9f4;
 }
 
+.notes-icon:hover:after {
+    background-color: #ffc107;
+}
+
 .add-contact-button:hover:after {
-    background-color: var(--primary-color);
+    background-color: #28a745;
 }
 
 .search-toggle-button:hover:after {
@@ -766,7 +1020,6 @@ const toggleCalendar = () => {
 }
 
 .add-contact-button {
-    color: var(--primary-color);
     font-size: 0;
 }
 
@@ -775,8 +1028,15 @@ const toggleCalendar = () => {
     font-size: 0;
 }
 
+.notes-icon {
+    font-size: 0;
+}
+
 .calendar-icon {
-    color: #ff9800; /* Оранжевый цвет для календаря */
+    font-size: 0;
+}
+
+.task-icon {
     font-size: 0;
 }
 

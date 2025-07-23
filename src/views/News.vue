@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import NewsFeed from '../components/NewsFeed.vue'
+import MyNotes from '../components/MyNotes.vue'
 import { defineComponent } from 'vue'
 import MenuButton from '../components/MenuButton.vue'
 
@@ -56,14 +56,14 @@ const backToChat = () => {
                     </svg>
                     <span>Back to Chat</span>
                 </button>
-                <h1>News Feed</h1>
+                <h1>Notes</h1>
                 <MenuButton />
             </div>
         </header>
 
         <div class="content-wrapper">
             <div class="content-container">
-                <NewsFeed :hide-header="true" />
+                <MyNotes :hide-header="true" />
             </div>
         </div>
     </div>

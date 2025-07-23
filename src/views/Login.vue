@@ -8,7 +8,7 @@ defineComponent({
 
 const isLoginModalVisible = ref(false)
 const isRegisterModalVisible = ref(false)
-const logoText = ref('Free Social Media')
+const logoText = ref('Easy Task Manager')
 const typingComplete = ref(false)
 // const showAuthModals = ref(false)
 const showLoginModal = () => {
@@ -33,7 +33,7 @@ const closeAuthModals = () => {
 
 // Эффект печатающего текста для лого
 onMounted(() => {
-    const text = 'Free Social Media'
+    const text = 'Easy Task Manager'
     let i = 0
     logoText.value = ' '
 
@@ -60,8 +60,8 @@ onMounted(() => {
             </div>
 
             <div class="welcome-message">
-                <h1>Welcome to Easy Chat</h1>
-                <p>Connect with friends and colleagues instantly</p>
+                <h1>Welcome to Chat</h1>
+                <p>Collaborate on tasks and projects with your team</p>
             </div>
 
             <div class="features">
