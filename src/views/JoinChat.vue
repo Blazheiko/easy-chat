@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import AuthModals from '@/components/AuthModals.vue'
+import api from '@/utils/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -15,13 +16,34 @@ const token = ref('')
 onMounted(() => {
     // Получаем ID чата из URL
     token.value = route.params.token as string
+    console.log({token: token.value})
     if (token.value) {
+
+        joinChat(token.value).then(() => {
+            console.log('joinChat success')
+        }).catch((error) => {
+            console.error('Error joinChat:', error)
+        })
         // Если пользователь не авторизован, показываем модальное окно регистрации
         if (!userStore.user) {
             showAuthModal.value = true
         }
     }
 })
+
+const joinChat = async (token: string) => {
+    console.log('joinChat')
+    const { data, error } = await api.http('POST', '/api/chat/invitations/use', {
+        token: token
+    })
+    if (error) {
+        console.error('Error joinChat:', error)
+
+    } else if (data && data.status === 'success' ) {
+        console.log(data)
+        // router.push({ name: 'Chat' })
+    }
+}
 
 const handleAuthSuccess = () => {
     // После успешной авторизации перенаправляем на страницу чата
