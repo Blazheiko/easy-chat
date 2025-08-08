@@ -107,10 +107,16 @@ const showTaskManager = ref(false)
 const isTyping = ref(false)
 const windowWidth = useStateStore().windowWidth
 const chatAreaRef = ref<InstanceType<typeof ChatArea> | null>(null)
+const contactsListRef = ref<InstanceType<typeof ContactsList> | null>(null)
 
 const toggleContacts = () => {
     console.log('toggleContacts')
     isContactsVisible.value = !isContactsVisible.value
+}
+const openAddContactFromChatArea = () => {
+    // Показать список контактов и открыть модал создания контакта
+    isContactsVisible.value = true
+    contactsListRef.value?.openAddContactModal?.()
 }
 
 const toggleNews = (newsState: boolean) => {
@@ -478,6 +484,7 @@ onBeforeUnmount(() => {
         <div class="chat-main">
             <ContactsList
                 :class="{ show: isContactsVisible }"
+                ref="contactsListRef"
                 @toggle-contacts="toggleContacts"
                 @toggle-news="toggleNews"
                 @select-contact="selectContact"
@@ -508,6 +515,7 @@ onBeforeUnmount(() => {
                     :is-typing="isTyping"
                     :notifications-enabled="notificationsEnabled"
                     @toggle-contacts="toggleContacts"
+                    @open-add-contact="openAddContactFromChatArea"
                     @go-to-account="goToAccount"
                     @go-to-news="goToNews"
                     @go-to-manifesto="goToManifesto"

@@ -34,6 +34,7 @@ const emit = defineEmits([
     'toggle-contacts',
     'event-typing',
     'toggle-notifications',
+    'open-add-contact',
 ])
 type CallType = 'video' | 'audio' | null
 
@@ -341,7 +342,7 @@ onUnmounted(() => {
         </div>
 
         <div class="messages-container">
-            <div class="messages" ref="messageContainerRef">
+            <div v-if="selectedContact" class="messages" ref="messageContainerRef">
                 <template v-for="(message, index) in messagesStore.messages" :key="index">
                     <div v-if="message.date" class="date-divider">
                         <span>{{ message.date }}</span>
@@ -442,6 +443,25 @@ onUnmounted(() => {
                     </div>
                 </template>
             </div>
+            <div v-else class="no-contact-placeholder">
+                <div class="placeholder-content">
+                    <div class="placeholder-title">Select a contact to start chatting</div>
+                    <div class="placeholder-subtitle">
+                        Or add a new contact to start a conversation
+                    </div>
+                    <div class="placeholder-actions">
+                        <button
+                            class="placeholder-button primary mobile-only"
+                            @click="$emit('toggle-contacts')"
+                        >
+                            Open contacts
+                        </button>
+                        <button class="placeholder-button" @click="$emit('open-add-contact')">
+                            Add contact
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="typing-indicator" v-if="isTyping && selectedContact">
@@ -454,7 +474,12 @@ onUnmounted(() => {
         </div>
 
         <div class="input-area">
-            <button class="video-call-button" title="Start video call" @click="startVideoCall">
+            <button
+                class="video-call-button"
+                title="Start video call"
+                @click="startVideoCall"
+                :disabled="!selectedContact"
+            >
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
@@ -467,7 +492,12 @@ onUnmounted(() => {
                     />
                 </svg>
             </button>
-            <button class="voice-call-button" title="Start voice call" @click="startAudioCall">
+            <button
+                class="voice-call-button"
+                title="Start voice call"
+                @click="startAudioCall"
+                :disabled="!selectedContact"
+            >
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
@@ -484,11 +514,18 @@ onUnmounted(() => {
                 v-model="newMessage"
                 type="text"
                 class="message-input"
-                placeholder="Type a message..."
+                :placeholder="
+                    selectedContact ? 'Type a message...' : 'Select a contact to send a message'
+                "
                 @keyup.enter="sendMessage"
                 @keypress="simulateTyping"
+                :disabled="!selectedContact"
             />
-            <button class="send-button" @click="sendMessage" :disabled="!newMessage.trim()">
+            <button
+                class="send-button"
+                @click="sendMessage"
+                :disabled="!newMessage.trim() || !selectedContact"
+            >
                 <svg
                     width="24"
                     height="24"
@@ -1719,5 +1756,105 @@ onUnmounted(() => {
 .notification-button svg {
     width: 24px;
     height: 24px;
+}
+
+/* Disabled states for call buttons */
+.video-call-button:disabled,
+.voice-call-button:disabled {
+    background-color: #e9ecef;
+    color: #adb5bd;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Disabled input */
+.message-input:disabled {
+    background-color: #f1f3f5;
+    color: #adb5bd;
+    cursor: not-allowed;
+}
+
+/* Placeholder when no contact selected */
+.no-contact-placeholder {
+    flex: 1 1 auto;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--background-color);
+    padding: 20px;
+}
+
+.placeholder-content {
+    text-align: center;
+    max-width: 520px;
+    width: 100%;
+    background: white;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.dark-theme .placeholder-content {
+    background: #1e1e1e;
+}
+
+.placeholder-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 8px;
+}
+
+.placeholder-subtitle {
+    font-size: 14px;
+    color: #6c757d;
+    margin-bottom: 16px;
+}
+
+.dark-theme .placeholder-subtitle {
+    color: #adb5bd;
+}
+
+.placeholder-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.placeholder-button {
+    border: 1px solid var(--border-color);
+    background: white;
+    color: var(--text-color);
+    border-radius: 22px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.placeholder-button:hover {
+    background-color: #f8f9fa;
+}
+
+.placeholder-button.primary {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+}
+
+.placeholder-button.primary:hover {
+    background-color: var(--accent-color);
+}
+
+/* Показывать кнопку открытия контактов только на мобильных */
+.mobile-only {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .mobile-only {
+        display: inline-flex;
+    }
 }
 </style>

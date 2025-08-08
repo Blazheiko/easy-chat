@@ -195,6 +195,13 @@ const copyToClipboard = async () => {
     }
 }
 
+// Экспортируем метод для открытия модалки добавления контакта из родителя
+defineExpose({
+    openAddContactModal: () => {
+        showAddContactModal.value = true
+    },
+})
+
 // const handleAddContact = () => {
 //     if (newContact.value.name.trim()) {
 //         contactsStore.addContact({
