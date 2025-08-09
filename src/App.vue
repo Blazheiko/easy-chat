@@ -85,6 +85,7 @@ const onReauthorize = async () => {
     console.error('onReauthorize')
     websocketBase?.destroy()
     api.setWebSocketClient(null)
+    userStore.clearUser()
     await initializeApp()
 }
 
@@ -173,6 +174,7 @@ const toggleTheme = () => {
         </div>
         <template v-else>
             <AppHeader
+                v-if="userStore.user"
                 :title="headerTitle"
                 :back-path="headerBackPath"
                 :back-label="headerBackLabel"

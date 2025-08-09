@@ -2,8 +2,10 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/utils/api'
+import { useEventBus } from '@/utils/event-bus'
 
 const router = useRouter()
+const eventBus = useEventBus()
 
 // Состояние меню
 const isMenuOpen = ref(false)
@@ -53,6 +55,7 @@ const logout = async () => {
         console.error(error)
     } else {
         console.log(data)
+        eventBus.emit('unauthorized')
         router.push('/')
     }
 }
