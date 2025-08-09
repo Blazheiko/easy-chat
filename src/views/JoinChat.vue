@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount} from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import AuthModals from '@/components/AuthModals.vue'
@@ -29,6 +29,10 @@ onMounted(() => {
             showAuthModal.value = true
         }
     }
+})
+
+onBeforeUnmount(() => {
+    console.log('onBeforeUnload joinChat')
 })
 
 const joinChat = async (token: string) => {

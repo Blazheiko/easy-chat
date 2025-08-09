@@ -1,4 +1,5 @@
 import WebsocketBase from './websocket-base'
+import { useEventBus } from './event-bus'
 
 interface HttpResponse {
     [key: string]: unknown
@@ -29,6 +30,8 @@ interface RequestInit {
 }
 const BASE_URL = 'http://127.0.0.1:5174'
 let webSocketClient: WebsocketBase | null = null
+const eventBus = useEventBus()
+
 
 const api: ApiMethods = {
     http: async <T = HttpResponse>(
@@ -63,6 +66,13 @@ const api: ApiMethods = {
 
             if (!response.ok) {
                 console.log('!response.ok')
+                if (response.status === 401) {
+                    eventBus.emit('unauthorized')
+                    return {
+                        data: null,
+                        error: { code: 401, message: 'Unauthorized' },
+                    }
+                }
                 return {
                     data: null,
                     error: {
@@ -75,7 +85,7 @@ const api: ApiMethods = {
             const data = await response.json()
             console.log({ data })
             return { data: data as T, error: null }
-        } catch (error) {
+        } catch (error: unknown) {
             console.error('Network error:', error)
             return {
                 data: null,

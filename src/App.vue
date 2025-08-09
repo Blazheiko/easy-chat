@@ -20,7 +20,6 @@ const userStore = useUserStore()
 const isLoading = ref(true)
 // const windowWidth = ref(window.innerWidth)
 
-
 const stateStore = useStateStore()
 const contactsStore = useContactsStore()
 const messagesStore = useMessagesStore()
@@ -49,7 +48,7 @@ onMounted(async () => {
 
     // Слушаем изменения предпочтений системы
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-      stateStore.setDarkMode(e.matches)
+        stateStore.setDarkMode(e.matches)
         // if (localStorage.getItem('theme') === null) {
         //     stateStore.setDarkMode(e.matches)
         // }
@@ -57,27 +56,28 @@ onMounted(async () => {
 
     // Инициализация данных при загрузке приложения
 
-
     // Инициализация контактов
     contactsStore.resetContacts()
 
     // Инициализация сообщений
     messagesStore.resetMessages()
 
-
     await initializeApp()
     isLoading.value = false
     eventBus.on('init_app', initializeApp)
-
+    eventBus.on('unauthorized', onReauthorize)
 })
 
 // Удаляем слушатель при размонтировании компонента
 onBeforeUnmount(() => {
     // window.removeEventListener('resize', handleResize)
+    eventBus.off('init_app', initializeApp)
+    eventBus.off('unauthorized', onReauthorize)
 })
 
 const onReauthorize = async () => {
     console.error('onReauthorize')
+    websocketBase?.destroy()
     api.setWebSocketClient(null)
     await initializeApp()
 }
@@ -107,7 +107,9 @@ const eventHandler = {
     },
     change_online: (event: WebsocketMessage) => {
         console.log('change_online', event.payload)
-        contactsStore.updateContactById(Number(event.payload.userId), { isOnline: event.payload.status === 'online' })
+        contactsStore.updateContactById(Number(event.payload.userId), {
+            isOnline: event.payload.status === 'online',
+        })
         // eventBus.emit('change_online', event.payload as { userId: number; status: string })
     },
 }
@@ -121,6 +123,8 @@ const onBroadcast = async (data: WebsocketMessage) => {
         console.error('Unknown event:', event)
     }
 }
+
+let websocketBase: WebsocketBase | null = null
 
 const initializeApp = async () => {
     try {
@@ -136,11 +140,11 @@ const initializeApp = async () => {
 
             console.log('Data in initialization:')
 
-            const websocketBase = new WebsocketBase(data.wsUrl as string, {
+            websocketBase = new WebsocketBase(data.wsUrl as string, {
                 callbacks: { onReauthorize, onBroadcast },
             })
             api.setWebSocketClient(websocketBase)
-        } else if (data && data.status === 'unauthorized') {
+        } else if (data && data.status === 'unauthorized' && route.name !== 'JoinChat') {
             userStore.setUser(null as unknown as User)
             router.push({ name: 'Login' })
         }
