@@ -59,79 +59,7 @@ const logout = () => {
 </script>
 <template>
     <div class="news-detail-page">
-        <header class="news-header">
-            <div class="header-content">
-                <button class="back-button" @click="backHome">
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        width="24"
-                        height="24"
-                        fill="currentColor"
-                    >
-                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
-                    </svg>
-                    <span>Back</span>
-                </button>
-                <div class="menu-container">
-                    <button class="menu-button" @click.stop="toggleMenu">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            width="24"
-                            height="24"
-                            fill="white"
-                        >
-                            <path
-                                d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-                            />
-                        </svg>
-                        <span>Menu</span>
-                        <svg
-                            class="arrow-icon"
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            width="18"
-                            height="18"
-                            fill="white"
-                        >
-                            <path d="M7 10l5 5 5-5z" />
-                        </svg>
-                    </button>
-
-                    <div class="dropdown-menu" :class="{ show: isMenuOpen }">
-                        <button class="menu-item" @click="goToAccount">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 24 24"
-                                width="20"
-                                height="20"
-                                fill="currentColor"
-                            >
-                                <path
-                                    d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-                                />
-                            </svg>
-                            My Account
-                        </button>
-                        <button class="menu-item" @click="logout">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 24 24"
-                                width="20"
-                                height="20"
-                                fill="currentColor"
-                            >
-                                <path
-                                    d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
-                                />
-                            </svg>
-                            Logout
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </header>
+        <!-- Глобальный хедер выводится в App.vue -->
 
         <div class="content-wrapper">
             <div class="content-container">
@@ -295,8 +223,8 @@ const logout = () => {
 <style scoped>
 .news-detail-page {
     width: 100%;
-    min-height: 100vh;
-    height: 100vh;
+    min-height: calc(100vh - var(--header-height));
+    height: calc(100vh - var(--header-height));
     background-color: var(--background-color);
     font-family:
         'Inter',

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, defineComponent, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, defineComponent, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useContactsStore } from '@/stores/contacts'
 import ContactsList from '@/components/ContactsList.vue'
@@ -8,6 +8,7 @@ import ChatArea from '@/components/ChatArea.vue'
 import Calendar from '@/components/Calendar.vue'
 import TaskManager from '@/components/TaskManager.vue'
 import MyNotes from '@/components/MyNotes.vue'
+import ProjectsView from '@/views/Projects.vue'
 import LoaderOverlay from '@/components/LoaderOverlay.vue'
 import ConnectionStatus from '@/components/ConnectionStatus.vue'
 import formatMessageDate from '@/utils/formatMessageDate'
@@ -101,9 +102,12 @@ const isContactsVisible = ref(true)
 const isLoading = ref(false)
 const isOffline = ref(false)
 const isMenuOpen = ref(false)
-const showNews = ref(false)
-const showCalendar = ref(false)
-const showTaskManager = ref(false)
+const route = useRoute()
+const showNews = computed(() => route.meta.tab === 'notes')
+const showCalendar = computed(() => route.meta.tab === 'calendar')
+const showTaskManager = computed(() => route.meta.tab === 'tasks')
+const showProjects = computed(() => route.meta.tab === 'projects')
+// Прежний локальный таб больше не нужен, так как табы переехали в AppHeader
 const isTyping = ref(false)
 const windowWidth = useStateStore().windowWidth
 const chatAreaRef = ref<InstanceType<typeof ChatArea> | null>(null)
@@ -120,27 +124,15 @@ const openAddContactFromChatArea = () => {
 }
 
 const toggleNews = (newsState: boolean) => {
-    showNews.value = newsState
-    if (newsState) {
-        showCalendar.value = false
-        showTaskManager.value = false
-    }
+    router.push(newsState ? '/notes' : '/chat')
 }
 
 const toggleCalendar = () => {
-    showCalendar.value = !showCalendar.value
-    if (showCalendar.value) {
-        showNews.value = false
-        showTaskManager.value = false
-    }
+    router.push(showCalendar.value ? '/chat' : '/calendar')
 }
 
 const toggleTaskManager = () => {
-    showTaskManager.value = !showTaskManager.value
-    if (showTaskManager.value) {
-        showNews.value = false
-        showCalendar.value = false
-    }
+    router.push(showTaskManager.value ? '/chat' : '/tasks')
 }
 
 const handleConnectionRetry = () => {
@@ -495,19 +487,20 @@ onBeforeUnmount(() => {
                 <MyNotes
                     v-if="showNews"
                     :hide-header="true"
-                    @back-to-chat="showNews = false"
+                    @back-to-chat="router.push('/chat')"
                     @toggle-contacts="toggleContacts"
                 />
                 <Calendar
                     v-else-if="showCalendar"
-                    @back-to-chat="showCalendar = false"
+                    @back-to-chat="router.push('/chat')"
                     @toggle-contacts="toggleContacts"
                 />
                 <TaskManager
                     v-else-if="showTaskManager"
-                    @back-to-chat="showTaskManager = false"
+                    @back-to-chat="router.push('/chat')"
                     @toggle-contacts="toggleContacts"
                 />
+                <ProjectsView v-else-if="showProjects" />
                 <ChatArea
                     v-else
                     ref="chatAreaRef"
@@ -534,7 +527,7 @@ onBeforeUnmount(() => {
     display: flex;
     flex-direction: column;
     width: 100%;
-    height: 100vh;
+    height: calc(100vh - var(--header-height));
     background-color: var(--background-color);
     position: relative;
     overflow: hidden;
@@ -565,7 +558,7 @@ onBeforeUnmount(() => {
     display: grid;
     grid-template-columns: 300px 1fr;
     flex: 1;
-    height: calc(100% - var(--header-height));
+    height: 100%;
     overflow: hidden;
 }
 
@@ -575,6 +568,49 @@ onBeforeUnmount(() => {
     flex: 1;
     overflow: hidden;
     min-height: 0;
+}
+
+.mini-header {
+    background: var(--primary-color);
+    color: #fff;
+    padding: 8px 12px;
+    box-shadow: var(--box-shadow);
+}
+
+.dark-theme .mini-header {
+    background: #0d47a1;
+}
+
+.tabs {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.tab {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-weight: 500;
+    height: 26px;
+    transition: all 0.2s ease;
+}
+
+.tab:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+.tab.active {
+    background: #fff;
+    color: var(--primary-color);
+}
+.dark-theme .tab.active {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 .contact-toggle,
@@ -702,10 +738,10 @@ onBeforeUnmount(() => {
 
     :deep(.contacts-list) {
         position: absolute;
-        top: var(--header-height);
+        top: 0;
         left: -100%;
         width: 100%;
-        height: calc(100% - var(--header-height));
+        height: 100%;
         z-index: 10;
         transition: all 0.3s ease;
     }

@@ -76,8 +76,8 @@ const logout = async () => {
                 class="menu-icon"
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
-                width="24"
-                height="24"
+                width="16"
+                height="16"
                 fill="white"
             >
                 <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
@@ -140,15 +140,16 @@ const logout = async () => {
     background-color: transparent;
     border: 1px solid rgba(255, 255, 255, 0.5);
     color: white;
-    padding: 8px 15px;
-    border-radius: 8px;
+    padding: 0 8px;
+    height: 24px; /* одинаковая высота с табами */
+    border-radius: 999px;
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
-    font-size: 14px;
+    gap: 6px;
+    font-size: 12px;
     font-weight: 500;
 }
 
@@ -248,10 +249,13 @@ const logout = async () => {
         width: 40px;
         height: 40px;
         justify-content: center;
+        font-size: 14px;
     }
 
     .menu-icon {
         margin-left: 0;
+        width: 20px;
+        height: 20px;
     }
 }
 </style>

@@ -13,6 +13,7 @@ import WebsocketBase from '@/utils/websocket-base'
 import type { WebsocketMessage } from '@/utils/websocket-base'
 import { useEventBus } from '@/utils/event-bus'
 import type { ApiMessage } from '@/views/Chat.vue'
+import AppHeader from '@/components/AppHeader.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -35,6 +36,11 @@ const showThemeToggle = computed(() => {
     }
     return true
 })
+
+// Пропсы для глобального хедера из meta маршрута
+const headerTitle = computed(() => (route.meta.title as string) || '')
+const headerBackPath = computed(() => (route.meta.backPath as string) || '')
+const headerBackLabel = computed(() => (route.meta.backLabel as string) || 'Back')
 
 // Обработчик изменения размера окна
 // const handleResize = () => {
@@ -166,6 +172,11 @@ const toggleTheme = () => {
             <p>Loading...</p>
         </div>
         <template v-else>
+            <AppHeader
+                :title="headerTitle"
+                :back-path="headerBackPath"
+                :back-label="headerBackLabel"
+            />
             <div v-if="showThemeToggle" class="theme-toggle">
                 <button @click="toggleTheme">
                     {{ stateStore.darkMode ? '☀️' : '🌙' }}
@@ -186,7 +197,7 @@ const toggleTheme = () => {
     --box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     --border-radius: 8px;
     --content-max-width: 800px;
-    --header-height: 60px;
+    --header-height: 36px;
 }
 
 :root.dark-theme {
@@ -293,7 +304,7 @@ input {
 @media (max-width: 768px) {
     :root {
         --content-max-width: 100%;
-        --header-height: 56px;
+        --header-height: 32px;
     }
 
     body {

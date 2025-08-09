@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useContactsStore } from '@/stores/contacts'
 import { useUserStore } from '@/stores/user'
 import type { Contact } from '@/stores/contacts'
@@ -8,6 +9,8 @@ import api from '@/utils/api'
 
 const contactsStore = useContactsStore()
 const userStore = useUserStore()
+const router = useRouter()
+const route = useRoute()
 const searchQuery = ref('')
 const showNews = ref(false)
 const unreadNewsCount = ref(3)
@@ -52,6 +55,7 @@ const contextMenu = ref({
 // Функция для обработки клика по контакту
 const handleContactClick = (contact: Contact) => {
     console.log('handleContactClick')
+    if (route.name !== 'Chat' && route.name !== 'JoinChat') router.push('/chat')
     emit('select-contact', contact)
 }
 

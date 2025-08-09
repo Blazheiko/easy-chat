@@ -1,6 +1,4 @@
 <script setup lang="ts">
-
-import MenuButton from '@/components/MenuButton.vue'
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -257,8 +255,8 @@ function updateWindowWidth() {
     <div class="news-feed" :class="{ 'no-padding': hideHeader }">
         <!-- Встроенная шапка для режима hideHeader=true (embedded режим) -->
         <div v-if="hideHeader" class="chat-header">
-          <button class="back-button" @click="emit('toggle-contacts')">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <button class="back-button" @click="emit('toggle-contacts')">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path
                         d="M15 18L9 12L15 6"
                         stroke="currentColor"
@@ -270,7 +268,16 @@ function updateWindowWidth() {
             </button>
             <h2>Notes</h2>
             <button class="create-post-icon-button" @click="goToCreatePost" title="Create Post">
-                <svg
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M12 5V19M5 12H19"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
+                </svg>
+                <!-- <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
                     width="24"
@@ -278,17 +285,17 @@ function updateWindowWidth() {
                     fill="currentColor"
                 >
                     <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                </svg>
+                </svg> -->
             </button>
-            <div class="header-buttons">
+            <!-- <div class="header-buttons">
                 <MenuButton />
-            </div>
+            </div> -->
         </div>
 
         <!-- Основная шапка для standalone режима -->
         <div v-if="!hideHeader" class="news-header">
-          <button class="back-button" @click="emit('toggle-contacts')">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <button class="back-button" @click="emit('toggle-contacts')">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path
                         d="M15 18L9 12L15 6"
                         stroke="currentColor"
@@ -1044,40 +1051,26 @@ function updateWindowWidth() {
 }
 
 .create-post-icon-button {
-    background: transparent;
-    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     color: white;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
 }
 
 .create-post-icon-button:hover {
-    background-color: rgba(255, 255, 255, 0.2);
-    transform: scale(1.1);
-}
-
-.create-post-icon-button:active {
-    background-color: rgba(255, 255, 255, 0.3);
-    transform: scale(1);
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
 }
 
 .create-post-icon-button svg {
     width: 24px;
     height: 24px;
-}
-
-.dark-theme .create-post-icon-button:hover {
-    background-color: rgba(255, 255, 255, 0.15);
-}
-
-.dark-theme .create-post-icon-button:active {
-    background-color: rgba(255, 255, 255, 0.25);
 }
 
 @media (max-width: 768px) {
@@ -1167,15 +1160,7 @@ function updateWindowWidth() {
         padding: 6px 8px;
     }
 
-    .create-post-icon-button {
-        width: 36px;
-        height: 36px;
-    }
-
-    .create-post-icon-button svg {
-        width: 20px;
-        height: 20px;
-    }
+    /* Keep the same sizing as in Task Manager (no overrides) */
 
     .load-more {
         padding: 8px 16px 16px;

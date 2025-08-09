@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import MyNotes from '../components/MyNotes.vue'
 import { defineComponent } from 'vue'
 import MenuButton from '../components/MenuButton.vue'
+// Локальная шапка ниже будет заменена глобальным AppHeader из App.vue
 
 defineComponent({
     name: 'NewsView',
@@ -42,24 +43,7 @@ const backToChat = () => {
 
 <template>
     <div class="news-page">
-        <header class="news-header">
-            <div class="header-content">
-                <button class="back-button" @click="backToChat">
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        width="24"
-                        height="24"
-                        fill="currentColor"
-                    >
-                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
-                    </svg>
-                    <span>Back to Chat</span>
-                </button>
-                <h1>Notes</h1>
-                <MenuButton />
-            </div>
-        </header>
+        <!-- Глобальный хедер выводится в App.vue -->
 
         <div class="content-wrapper">
             <div class="content-container">
@@ -72,8 +56,8 @@ const backToChat = () => {
 <style scoped>
 .news-page {
     width: 100%;
-    min-height: 100vh;
-    height: 100vh;
+    min-height: calc(100vh - var(--header-height));
+    height: calc(100vh - var(--header-height));
     background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     font-family:
         'Inter',

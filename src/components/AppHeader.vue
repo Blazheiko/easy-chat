@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import MenuButton from '@/components/MenuButton.vue'
+import { computed, ref, onMounted } from 'vue'
+import { useEventBus } from '@/utils/event-bus'
 
 // Props
 const props = defineProps({
@@ -19,6 +21,21 @@ const props = defineProps({
 })
 
 const router = useRouter()
+const route = useRoute()
+const activeTab = computed(() => (route.meta.tab as string) || 'chat')
+const eventBus = useEventBus()
+
+// Состояние звуковых уведомлений (глобальная кнопка в шапке)
+const notificationsEnabled = ref(true)
+onMounted(() => {
+    notificationsEnabled.value = localStorage.getItem('notifications_enabled') !== 'false'
+})
+
+const toggleNotifications = () => {
+    notificationsEnabled.value = !notificationsEnabled.value
+    localStorage.setItem('notifications_enabled', String(notificationsEnabled.value))
+    eventBus.emit('toggle_notifications', notificationsEnabled.value)
+}
 
 // Вернуться назад
 const goBack = () => {
@@ -49,6 +66,104 @@ const goBack = () => {
             </div>
 
             <div class="right-side">
+                <nav class="tabs">
+                    <button
+                        class="tab"
+                        :class="{ active: activeTab === 'chat' }"
+                        @click="router.push('/chat')"
+                        title="Chat"
+                    >
+                        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                            <path d="M4 4h16v12H5.17L4 17.17V4z" fill="currentColor" />
+                        </svg>
+                        <span>Chat</span>
+                    </button>
+                    <button
+                        class="tab"
+                        :class="{ active: activeTab === 'notes' }"
+                        @click="router.push('/notes')"
+                        title="Notes"
+                    >
+                        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                            <path
+                                d="M3 5v14a2 2 0 0 0 2 2h10l6-6V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2zm12 14V9h6"
+                                fill="currentColor"
+                            />
+                        </svg>
+                        <span>Notes</span>
+                    </button>
+                    <button
+                        class="tab"
+                        :class="{ active: activeTab === 'calendar' }"
+                        @click="router.push('/calendar')"
+                        title="Calendar"
+                    >
+                        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                            <path
+                                d="M7 2v2H5a2 2 0 0 0-2 2v2h18V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zm14 8H3v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V10z"
+                                fill="currentColor"
+                            />
+                        </svg>
+                        <span>Calendar</span>
+                    </button>
+                    <button
+                        class="tab"
+                        :class="{ active: activeTab === 'tasks' }"
+                        @click="router.push('/tasks')"
+                        title="Tasks"
+                    >
+                        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                            <path
+                                d="M9 11H4v2h5v-2zm0-4H4v2h5V7zm11 8H11v2h9v-2zm0-4H11v2h9v-2zm0-4H11v2h9V7z"
+                                fill="currentColor"
+                            />
+                        </svg>
+                        <span>Tasks</span>
+                    </button>
+                    <button
+                        class="tab"
+                        :class="{ active: activeTab === 'projects' }"
+                        @click="router.push('/projects')"
+                        title="Projects"
+                    >
+                        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                            <path d="M4 6h16v12H4zM2 4h20v2H2z" fill="currentColor" />
+                        </svg>
+                        <span>Projects</span>
+                    </button>
+                </nav>
+                <button
+                    class="notification-button"
+                    @click="toggleNotifications"
+                    title="Toggle notification sound"
+                >
+                    <svg
+                        v-if="notificationsEnabled"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="22"
+                        height="22"
+                    >
+                        <path
+                            d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"
+                            fill="currentColor"
+                        />
+                    </svg>
+                    <svg
+                        v-else
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="22"
+                        height="22"
+                    >
+                        <path
+                            d="M20 18.69L7.84 6.14 5.27 3.49 4 4.76l2.8 2.8v.01c-.52.99-.8 2.16-.8 3.42v5l-2 2v1h13.73l2 2L21 19.72l-1-1.03zM12 22c1.11 0 2-.89 2-2h-4c0 1.11.89 2 2 2zm6-7.32V11c0-3.08-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68c-.15.03-.29.08-.42.12-.1.03-.2.07-.3.11h-.01c-.01 0-.01 0-.02.01-.23.09-.46.2-.68.31 0 0-.01 0-.01.01l2.97 2.97V5.36c0-.22.02-.42.05-.62.07.41.23.78.46 1.06.43.52 1.1.84 1.83.84.33 0 .65-.06.93-.18.5.52.86 1.15 1.09 1.86.11.34.17.69.2 1.06v5.59l3.24 3.24-.07-.03c.45-.4.87-.92 1.22-1.5.19-.32.34-.67.45-1.05z"
+                            fill="currentColor"
+                        />
+                    </svg>
+                </button>
                 <MenuButton />
             </div>
         </div>
@@ -64,7 +179,7 @@ const goBack = () => {
     color: white;
     box-shadow: var(--box-shadow);
     width: 100%;
-    padding: 12px 0;
+    padding: 4px 0;
 }
 
 .dark-theme .app-header {
@@ -76,7 +191,7 @@ const goBack = () => {
     width: 100%;
     max-width: 1400px;
     margin: 0 auto;
-    padding: 0 24px;
+    padding: 0 12px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -95,6 +210,43 @@ const goBack = () => {
 
 .right-side {
     justify-content: flex-end;
+}
+
+.tabs {
+    display: flex;
+    gap: 4px;
+    margin-right: 8px;
+}
+
+.tab {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.tab:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.tab.active {
+    background: white;
+    color: var(--primary-color);
+}
+
+.dark-theme .tab.active {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 .app-header h1 {
@@ -134,17 +286,50 @@ const goBack = () => {
     opacity: 0.9;
 }
 
+.notification-button {
+    background-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    color: white;
+    padding: 0 8px;
+    height: 24px; /* равна высоте табов */
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 12px;
+    margin-right: 6px;
+}
+
+.notification-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
 @media (max-width: 768px) {
     .app-header {
-        padding: 8px 0;
+        padding: 4px 0;
     }
 
     .header-content {
         padding: 0 16px;
     }
 
+    /* На мобильных вкладки в шапке не показываем */
+    .tabs {
+        display: none;
+    }
+
+    .notification-button {
+        width: 32px;
+        height: 32px;
+        padding: 4px 8px;
+        margin-right: 4px;
+    }
+
     .app-header h1 {
-        font-size: 20px;
+        font-size: 18px;
     }
 
     .back-button {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import AppHeader from '@/components/AppHeader.vue'
+// Глобальный хедер теперь рендерится в App.vue
 
 const router = useRouter()
 
@@ -85,8 +85,6 @@ const postNews = () => {
 
 <template>
     <div class="create-news-page">
-        <AppHeader backPath="/news" backLabel="Back to News" title="Create News Post" />
-
         <div class="create-news-content" :class="{ 'mobile-container': windowWidth <= 768 }">
             <div class="news-form">
                 <div v-if="error" class="error-message">{{ error }}</div>
@@ -167,8 +165,8 @@ const postNews = () => {
 <style scoped>
 .create-news-page {
     width: 100%;
-    min-height: 100vh;
-    height: 100vh;
+    min-height: calc(100vh - var(--header-height));
+    height: calc(100vh - var(--header-height));
     background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     font-family:
         'Inter',

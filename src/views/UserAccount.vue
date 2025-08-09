@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useStateStore } from '@/stores/state'
-import AppHeader from '@/components/AppHeader.vue'
+// Глобальный хедер теперь рендерится в App.vue
 
 defineOptions({
     name: 'UserAccount',
@@ -51,8 +51,6 @@ const toggleSound = () => {
 
 <template>
     <div class="account-page">
-        <AppHeader backPath="/chat" backLabel="Back to Chat" title="Account Settings" />
-
         <div class="account-content">
             <div class="profile-section">
                 <div class="avatar-container">
@@ -62,7 +60,7 @@ const toggleSound = () => {
                     <h2>{{ user.name || 'User' }}</h2>
                     <p>{{ user.email || 'email@example.com' }}</p>
                     <p class="user-status">{{ user.status || 'Online' }}</p>
-                    <p class="join-date">Member since: {{ user.createdAt  }}</p>
+                    <p class="join-date">Member since: {{ user.createdAt }}</p>
                 </div>
             </div>
 
