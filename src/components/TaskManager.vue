@@ -294,12 +294,12 @@ onMounted(() => {
 }
 
 .task-header {
-    background-color: var(--primary-color);
+    background-color: rgba(76, 175, 80, 0.7);
     color: white;
     padding: 16px 20px;
     display: flex;
     align-items: center;
-    gap: 16px;
+    justify-content: space-between;
     box-shadow: var(--box-shadow);
 }
 
@@ -308,7 +308,10 @@ onMounted(() => {
     border: none;
     color: white;
     cursor: pointer;
-    padding: 8px;
+    /* Важно: компактные кнопки в хедере не должны увеличивать высоту */
+    padding: 0;
+    width: 24px;
+    height: 24px;
     border-radius: 8px;
     transition: background-color 0.2s;
     display: flex;
@@ -328,17 +331,19 @@ onMounted(() => {
 .task-header h2 {
     flex: 1;
     margin: 0;
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 600;
 }
 
 .create-task-button {
     background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: none;
     color: white;
     cursor: pointer;
-    padding: 8px;
-    border-radius: 8px;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
     transition: all 0.2s;
     display: flex;
     align-items: center;
@@ -347,12 +352,11 @@ onMounted(() => {
 
 .create-task-button:hover {
     background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.3);
 }
 
 .create-task-button svg {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
 }
 
 .task-content {
@@ -394,8 +398,8 @@ onMounted(() => {
 
 .task-input:focus {
     outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+    border-color: rgba(76, 175, 80, 0.9);
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
 }
 
 .form-actions {
@@ -404,7 +408,7 @@ onMounted(() => {
 }
 
 .btn-primary {
-    background-color: var(--primary-color);
+    background-color: rgba(76, 175, 80, 0.9);
     color: white;
     border: none;
     padding: 10px 20px;
@@ -416,7 +420,7 @@ onMounted(() => {
 }
 
 .btn-primary:hover {
-    background-color: var(--accent-color);
+    background-color: rgba(76, 175, 80, 1);
     transform: translateY(-1px);
 }
 
@@ -527,7 +531,7 @@ onMounted(() => {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background-color: var(--primary-color);
+    background-color: rgba(76, 175, 80, 0.9);
     color: white;
     display: flex;
     align-items: center;
@@ -612,7 +616,7 @@ onMounted(() => {
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: var(--primary-color);
+    background: rgba(76, 175, 80, 0.9);
     cursor: pointer;
     border: 2px solid white;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
@@ -622,7 +626,7 @@ onMounted(() => {
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: var(--primary-color);
+    background: rgba(76, 175, 80, 0.9);
     cursor: pointer;
     border: 2px solid white;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
@@ -658,11 +662,11 @@ onMounted(() => {
 
 @media (max-width: 768px) {
     .task-header {
-        padding: 14px;
+        padding: 14px 16px;
     }
 
     .task-header h2 {
-        font-size: 18px;
+        font-size: 16px;
     }
 
     .task-content {

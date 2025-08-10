@@ -630,10 +630,12 @@ function updateWindowWidth() {
     display: flex;
     align-items: center;
     padding: 16px 20px;
-    border-bottom: 1px solid var(--border-color);
-    background-color: var(--primary-color);
+    /* Без рамки, как в ChatArea, чтобы высота совпадала пиксель-в-пиксель */
+    border-bottom: none;
+    background-color: rgba(255, 193, 7, 0.7);
     color: white;
     justify-content: space-between;
+    box-shadow: var(--box-shadow);
 }
 
 .news-feed > .news-header h2 {
@@ -661,11 +663,15 @@ function updateWindowWidth() {
 .menu-button {
     background: transparent;
     border: none;
-    padding: 8px;
+    /* Компактные размеры как в ChatArea */
+    padding: 0;
+    width: 24px;
+    height: 24px;
     color: white;
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    gap: 0;
     cursor: pointer;
     transition: opacity 0.2s;
 }
@@ -1052,11 +1058,14 @@ function updateWindowWidth() {
 
 .create-post-icon-button {
     background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: none;
     color: white;
     cursor: pointer;
-    padding: 8px;
-    border-radius: 8px;
+    /* Совмещаем с высотой хедера за счёт отсутствия внутренних отступов */
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
     transition: all 0.2s;
     display: flex;
     align-items: center;
@@ -1065,12 +1074,11 @@ function updateWindowWidth() {
 
 .create-post-icon-button:hover {
     background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.3);
 }
 
 .create-post-icon-button svg {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
 }
 
 @media (max-width: 768px) {
@@ -1178,7 +1186,7 @@ function updateWindowWidth() {
 
 /* Стили для встроенной шапки */
 .chat-header {
-    background-color: var(--primary-color);
+    background-color: rgba(255, 193, 7, 0.7);
     color: white;
     padding: 16px 20px;
     display: flex;
@@ -1258,7 +1266,7 @@ function updateWindowWidth() {
 
 @media (max-width: 768px) {
     .chat-header {
-        padding: 12px 16px;
+        padding: 14px 16px;
     }
 
     .chat-header h2 {
@@ -1449,13 +1457,13 @@ function updateWindowWidth() {
 
 .content-input:focus {
     outline: none;
-    border-color: #4f46e5;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    border-color: rgba(255, 193, 7, 0.9);
+    box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.1);
 }
 
 .dark-theme .content-input:focus {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    border-color: rgba(255, 193, 7, 0.9);
+    box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.2);
 }
 
 .image-upload-container {
@@ -1463,7 +1471,7 @@ function updateWindowWidth() {
 }
 
 .publish-button {
-    background-color: #1a73e8;
+    background-color: rgba(255, 193, 7, 0.9);
     color: #ffffff;
     border: none;
     border-radius: 8px;
@@ -1477,7 +1485,7 @@ function updateWindowWidth() {
 }
 
 .publish-button:hover {
-    background-color: #1765cc;
+    background-color: rgba(255, 193, 7, 1);
 }
 
 .publish-button:disabled {
@@ -1509,18 +1517,22 @@ function updateWindowWidth() {
 .create-post-button {
     display: flex;
     align-items: center;
-    background-color: #4f46e5;
+    justify-content: center;
+    background-color: rgba(255, 193, 7, 0.9);
     color: white;
     border: none;
-    border-radius: 20px;
-    padding: 8px 16px;
+    /* Фиксируем высоту кнопки, чтобы не увеличивать высоту хедера */
+    height: 24px;
+    padding: 0 12px;
+    border-radius: 12px;
     cursor: pointer;
     font-weight: 500;
+    line-height: 24px;
     transition: background-color 0.2s;
 }
 
 .create-post-button:hover {
-    background-color: #4338ca;
+    background-color: rgba(255, 193, 7, 1);
 }
 
 .create-post-button .add-icon {

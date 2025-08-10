@@ -80,20 +80,6 @@ const goBack = () => {
                     </button>
                     <button
                         class="tab"
-                        :class="{ active: activeTab === 'notes' }"
-                        @click="router.push('/notes')"
-                        title="Notes"
-                    >
-                        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-                            <path
-                                d="M3 5v14a2 2 0 0 0 2 2h10l6-6V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2zm12 14V9h6"
-                                fill="currentColor"
-                            />
-                        </svg>
-                        <span>Notes</span>
-                    </button>
-                    <button
-                        class="tab"
                         :class="{ active: activeTab === 'calendar' }"
                         @click="router.push('/calendar')"
                         title="Calendar"
@@ -119,6 +105,20 @@ const goBack = () => {
                             />
                         </svg>
                         <span>Tasks</span>
+                    </button>
+                    <button
+                        class="tab"
+                        :class="{ active: activeTab === 'notes' }"
+                        @click="router.push('/notes')"
+                        title="Notes"
+                    >
+                        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                            <path
+                                d="M3 5v14a2 2 0 0 0 2 2h10l6-6V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2zm12 14V9h6"
+                                fill="currentColor"
+                            />
+                        </svg>
+                        <span>Notes</span>
                     </button>
                     <button
                         class="tab"

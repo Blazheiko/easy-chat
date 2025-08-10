@@ -365,7 +365,7 @@ function getEventColor(index: number): string {
                 <span>Назад к чату</span>
             </button> -->
             <button class="back-button" @click="emit('toggle-contacts')">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path
                         d="M15 18L9 12L15 6"
                         stroke="currentColor"
@@ -376,7 +376,7 @@ function getEventColor(index: number): string {
                 </svg>
             </button>
             <h2>Calendar</h2>
-
+            <div class="header-buttons"></div>
         </div>
 
         <div v-if="!showDateDetails" class="calendar-view">
@@ -562,8 +562,9 @@ function getEventColor(index: number): string {
     justify-content: space-between;
     padding: 16px 20px;
     border-bottom: 1px solid var(--border-color, #e0e0e0);
-    background-color: var(--primary-color, #1a73e8);
+    background-color: rgba(255, 59, 48, 0.7);
     color: white;
+    box-shadow: var(--box-shadow);
 }
 
 .calendar-header h2 {
@@ -572,15 +573,25 @@ function getEventColor(index: number): string {
     font-weight: 600;
 }
 
+.header-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .back-button,
 .menu-button {
     background: transparent;
     border: none;
-    padding: 8px;
+    /* Важно: убираем вертикальные паддинги, чтобы высота шапки совпадала с ChatArea */
+    padding: 0;
+    width: 24px;
+    height: 24px;
     color: white;
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    gap: 0;
     cursor: pointer;
     transition: opacity 0.2s;
 }
@@ -704,7 +715,7 @@ function getEventColor(index: number): string {
 }
 
 .day.today {
-    background-color: var(--primary-color, #1a73e8);
+    background-color: rgba(255, 59, 48, 0.9);
     color: white;
     font-weight: 500;
 }
@@ -719,7 +730,7 @@ function getEventColor(index: number): string {
     width: 4px;
     height: 4px;
     border-radius: 50%;
-    background-color: var(--primary-color, #1a73e8);
+    background-color: rgba(255, 59, 48, 0.9);
 }
 
 .day.today .event-indicator {
@@ -754,7 +765,7 @@ function getEventColor(index: number): string {
 }
 
 .add-event-button {
-    background-color: var(--primary-color, #1a73e8);
+    background-color: rgba(255, 59, 48, 0.9);
     color: white;
     border: none;
     padding: 8px 16px;
@@ -774,7 +785,7 @@ function getEventColor(index: number): string {
 }
 
 .add-event-button:hover {
-    background-color: var(--accent-color, #1565c0);
+    background-color: rgba(255, 59, 48, 1);
 }
 
 .events-list {
@@ -975,13 +986,13 @@ function getEventColor(index: number): string {
 
 .form-group input:focus,
 .form-group textarea:focus {
-    border-color: var(--primary-color, #1a73e8);
-    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.1);
+    border-color: rgba(255, 59, 48, 0.9);
+    box-shadow: 0 0 0 2px rgba(255, 59, 48, 0.1);
 }
 
 .dark-theme .form-group input:focus,
 .dark-theme .form-group textarea:focus {
-    box-shadow: 0 0 0 2px rgba(100, 181, 246, 0.2);
+    box-shadow: 0 0 0 2px rgba(255, 59, 48, 0.2);
 }
 
 .form-actions {
@@ -1012,7 +1023,7 @@ function getEventColor(index: number): string {
 }
 
 .save-button {
-    background-color: var(--primary-color, #1a73e8);
+    background-color: rgba(255, 59, 48, 0.9);
     color: white;
 }
 
@@ -1025,12 +1036,23 @@ function getEventColor(index: number): string {
 }
 
 .save-button:hover {
-    background-color: var(--accent-color, #1565c0);
+    background-color: rgba(255, 59, 48, 1);
 }
 
 @media (max-width: 768px) {
     .calendar-header {
-        padding: 12px 16px;
+        padding: 14px 16px;
+    }
+
+    .calendar-header h2 {
+        font-size: 16px;
+    }
+
+    /* Кнопка назад в верхней шапке остаётся компактной и не увеличивает высоту */
+    .calendar-header .back-button {
+        padding: 0;
+        width: 24px;
+        height: 24px;
     }
 
     .calendar-view {
@@ -1046,8 +1068,9 @@ function getEventColor(index: number): string {
         font-size: 13px;
     }
 
-    .add-event-button,
-    .back-button {
+    /* Внутри детального экрана оставляем более крупную кнопку */
+    .date-details .back-button,
+    .add-event-button {
         padding: 6px 12px;
         font-size: 13px;
     }

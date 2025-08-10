@@ -684,7 +684,7 @@ onUnmounted(() => {
 .chat-header {
     background-color: var(--primary-color);
     color: white;
-    padding: 10px 14px;
+    padding: 16px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1111,7 +1111,7 @@ onUnmounted(() => {
     }
 
     .chat-header {
-        padding: 14px;
+        padding: 14px 16px;
     }
 
     .chat-header h2 {
