@@ -79,8 +79,8 @@ const logout = async () => {
                 class="menu-icon"
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
-                width="16"
-                height="16"
+                width="14"
+                height="14"
                 fill="white"
             >
                 <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
@@ -140,36 +140,33 @@ const logout = async () => {
 }
 
 .menu-button {
-    background-color: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
     color: white;
-    padding: 0 8px;
-    height: 24px; /* одинаковая высота с табами */
-    border-radius: 999px;
+    padding: 3px 6px;
+    height: 22px;
+    width: 22px;
+    border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
-    white-space: nowrap;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    font-size: 12px;
+    justify-content: center;
+    font-size: 11px;
     font-weight: 500;
 }
 
 .menu-button:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-color: white;
+    background-color: rgba(255, 255, 255, 0.2);
     transform: translateY(-1px);
 }
 
 .menu-button:active {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.25);
     transform: translateY(0);
 }
 
-.menu-icon {
-    margin-left: 4px;
-}
+/* Иконка меню - стили применяются через inline стили в template */
 
 /* Стили для выпадающего меню */
 .dropdown-menu {
@@ -246,19 +243,20 @@ const logout = async () => {
 }
 
 @media (max-width: 768px) {
+    .menu-container {
+        margin-left: 4px;
+    }
+
     .menu-button {
-        padding: 8px;
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        justify-content: center;
-        font-size: 14px;
+        padding: 6px;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
     }
 
     .menu-icon {
-        margin-left: 0;
-        width: 20px;
-        height: 20px;
+        width: 18px;
+        height: 18px;
     }
 }
 </style>
