@@ -17,12 +17,10 @@ interface NewsItem {
     userId: string | number
     userName: string
     userAvatar?: string
-    content: string
+    title: string
+    description: string
     images?: string[]
-    likes: number
-    comments: number
     timeAgo: string
-    isLiked?: boolean
 }
 
 // Демонстрационные данные
@@ -32,99 +30,84 @@ const newsItems = ref<NewsItem[]>([
         userId: 1,
         userName: 'John Doe',
         // userAvatar: '/avatars/user1.png',
-        content:
+        title: 'Vue 3 Composition API Guide',
+        description:
             'When using a language model for code completion, we typically want the model to produce a completion that begins with what the user has typed.However, modern language models operate on sequences of tokens, not characters, so naively tokenizing the users input and sending it to the model produces wrong results if the users cursor doesnt happen to lie on a token boundary.Instead, we need an algorithm that samples a sequence of tokens conditional on a prefix of characters, rather than the more typical case of sampling conditional on a prefix of tokens.We call this character prefix conditioning, an algorithm for sampling a sequence of tokens conditioned on a character prefix.Just found this amazing article about Vue 3 composition API and how it changes the way we build Vue apps!',
         images: [
             'https://images.unsplash.com/photo-1544947950-fa07a98d237f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80',
         ],
-        likes: 24,
-        comments: 5,
         timeAgo: '3h ago',
-        isLiked: true,
     },
     {
         id: 2,
         userId: 2,
         userName: 'Mary Johnson',
-        content: 'Just finished reading this amazing book. Highly recommend it to everyone!',
+        title: 'Book Recommendation',
+        description: 'Just finished reading this amazing book. Highly recommend it to everyone!',
         images: [
             'https://images.unsplash.com/photo-1544947950-fa07a98d237f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80',
         ],
-        likes: 16,
-        comments: 3,
         timeAgo: '5 hours ago',
     },
     {
         id: 3,
         userId: 3,
         userName: 'Alex Wilson',
-        content: 'Just got a new job at Google! So excited to start this new chapter in my life.',
-        likes: 42,
-        comments: 12,
+        title: 'New Job at Google!',
+        description:
+            'Just got a new job at Google! So excited to start this new chapter in my life.',
         timeAgo: '1 day ago',
     },
     {
         id: 4,
         userId: 4,
         userName: 'Helen Brown',
-        content:
+        title: 'Dinner at Italian Restaurant',
+        description:
             'Had a wonderful dinner with friends last night at the new Italian restaurant downtown. The pasta was incredible!',
         images: [
             'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80',
         ],
-        likes: 31,
-        comments: 8,
         timeAgo: '1 day ago',
     },
     {
         id: 5,
         userId: 5,
         userName: 'James Wilson',
-        content:
+        title: 'iPhone Upgrade Thoughts',
+        description:
             "Thoughts on the new iPhone? Thinking about upgrading but not sure if it's worth it.",
-        likes: 7,
-        comments: 15,
         timeAgo: '2 days ago',
     },
     {
         id: 6,
         userId: 6,
         userName: 'Sarah Parker',
-        content:
+        title: 'Trip to Japan - Tokyo & Kyoto',
+        description:
             'Just came back from my trip to Japan! Here are some pictures from Tokyo and Kyoto. The culture, food, and people were amazing!',
         images: [
             'https://images.unsplash.com/photo-1528360983277-13d401cdc186?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
             'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
         ],
-        likes: 64,
-        comments: 23,
         timeAgo: '3 days ago',
     },
     {
         id: 7,
         userId: 7,
         userName: 'Michael Chen',
-        content:
+        title: 'First Marathon Completed!',
+        description:
             'Just completed my first marathon! It was tough but so rewarding. Thanks to everyone who supported me along the way.',
         images: [
             'https://images.unsplash.com/photo-1528360983277-13d401cdc186?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
             'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80',
         ],
-        likes: 89,
-        comments: 31,
         timeAgo: '5 days ago',
     },
 ])
 
-// Лайк новости
-const likeNewsItem = (item: NewsItem) => {
-    if (item.isLiked) {
-        item.likes--
-    } else {
-        item.likes++
-    }
-    item.isLiked = !item.isLiked
-}
+// Лайки и комментарии убраны из интерфейса
 
 // Получение инициалов пользователя
 const getUserInitials = (name: string) => {
@@ -150,13 +133,15 @@ const goToCreatePost = () => {
 const closeCreatePost = () => {
     showCreateNews.value = false
     // Reset form state
-    newsContent.value = ''
+    newsTitle.value = ''
+    newsDescription.value = ''
     newsImages.value = []
     error.value = ''
 }
 
 // Переменные для создания новости
-const newsContent = ref('')
+const newsTitle = ref('')
+const newsDescription = ref('')
 const newsImages = ref<string[]>([])
 const isLoading = ref(false)
 const error = ref('')
@@ -193,7 +178,12 @@ const removeImage = (index: number) => {
 
 // Функция для публикации новости
 const postNews = async () => {
-    if (!newsContent.value.trim()) {
+    if (!newsTitle.value.trim()) {
+        error.value = 'Please enter a title for your post'
+        return
+    }
+
+    if (!newsDescription.value.trim()) {
         error.value = 'Please enter some content for your post'
         return
     }
@@ -211,19 +201,18 @@ const postNews = async () => {
             userId: 'current-user',
             userName: 'You',
             userAvatar: '/avatars/user1.png',
-            content: newsContent.value,
+            title: newsTitle.value,
+            description: newsDescription.value,
             images: [...newsImages.value],
-            likes: 0,
-            comments: 0,
             timeAgo: 'Just now',
-            isLiked: false,
         }
 
         // Добавляем в начало списка
         newsItems.value.unshift(newPost)
 
         // Сбрасываем форму
-        newsContent.value = ''
+        newsTitle.value = ''
+        newsDescription.value = ''
         newsImages.value = []
 
         // Закрываем форму создания новости
@@ -347,9 +336,18 @@ function updateWindowWidth() {
                 <form @submit.prevent="postNews">
                     <div class="error-message" v-if="error">{{ error }}</div>
                     <div class="form-group">
+                        <input
+                            id="news-title"
+                            v-model="newsTitle"
+                            class="content-input"
+                            placeholder="Enter title..."
+                            type="text"
+                        />
+                    </div>
+                    <div class="form-group">
                         <textarea
                             id="news-content"
-                            v-model="newsContent"
+                            v-model="newsDescription"
                             class="content-input"
                             placeholder="What's on your mind?"
                             rows="4"
@@ -417,7 +415,12 @@ function updateWindowWidth() {
 
         <div v-else class="news-content-container">
             <div class="news-items-grid">
-                <div class="news-item" v-for="item in newsItems" :key="item.id">
+                <div
+                    class="news-item"
+                    v-for="item in newsItems"
+                    :key="item.id"
+                    :title="item.description"
+                >
                     <div class="news-header">
                         <div class="news-user">
                             <div class="user-avatar" v-if="item.userAvatar">
@@ -447,7 +450,8 @@ function updateWindowWidth() {
                     </div>
 
                     <div class="news-content" @click="viewNewsDetail(item.id)">
-                        <p>{{ item.content }}</p>
+                        <h3 class="news-title">{{ item.title }}</h3>
+                        <p>{{ item.description }}</p>
 
                         <div
                             v-if="item.images && item.images.length > 0"
@@ -472,40 +476,6 @@ function updateWindowWidth() {
                     </div>
 
                     <div class="news-actions">
-                        <button
-                            class="action-button"
-                            :class="{ liked: item.isLiked }"
-                            @click="likeNewsItem(item)"
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 24 24"
-                                width="20"
-                                height="20"
-                                fill="currentColor"
-                            >
-                                <path
-                                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                                />
-                            </svg>
-                            <span>{{ item.likes }}</span>
-                        </button>
-
-                        <button class="action-button" @click="viewNewsDetail(item.id)">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 24 24"
-                                width="20"
-                                height="20"
-                                fill="currentColor"
-                            >
-                                <path
-                                    d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"
-                                />
-                            </svg>
-                            <span>{{ item.comments }}</span>
-                        </button>
-
                         <button class="action-button">
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -818,6 +788,18 @@ function updateWindowWidth() {
 
 .news-content:hover {
     background-color: rgba(0, 0, 0, 0.01);
+}
+
+.news-title {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-color);
+    line-height: 1.3;
+}
+
+.dark-theme .news-title {
+    color: #f3f4f6;
 }
 
 .news-content p {
@@ -1141,6 +1123,11 @@ function updateWindowWidth() {
 
     .news-content {
         padding: 0 16px 14px;
+    }
+
+    .news-title {
+        font-size: 16px;
+        margin-bottom: 6px;
     }
 
     .news-content p {
