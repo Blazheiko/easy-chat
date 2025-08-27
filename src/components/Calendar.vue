@@ -27,45 +27,45 @@ const showAddEventModal = ref(false)
 
 const emit = defineEmits(['toggle-contacts', 'back-to-chat'])
 
-// Месяцы и дни недели
+// Months and weekdays
 const months = [
-    'Январь',
-    'Февраль',
-    'Март',
-    'Апрель',
-    'Май',
-    'Июнь',
-    'Июль',
-    'Август',
-    'Сентябрь',
-    'Октябрь',
-    'Ноябрь',
-    'Декабрь',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
 ]
-const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-// Вычисляемые свойства для текущего месяца и года
+// Computed properties for current month and year
 const currentMonth = computed(() => currentDate.value.getMonth())
 const currentYear = computed(() => currentDate.value.getFullYear())
 
-// Название текущего месяца и год
+// Current month name and year
 const currentMonthName = computed(() => {
     return `${months[currentMonth.value]} ${currentYear.value}`
 })
 
-// Генерация дней для календаря
+// Generate days for calendar
 const calendarDays = computed(() => {
     const firstDay = new Date(currentYear.value, currentMonth.value, 1)
     const lastDay = new Date(currentYear.value, currentMonth.value + 1, 0)
 
-    // Получаем день недели первого дня месяца (0 - воскресенье, 1 - понедельник и т.д.)
+    // Get day of week for first day of month (0 - Sunday, 1 - Monday, etc.)
     let firstDayOfWeek = firstDay.getDay()
-    // Преобразуем для нашего формата (0 - понедельник, 6 - воскресенье)
+    // Convert to our format (0 - Monday, 6 - Sunday)
     firstDayOfWeek = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1
 
     const days = []
 
-    // Добавляем дни предыдущего месяца
+    // Add days from previous month
     const prevMonthLastDay = new Date(currentYear.value, currentMonth.value, 0).getDate()
     for (let i = firstDayOfWeek - 1; i >= 0; i--) {
         days.push({
@@ -77,7 +77,7 @@ const calendarDays = computed(() => {
         })
     }
 
-    // Добавляем дни текущего месяца
+    // Add days from current month
     for (let i = 1; i <= lastDay.getDate(); i++) {
         const date = new Date(currentYear.value, currentMonth.value, i)
         days.push({
@@ -88,7 +88,7 @@ const calendarDays = computed(() => {
         })
     }
 
-    // Добавляем дни следующего месяца
+    // Add days from next month
     const remainingDays = 7 - (days.length % 7 || 7)
     if (remainingDays < 7) {
         for (let i = 1; i <= remainingDays; i++) {
@@ -103,7 +103,7 @@ const calendarDays = computed(() => {
     return days
 })
 
-// Проверка, является ли дата сегодняшним днем
+// Check if date is today
 function isToday(date: Date): boolean {
     const today = new Date()
     return (
@@ -113,7 +113,7 @@ function isToday(date: Date): boolean {
     )
 }
 
-// Проверка, есть ли событие на выбранную дату
+// Check if there's an event on selected date
 function hasEventOnDate(date: Date): boolean {
     return dateEvents.value.some(
         (event) =>
@@ -123,7 +123,7 @@ function hasEventOnDate(date: Date): boolean {
     )
 }
 
-// Получение событий на выбранную дату
+// Get events for selected date
 const eventsForSelectedDate = computed(() => {
     if (!selectedDate.value) return []
 
@@ -135,34 +135,34 @@ const eventsForSelectedDate = computed(() => {
     )
 })
 
-// Функция для перехода к предыдущему месяцу
+// Function to go to previous month
 function prevMonth() {
     currentDate.value = new Date(currentYear.value, currentMonth.value - 1, 1)
 }
 
-// Функция для перехода к следующему месяцу
+// Function to go to next month
 function nextMonth() {
     currentDate.value = new Date(currentYear.value, currentMonth.value + 1, 1)
 }
 
-// Выбор даты
+// Select date
 function selectDate(date: Date) {
     selectedDate.value = new Date(date)
     showDateDetails.value = true
 }
 
-// Вернуться к календарю из детального просмотра
+// Return to calendar from detailed view
 function backToCalendar() {
     showDateDetails.value = false
 }
 
-// Открыть модальное окно добавления события
+// Open add event modal
 function openAddEventModal() {
     showAddEventModal.value = true
     newEvent.value = { title: '', description: '', startTime: '09:00', endTime: '10:00' }
 }
 
-// Добавить новое событие
+// Add new event
 function addEvent() {
     if (selectedDate.value && newEvent.value.title.trim()) {
         dateEvents.value.push({
@@ -173,22 +173,22 @@ function addEvent() {
             endTime: newEvent.value.endTime,
         })
 
-        // Сохраняем события в localStorage
+        // Save events to localStorage
         saveEvents()
 
-        // Закрываем модальное окно
+        // Close modal
         showAddEventModal.value = false
         newEvent.value = { title: '', description: '', startTime: '09:00', endTime: '10:00' }
     }
 }
 
-// Удалить событие
+// Delete event
 function deleteEvent(index: number) {
     dateEvents.value.splice(index, 1)
     saveEvents()
 }
 
-// Сохранение событий в localStorage
+// Save events to localStorage
 function saveEvents() {
     const eventsToSave = dateEvents.value.map((event) => ({
         date: event.date.toISOString(),
@@ -201,7 +201,7 @@ function saveEvents() {
     localStorage.setItem('calendar_events', JSON.stringify(eventsToSave))
 }
 
-// Загрузка событий из localStorage
+// Load events from localStorage
 function loadEvents() {
     const savedEvents = localStorage.getItem('calendar_events')
     if (savedEvents) {
@@ -223,16 +223,16 @@ function loadEvents() {
                 }),
             )
         } catch (e) {
-            console.error('Ошибка при загрузке событий календаря:', e)
+            console.error('Error loading calendar events:', e)
         }
     }
 }
 
-// При монтировании компонента загружаем события
+// Load events when component is mounted
 onMounted(() => {
     loadEvents()
 
-    // Если событий нет, добавляем демо-события
+    // If no events exist, add demo events
     if (dateEvents.value.length === 0) {
         const today = new Date()
         const tomorrow = new Date()
@@ -241,49 +241,52 @@ onMounted(() => {
         const nextWeek = new Date()
         nextWeek.setDate(today.getDate() + 7)
 
-        // Добавляем демо-события
+        // Add demo events
         dateEvents.value = [
             {
                 date: today,
-                title: 'Встреча с командой',
-                description: 'Обсуждение новых функций приложения и планирование спринта',
+                title: 'Team Meeting',
+                description: 'Discussing new app features and sprint planning',
                 startTime: '10:00',
                 endTime: '11:30',
             },
             {
                 date: today,
-                title: 'Обед',
-                description: 'Бизнес-ланч с партнерами',
+                title: 'Lunch',
+                description: 'Business lunch with partners',
                 startTime: '13:00',
                 endTime: '14:00',
             },
             {
                 date: tomorrow,
-                title: 'Созвон с клиентом',
-                description: 'Презентация прототипа и обсуждение требований',
+                title: 'Client Call',
+                description: 'Prototype presentation and requirements discussion',
                 startTime: '15:00',
                 endTime: '16:00',
             },
             {
                 date: nextWeek,
-                title: 'Дедлайн проекта',
-                description: 'Финальная версия приложения должна быть сдана',
+                title: 'Project Deadline',
+                description: 'Final version of the application must be delivered',
                 startTime: '18:00',
                 endTime: '19:00',
             },
         ]
 
-        // Сохраняем события
+        // Save events
         saveEvents()
     }
 })
 
-// Форматирование даты
+// Date formatting
 function formatDate(date: Date): string {
-    return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`
+    const day = date.getDate().toString().padStart(2, '0')
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const year = date.getFullYear()
+    return `${day}-${month}-${year}`
 }
 
-// Массив часов для дневного представления
+// Array of hours for day view
 const hoursOfDay = computed(() => {
     const hours = []
     for (let i = 0; i < 24; i++) {
@@ -292,7 +295,7 @@ const hoursOfDay = computed(() => {
     return hours
 })
 
-// Добавляем функцию для получения событий для конкретного часа
+// Add function to get events for specific hour
 function getEventsForHour(hour: string) {
     if (!selectedDate.value) return []
 
@@ -306,7 +309,7 @@ function getEventsForHour(hour: string) {
     })
 }
 
-// Функция для форматирования времени в 12-часовом формате (для отображения)
+// Function to format time in 12-hour format (for display)
 function formatTime(time?: string): string {
     if (!time) return ''
 
@@ -320,7 +323,7 @@ function formatTime(time?: string): string {
     return `${hour - 12}:${minutes} PM`
 }
 
-// Функция для определения продолжительности события в часах
+// Function to determine event duration in hours
 function getEventDurationInHours(event: { startTime?: string; endTime?: string }): number {
     if (!event.startTime || !event.endTime) return 1
 
@@ -330,11 +333,11 @@ function getEventDurationInHours(event: { startTime?: string; endTime?: string }
     const startTotalMinutes = startHours * 60 + startMinutes
     const endTotalMinutes = endHours * 60 + endMinutes
 
-    // Возвращаем продолжительность в часах с округлением вверх
+    // Return duration in hours rounded up
     return Math.ceil((endTotalMinutes - startTotalMinutes) / 60)
 }
 
-// Функция для выбора цвета события на основе его индекса
+// Function to select event color based on its index
 function getEventColor(index: number): string {
     const colors = [
         '#4285F4', // Google Blue
@@ -435,19 +438,19 @@ function getEventColor(index: number): string {
                             fill="currentColor"
                         />
                     </svg>
-                    <span>Назад к календарю</span>
+                    <span>Back to calendar</span>
                 </button>
                 <h3>{{ selectedDate ? formatDate(selectedDate) : '' }}</h3>
                 <button @click="openAddEventModal" class="add-event-button">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor" />
                     </svg>
-                    <span>Добавить</span>
+                    <span>Add</span>
                 </button>
             </div>
 
             <div class="events-list" v-if="eventsForSelectedDate.length === 0">
-                <div class="no-events">На выбранную дату нет событий</div>
+                <div class="no-events">No events for selected date</div>
             </div>
 
             <div v-else class="day-timeline">
@@ -493,7 +496,7 @@ function getEventColor(index: number): string {
         <div v-if="showAddEventModal" class="modal-overlay" @click="showAddEventModal = false">
             <div class="modal-content" @click.stop>
                 <div class="modal-header">
-                    <h3>Добавить событие</h3>
+                    <h3>Add Event</h3>
                     <button class="close-modal" @click="showAddEventModal = false">
                         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path
@@ -505,37 +508,37 @@ function getEventColor(index: number): string {
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label for="event-title">Название</label>
+                        <label for="event-title">Title</label>
                         <input
                             id="event-title"
                             v-model="newEvent.title"
                             type="text"
-                            placeholder="Введите название события"
+                            placeholder="Enter event title"
                         />
                     </div>
                     <div class="form-group">
-                        <label for="event-description">Описание</label>
+                        <label for="event-description">Description</label>
                         <textarea
                             id="event-description"
                             v-model="newEvent.description"
-                            placeholder="Введите описание события"
+                            placeholder="Enter event description"
                         ></textarea>
                     </div>
                     <div class="form-row">
                         <div class="form-group half">
-                            <label for="event-start-time">Время начала</label>
+                            <label for="event-start-time">Start Time</label>
                             <input id="event-start-time" v-model="newEvent.startTime" type="time" />
                         </div>
                         <div class="form-group half">
-                            <label for="event-end-time">Время окончания</label>
+                            <label for="event-end-time">End Time</label>
                             <input id="event-end-time" v-model="newEvent.endTime" type="time" />
                         </div>
                     </div>
                     <div class="form-actions">
                         <button @click="showAddEventModal = false" class="cancel-button">
-                            Отмена
+                            Cancel
                         </button>
-                        <button @click="addEvent" class="save-button">Сохранить</button>
+                        <button @click="addEvent" class="save-button">Save</button>
                     </div>
                 </div>
             </div>

@@ -1,29 +1,19 @@
 <script setup lang="ts">
 defineOptions({ name: 'ProjectsView' })
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, reactive, nextTick } from 'vue'
+import { projectsApi, type Project, type CreateProjectRequest } from '@/utils/projects-api'
 
-interface Project {
-    id: number
-    title: string
-    description: string | null
-    user_id: number
-    status: 'planning' | 'in_progress' | 'on_hold' | 'completed' | 'archived'
-    priority: 'low' | 'medium' | 'high'
-    progress: number
-    due_date: Date | null
-    tags: string[] | null
-    created_at: Date
-    updated_at: Date
-    color: string | null
-    end_date: Date | null
-    is_active: boolean
-    start_date: Date | null
-}
-
-const LOCAL_STORAGE_KEY = 'easy-chat-projects'
+// Define emits
+const emit = defineEmits<{
+    'toggle-contacts': []
+}>()
 
 const projects = ref<Project[]>([])
 const showCreateForm = ref(false)
+const isLoading = ref(false)
+const error = ref<string | null>(null)
+const editingProjectId = ref<string | null>(null)
+const editingProjectElement = ref<HTMLElement | null>(null)
 
 const STATUSES: Project['status'][] = [
     'planning',
@@ -34,119 +24,221 @@ const STATUSES: Project['status'][] = [
 ]
 const PRIORITIES: Project['priority'][] = ['low', 'medium', 'high']
 
+const PROJECT_COLORS = [
+    { name: 'Blue', value: '#3B82F6' },
+    { name: 'Green', value: '#10B981' },
+    { name: 'Purple', value: '#8B5CF6' },
+    { name: 'Red', value: '#EF4444' },
+    { name: 'Orange', value: '#F59E0B' },
+    { name: 'Pink', value: '#EC4899' },
+    { name: 'Indigo', value: '#6366F1' },
+    { name: 'Teal', value: '#14B8A6' },
+    { name: 'Yellow', value: '#EAB308' },
+    { name: 'Gray', value: '#6B7280' },
+]
+
 const newProject = reactive({
     title: '' as string,
     description: '' as string,
-    user_id: 1 as number,
+    userId: '1' as string,
     status: 'planning' as Project['status'],
     priority: 'medium' as Project['priority'],
     progress: 0 as number,
-    due_date_input: '' as string,
+    dueDateInput: '' as string,
     tags: '' as string,
     color: '' as string,
-    end_date_input: '' as string,
-    is_active: true as boolean,
-    start_date_input: '' as string,
+    endDateInput: '' as string,
+    isActive: true as boolean,
+    startDateInput: '' as string,
 })
 
 const circumference = 2 * Math.PI * 45
 
-const loadProjects = () => {
+const loadProjects = async () => {
+    isLoading.value = true
+    error.value = null
     try {
-        const raw = localStorage.getItem(LOCAL_STORAGE_KEY)
-        if (raw) projects.value = JSON.parse(raw)
+        projects.value = await projectsApi.getProjects()
+        console.log('Loaded projects:', projects.value)
     } catch (e) {
+        error.value = 'Failed to load projects'
         console.error('Failed to load projects', e)
+    } finally {
+        isLoading.value = false
     }
 }
 
-const saveProjects = () => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(projects.value))
-}
+onMounted(() => {
+    loadProjects()
+})
 
-onMounted(loadProjects)
+const submitButtonText = computed(() => {
+    return editingProjectId.value ? 'Update' : 'Create'
+})
+
+const cancelForm = () => {
+    showCreateForm.value = false
+    resetForm()
+
+    // Clear saved project element reference when canceling
+    editingProjectElement.value = null
+}
 
 const canCreate = computed(() => newProject.title.trim().length > 0)
 
 const resetForm = () => {
     newProject.title = ''
     newProject.description = ''
-    newProject.user_id = 1
+    newProject.userId = '1'
     newProject.status = 'planning'
     newProject.priority = 'medium'
     newProject.progress = 0
-    newProject.due_date_input = ''
+    newProject.dueDateInput = ''
     newProject.tags = ''
     newProject.color = ''
-    newProject.end_date_input = ''
-    newProject.is_active = true
-    newProject.start_date_input = ''
+    newProject.endDateInput = ''
+    newProject.isActive = true
+    newProject.startDateInput = ''
+    editingProjectId.value = null
 }
 
-const parseDateTimeLocal = (value: string): Date | null => {
-    if (!value) return null
-    const date = new Date(value)
-    return isNaN(date.getTime()) ? null : date
-}
+// const formatDateTime = (date: Date | string | null): string => {
+//     if (!date) return '-'
+//     try {
+//         const dateObj = typeof date === 'string' ? new Date(date) : date
+//         if (!dateObj || isNaN(dateObj.getTime())) return '-'
+//         return dateObj.toLocaleString('en-US', {
+//             day: '2-digit',
+//             month: '2-digit',
+//             year: 'numeric',
+//             hour: '2-digit',
+//             minute: '2-digit',
+//         })
+//     } catch (e) {
+//         console.error('Error formatting date:', e, date)
+//         return '-'
+//     }
+// }
 
-const formatDateTime = (date: Date | null): string => {
+const formatDate = (date: Date | string | null): string => {
     if (!date) return '-'
-    return date.toLocaleString('ru-RU', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    })
+    try {
+        const dateObj = typeof date === 'string' ? new Date(date) : date
+        if (!dateObj || isNaN(dateObj.getTime())) return '-'
+
+        const day = dateObj.getDate().toString().padStart(2, '0')
+        const month = (dateObj.getMonth() + 1).toString().padStart(2, '0')
+        const year = dateObj.getFullYear()
+
+        return `${day}-${month}-${year}`
+    } catch (e) {
+        console.error('Error formatting date:', e, date)
+        return '-'
+    }
 }
 
-const createProject = () => {
+const createProject = async () => {
     if (!canCreate.value) return
 
-    const now = new Date()
-    const project: Project = {
-        id: Date.now(),
-        title: newProject.title.trim(),
-        description: newProject.description.trim() || null,
-        user_id: Number(newProject.user_id),
-        status: newProject.status,
-        priority: newProject.priority,
-        progress: Number(newProject.progress) || 0,
-        due_date: parseDateTimeLocal(newProject.due_date_input),
-        tags: newProject.tags
-            ? newProject.tags
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-            : null,
-        created_at: now,
-        updated_at: now,
-        color: newProject.color || null,
-        end_date: parseDateTimeLocal(newProject.end_date_input),
-        is_active: Boolean(newProject.is_active),
-        start_date: parseDateTimeLocal(newProject.start_date_input),
-    }
+    isLoading.value = true
+    error.value = null
 
-    if (project.progress === 100) {
-        project.status = 'completed'
-    }
+    try {
+        const projectData: CreateProjectRequest = {
+            title: newProject.title.trim(),
+            description: newProject.description.trim() || '',
+            userId: newProject.userId,
+            status: newProject.status,
+            priority: newProject.priority,
+            progress: Number(newProject.progress) || 0,
+            dueDate: newProject.dueDateInput || null,
+            tags: newProject.tags
+                ? newProject.tags
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean)
+                : null,
+            color: newProject.color || null,
+            endDate: newProject.endDateInput || null,
+            isActive: Boolean(newProject.isActive),
+            startDate: newProject.startDateInput || null,
+        }
 
-    projects.value.unshift(project)
-    saveProjects()
-    showCreateForm.value = false
-    resetForm()
+        if (editingProjectId.value) {
+            // Update existing project
+            const updatedProject = await projectsApi.updateProject(
+                Number(editingProjectId.value),
+                projectData,
+            )
+            if (updatedProject) {
+                const index = projects.value.findIndex(
+                    (p) => p.id === String(editingProjectId.value),
+                )
+                if (index !== -1) {
+                    projects.value[index] = updatedProject
+                }
+            }
+        } else {
+            // Create new project
+            const newProjectData = await projectsApi.createProject(projectData)
+            console.log('New project created:', newProjectData)
+            if (newProjectData) {
+                projects.value.unshift(newProjectData)
+                console.log('Updated projects array:', projects.value)
+            }
+        }
+
+        showCreateForm.value = false
+        resetForm()
+
+        // Restore scroll position after editing if it was an edit operation
+        if (editingProjectId.value && editingProjectElement.value) {
+            nextTick(() => {
+                if (editingProjectElement.value) {
+                    editingProjectElement.value.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center',
+                    })
+                    editingProjectElement.value = null
+                }
+            })
+        }
+    } catch (e) {
+        error.value = editingProjectId.value
+            ? 'Failed to update project'
+            : 'Failed to create project'
+        console.error('Failed to save project', e)
+    } finally {
+        isLoading.value = false
+    }
 }
 
-const deleteProject = (id: number) => {
-    projects.value = projects.value.filter((p) => p.id !== id)
-    saveProjects()
+const deleteProject = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this project?')) return
+
+    isLoading.value = true
+    error.value = null
+
+    try {
+        await projectsApi.deleteProject(Number(id))
+        projects.value = projects.value.filter((p) => p.id !== id)
+    } catch (e) {
+        error.value = 'Failed to delete project'
+        console.error('Failed to delete project', e)
+    } finally {
+        isLoading.value = false
+    }
 }
 
-const updateProgress = (id: number, progress: number) => {
+const updateProgress = async (id: string, progress: number) => {
     const project = projects.value.find((p) => p.id === id)
     if (!project) return
+
+    const originalProgress = project.progress
+    const originalStatus = project.status
+
+    // Optimistically update UI
     project.progress = progress
-    project.updated_at = new Date()
     if (progress === 100) {
         project.status = 'completed'
     } else {
@@ -154,34 +246,57 @@ const updateProgress = (id: number, progress: number) => {
         if (progress === 0 && project.status !== 'archived') project.status = 'planning'
         if (progress > 0 && project.status === 'planning') project.status = 'in_progress'
     }
-    saveProjects()
+
+    try {
+        await projectsApi.updateProject(Number(id), {
+            progress,
+            status: project.status,
+        })
+    } catch (e) {
+        // Rollback changes on error
+        project.progress = originalProgress
+        project.status = originalStatus
+        error.value = 'Failed to update progress'
+        console.error('Failed to update progress', e)
+    }
 }
 
-const editProject = (projectId: number): void => {
+const editProject = (projectId: string): void => {
     const project = projects.value.find((p) => p.id === projectId)
     if (!project) return
 
-    // Заполняем форму данными проекта
+    // Save reference to the project element that was clicked
+    const projectElement = document.querySelector(`[data-project-id="${projectId}"]`) as HTMLElement
+    editingProjectElement.value = projectElement
+
+    // Fill form with project data
     newProject.title = project.title
     newProject.description = project.description || ''
-    newProject.user_id = project.user_id
+    newProject.userId = project.userId
     newProject.status = project.status
     newProject.priority = project.priority
     newProject.progress = project.progress
-    newProject.due_date_input = project.due_date ? project.due_date.toISOString().slice(0, 16) : ''
+    newProject.dueDateInput = project.dueDate ? project.dueDate.toISOString().slice(0, 16) : ''
     newProject.tags = project.tags ? project.tags.join(', ') : ''
     newProject.color = project.color || ''
-    newProject.end_date_input = project.end_date ? project.end_date.toISOString().slice(0, 16) : ''
-    newProject.is_active = project.is_active
-    newProject.start_date_input = project.start_date
-        ? project.start_date.toISOString().slice(0, 16)
+    newProject.endDateInput = project.endDate ? project.endDate.toISOString().slice(0, 16) : ''
+    newProject.isActive = project.isActive
+    newProject.startDateInput = project.startDate
+        ? project.startDate.toISOString().slice(0, 16)
         : ''
 
-    // Удаляем старый проект
-    deleteProject(projectId)
-
-    // Показываем форму
+    // Set editing mode
+    editingProjectId.value = projectId
     showCreateForm.value = true
+
+    // Scroll to top where the form is located
+    const projectsContent = document.querySelector('.projects-content')
+    if (projectsContent) {
+        projectsContent.scrollTo({
+            top: 0,
+            behavior: 'smooth',
+        })
+    }
 }
 
 const projectStatuses = {
@@ -213,6 +328,17 @@ const tagsToArray = (tags: string[] | null): string[] => {
 <template>
     <div class="projects-manager">
         <div class="projects-header">
+            <button class="back-button" @click="emit('toggle-contacts')">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M15 18L9 12L15 6"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
+                </svg>
+            </button>
             <h2>Projects</h2>
             <button @click="showCreateForm = !showCreateForm" class="create-project-button">
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -228,6 +354,27 @@ const tagsToArray = (tags: string[] | null): string[] => {
         </div>
 
         <div class="projects-content">
+            <!-- Error message -->
+            <div v-if="error" class="error-message">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
+                </svg>
+                <span>{{ error }}</span>
+                <button @click="error = null" class="close-error">×</button>
+            </div>
+
+            <!-- Loading overlay -->
+            <div v-if="isLoading" class="loading-overlay">
+                <div class="loading-spinner"></div>
+                <p>Loading...</p>
+            </div>
+
             <!-- Project creation form -->
             <div v-if="showCreateForm" class="create-project-form">
                 <div class="form-grid">
@@ -253,21 +400,36 @@ const tagsToArray = (tags: string[] | null): string[] => {
                     </div>
 
                     <div class="form-row">
-                        <div class="form-col">
+                        <!-- <div class="form-col">
                             <label class="form-label">User ID</label>
-                            <input
-                                v-model.number="newProject.user_id"
-                                type="number"
-                                class="project-input"
-                            />
-                        </div>
+                            <input v-model="newProject.userId" type="text" class="project-input" />
+                        </div> -->
                         <div class="form-col">
                             <label class="form-label">Color</label>
-                            <input v-model="newProject.color" type="color" class="project-input" />
+                            <div
+                                class="color-selector"
+                                :style="{ backgroundColor: newProject.color }"
+                            >
+                                <select
+                                    v-model="newProject.color"
+                                    class="color-select"
+                                    :style="{ backgroundColor: newProject.color }"
+                                >
+                                    <option value="">Select color</option>
+                                    <option
+                                        v-for="color in PROJECT_COLORS"
+                                        :key="color.value"
+                                        :value="color.value"
+                                        :style="{ backgroundColor: color.value }"
+                                    >
+                                        {{ color.name }}
+                                    </option>
+                                </select>
+                            </div>
                         </div>
                         <div class="form-col form-col-checkbox">
                             <label class="form-label">Active</label>
-                            <input v-model="newProject.is_active" type="checkbox" />
+                            <input v-model="newProject.isActive" type="checkbox" />
                         </div>
                     </div>
 
@@ -303,7 +465,7 @@ const tagsToArray = (tags: string[] | null): string[] => {
                         <div class="form-col">
                             <label class="form-label">Start Date</label>
                             <input
-                                v-model="newProject.start_date_input"
+                                v-model="newProject.startDateInput"
                                 type="datetime-local"
                                 class="project-input"
                             />
@@ -311,7 +473,7 @@ const tagsToArray = (tags: string[] | null): string[] => {
                         <div class="form-col">
                             <label class="form-label">Due Date</label>
                             <input
-                                v-model="newProject.due_date_input"
+                                v-model="newProject.dueDateInput"
                                 type="datetime-local"
                                 class="project-input"
                             />
@@ -319,7 +481,7 @@ const tagsToArray = (tags: string[] | null): string[] => {
                         <div class="form-col">
                             <label class="form-label">End Date</label>
                             <input
-                                v-model="newProject.end_date_input"
+                                v-model="newProject.endDateInput"
                                 type="datetime-local"
                                 class="project-input"
                             />
@@ -338,14 +500,20 @@ const tagsToArray = (tags: string[] | null): string[] => {
                 </div>
 
                 <div class="form-actions">
-                    <button @click="createProject" class="btn-primary">Create</button>
-                    <button @click="showCreateForm = false" class="btn-secondary">Cancel</button>
+                    <button
+                        @click="createProject"
+                        :disabled="!canCreate || isLoading"
+                        class="btn-primary"
+                    >
+                        {{ submitButtonText }}
+                    </button>
+                    <button @click="cancelForm" class="btn-secondary">Cancel</button>
                 </div>
             </div>
 
             <!-- Projects list -->
             <div class="projects-list">
-                <div v-if="projects.length === 0" class="empty-state">
+                <div v-if="projects.length === 0 && !isLoading" class="empty-state">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path
                             d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
@@ -359,16 +527,18 @@ const tagsToArray = (tags: string[] | null): string[] => {
                     <small>Create your first project by clicking the "+" button</small>
                 </div>
 
-                <div v-for="project in projects" :key="project.id" class="project-item">
+                <div
+                    v-for="project in projects"
+                    :key="project.id"
+                    :data-project-id="project.id"
+                    class="project-item"
+                    :style="{ '--project-color': project.color || 'transparent' }"
+                >
                     <div class="project-main">
                         <div class="project-info">
                             <h4 class="project-title">{{ project.title }}</h4>
-                            <p class="project-date">
-                                Created: {{ formatDateTime(project.created_at) }}
-                            </p>
-                            <p class="project-date">
-                                Updated: {{ formatDateTime(project.updated_at) }}
-                            </p>
+                            <p class="project-date">Created: {{ formatDate(project.createdAt) }}</p>
+                            <p class="project-date">Updated: {{ formatDate(project.updatedAt) }}</p>
                         </div>
 
                         <div class="project-meta">
@@ -384,7 +554,7 @@ const tagsToArray = (tags: string[] | null): string[] => {
                             >
                                 {{ project.priority }}
                             </span>
-                            <span v-if="!project.is_active" class="inactive-badge">Inactive</span>
+                            <span v-if="!project.isActive" class="inactive-badge">Inactive</span>
                         </div>
                     </div>
 
@@ -399,12 +569,15 @@ const tagsToArray = (tags: string[] | null): string[] => {
                     </div>
 
                     <div class="dates-row">
-                        <div class="date-chip">Start: {{ formatDateTime(project.start_date) }}</div>
-                        <div class="date-chip">Due: {{ formatDateTime(project.due_date) }}</div>
-                        <div class="date-chip">End: {{ formatDateTime(project.end_date) }}</div>
-                        <div class="date-chip" v-if="project.user_id">
-                            User ID: {{ project.user_id }}
-                        </div>
+                        <div class="date-chip">Start: {{ formatDate(project.startDate) }}</div>
+                        <div class="date-chip">Due: {{ formatDate(project.dueDate) }}</div>
+                        <div class="date-chip">End: {{ formatDate(project.endDate) }}</div>
+                        <!-- <div
+                            class="date-chip"
+                            v-if="project.userId && project.userId !== 'undefined'"
+                        >
+                            User ID: {{ project.userId }}
+                        </div> -->
                         <div
                             class="date-chip"
                             v-if="project.color"
@@ -448,6 +621,7 @@ const tagsToArray = (tags: string[] | null): string[] => {
                                 type="range"
                                 min="0"
                                 max="100"
+                                disabled
                                 :value="project.progress"
                                 @input="
                                     updateProgress(
@@ -463,6 +637,7 @@ const tagsToArray = (tags: string[] | null): string[] => {
                     <div class="project-actions">
                         <button
                             @click="editProject(project.id)"
+                            :disabled="isLoading"
                             class="edit-button"
                             title="Edit project"
                         >
@@ -475,6 +650,7 @@ const tagsToArray = (tags: string[] | null): string[] => {
                         </button>
                         <button
                             @click="deleteProject(project.id)"
+                            :disabled="isLoading"
                             class="delete-button"
                             title="Delete project"
                         >
@@ -516,6 +692,32 @@ const tagsToArray = (tags: string[] | null): string[] => {
     box-shadow: var(--box-shadow);
 }
 
+.back-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    transition: all 0.2s;
+    display: none; /* Скрыта по умолчанию на десктопе */
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+}
+
+.back-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateX(-2px);
+}
+
+.back-button svg {
+    width: 20px;
+    height: 20px;
+}
+
 .projects-header h2 {
     flex: 1;
     margin: 0;
@@ -552,6 +754,7 @@ const tagsToArray = (tags: string[] | null): string[] => {
     padding: 24px;
     overflow-y: auto;
     scroll-behavior: smooth;
+    position: relative;
 }
 
 .projects-content::-webkit-scrollbar {
@@ -569,6 +772,107 @@ const tagsToArray = (tags: string[] | null): string[] => {
 
 .dark-theme .projects-content::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.2);
+}
+
+.error-message {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #dc2626;
+    padding: 16px 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 6px rgba(239, 68, 68, 0.1);
+}
+
+.error-message svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.error-message span {
+    flex: 1;
+    font-weight: 500;
+}
+
+.close-error {
+    background: none;
+    border: none;
+    color: #dc2626;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.close-error:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.dark-theme .error-message {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+}
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(8px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 20px;
+}
+
+.dark-theme .loading-overlay {
+    background: rgba(42, 42, 42, 0.9);
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(107, 125, 184, 0.3);
+    border-top: 4px solid #6b7db8;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.loading-overlay p {
+    color: #6b7db8;
+    font-weight: 500;
+    margin: 0;
+}
+
+.dark-theme .loading-overlay p {
+    color: #8896c2;
 }
 
 .create-project-form {
@@ -732,6 +1036,60 @@ const tagsToArray = (tags: string[] | null): string[] => {
     border-color: rgba(107, 125, 184, 0.9);
 }
 
+.color-selector {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.color-select {
+    width: 100%;
+    padding: 14px 18px;
+    border: 2px solid transparent;
+    border-radius: 12px;
+    font-size: 15px;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+}
+
+.color-select:focus {
+    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.color-select option {
+    padding: 10px;
+    font-weight: 600;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.color-select option[value=''] {
+    background-color: #6b7280 !important;
+    color: white;
+}
+
+.dark-theme .color-select {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.dark-theme .color-select:focus {
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
 .form-actions {
     display: flex;
     gap: 12px;
@@ -775,6 +1133,17 @@ const tagsToArray = (tags: string[] | null): string[] => {
 
 .btn-primary:active {
     transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 4px 12px rgba(107, 125, 184, 0.2);
+}
+
+.btn-primary:disabled::before {
+    display: none;
 }
 
 .btn-secondary {
@@ -860,7 +1229,7 @@ const tagsToArray = (tags: string[] | null): string[] => {
     background: linear-gradient(
         90deg,
         transparent 0%,
-        var(--status-color, #a0aec0) 50%,
+        var(--project-color, #a0aec0) 50%,
         transparent 100%
     );
     opacity: 0.7;
@@ -1234,6 +1603,25 @@ const tagsToArray = (tags: string[] | null): string[] => {
     transform: scale(1.1);
 }
 
+.edit-button:disabled,
+.delete-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.edit-button:disabled:hover,
+.delete-button:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.edit-button:disabled svg,
+.delete-button:disabled svg {
+    transform: none;
+}
+
 @media (max-width: 768px) {
     .projects-manager {
         background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
@@ -1241,6 +1629,10 @@ const tagsToArray = (tags: string[] | null): string[] => {
 
     .dark-theme .projects-manager {
         background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+    }
+
+    .back-button {
+        display: flex; /* Показать кнопку на мобильных устройствах */
     }
 
     .projects-header {
@@ -1364,13 +1756,29 @@ const tagsToArray = (tags: string[] | null): string[] => {
 
     .project-input,
     .project-select,
-    .project-textarea {
+    .project-textarea,
+    .color-select {
         padding: 12px 16px;
         font-size: 16px; /* Prevents zoom on iOS */
+    }
+
+    .color-select {
+        padding-right: 2.5rem;
     }
 }
 
 @media (max-width: 480px) {
+    .back-button {
+        width: 28px;
+        height: 28px;
+        margin-right: 8px;
+    }
+
+    .back-button svg {
+        width: 18px;
+        height: 18px;
+    }
+
     .projects-header {
         padding: 16px 16px;
     }

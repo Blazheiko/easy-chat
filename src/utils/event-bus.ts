@@ -5,6 +5,7 @@ export type Events = {
     new_message: { message: { id: number; content: string; createdAt: string; senderId: number } }
     event_typing: { userId: number; contactId: number }
     change_online: { userId: number; status: string }
+    toggle_notifications: { enabled: boolean }
     init_app: void
     unauthorized: void
 }

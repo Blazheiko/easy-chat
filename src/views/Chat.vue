@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { ref, defineComponent, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
+import {
+    ref,
+    defineComponent,
+    onMounted,
+    onBeforeUnmount,
+    nextTick,
+    computed,
+    watch,
+    toRef,
+} from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useContactsStore } from '@/stores/contacts'
@@ -109,7 +118,8 @@ const showTaskManager = computed(() => route.meta.tab === 'tasks')
 const showProjects = computed(() => route.meta.tab === 'projects')
 // Прежний локальный таб больше не нужен, так как табы переехали в AppHeader
 const isTyping = ref(false)
-const windowWidth = useStateStore().windowWidth
+const stateStore = useStateStore()
+const windowWidth = toRef(stateStore, 'windowWidth')
 const chatAreaRef = ref<InstanceType<typeof ChatArea> | null>(null)
 const contactsListRef = ref<InstanceType<typeof ContactsList> | null>(null)
 
@@ -134,6 +144,24 @@ const toggleCalendar = () => {
 const toggleTaskManager = () => {
     router.push(showTaskManager.value ? '/chat' : '/tasks')
 }
+
+// Функция для автоматического скрытия панели контактов на мобильных устройствах
+const hideContactsOnMobileIfNeeded = () => {
+    if (
+        windowWidth.value <= 768 &&
+        (showProjects.value || showCalendar.value || showTaskManager.value || showNews.value)
+    ) {
+        isContactsVisible.value = false
+    }
+}
+
+// Watchers для автоматического скрытия панели контактов на мобильных при открытии различных вкладок
+watch([showProjects, showCalendar, showTaskManager, showNews], hideContactsOnMobileIfNeeded, {
+    immediate: true,
+})
+
+// Также скрывать при изменении размера окна, если активна любая из вкладок
+watch(windowWidth, hideContactsOnMobileIfNeeded)
 
 const handleConnectionRetry = () => {
     isLoading.value = true
@@ -173,7 +201,7 @@ const initChatData = async () => {
         }))
 
         contactsStore.setContactList(contactList)
-        if (!selectedContact.value && windowWidth > 600) {
+        if (!selectedContact.value && windowWidth.value > 600) {
             const currentContactId = localStorage.getItem('current_contact_id')
             if (currentContactId) {
                 const contact = contactList.find((c) => c.contactId === parseInt(currentContactId))
@@ -500,7 +528,7 @@ onBeforeUnmount(() => {
                     @back-to-chat="router.push('/chat')"
                     @toggle-contacts="toggleContacts"
                 />
-                <ProjectsView v-else-if="showProjects" />
+                <ProjectsView v-else-if="showProjects" @toggle-contacts="toggleContacts" />
                 <ChatArea
                     v-else
                     ref="chatAreaRef"
