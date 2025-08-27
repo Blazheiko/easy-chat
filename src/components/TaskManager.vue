@@ -1,108 +1,34 @@
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
-
-interface Task {
-    id: number
-    title: string
-    description: string | null
-    user_id: number
-    project_id: number | null
-    status: 'TODO' | 'IN_PROGRESS' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED'
-    priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
-    progress: number
-    is_completed: boolean
-    tags: string | null
-    due_date: Date | null
-    start_date: Date | null
-    estimated_hours: number | null
-    actual_hours: number | null
-    parent_task_id: number | null
-    created_at: Date
-    updated_at: Date
-}
+import { ref, onMounted, reactive, computed, nextTick } from 'vue'
+import { tasksApi, type Task, type CreateTaskRequest } from '@/utils/tasks-api'
 
 const STATUSES: Task['status'][] = ['TODO', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED']
 const PRIORITIES: Task['priority'][] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
 
 const emit = defineEmits(['toggle-contacts'])
 
-const tasks = ref<Task[]>([
-    {
-        id: 1,
-        title: 'Fix notification bug',
-        description: 'Investigate push notification drop on iOS',
-        user_id: 101,
-        project_id: 10,
-        status: 'IN_PROGRESS',
-        priority: 'HIGH',
-        progress: 75,
-        is_completed: false,
-        tags: 'bug,notifications,ios',
-        due_date: new Date('2024-01-20T18:00:00'),
-        start_date: new Date('2024-01-15T10:30:00'),
-        estimated_hours: 8,
-        actual_hours: 5.5,
-        parent_task_id: null,
-        created_at: new Date('2024-01-15T10:30:00'),
-        updated_at: new Date('2024-01-16T12:00:00'),
-    },
-    {
-        id: 2,
-        title: 'Add dark theme',
-        description: 'Implement dark theme toggle and palette',
-        user_id: 102,
-        project_id: 10,
-        status: 'COMPLETED',
-        priority: 'MEDIUM',
-        progress: 100,
-        is_completed: true,
-        tags: 'feature,ui,theme',
-        due_date: null,
-        start_date: new Date('2024-01-12T09:00:00'),
-        estimated_hours: 6,
-        actual_hours: 6.5,
-        parent_task_id: null,
-        created_at: new Date('2024-01-14T14:20:00'),
-        updated_at: new Date('2024-01-15T16:45:00'),
-    },
-    {
-        id: 3,
-        title: 'Optimize performance',
-        description: null,
-        user_id: 101,
-        project_id: 11,
-        status: 'ON_HOLD',
-        priority: 'URGENT',
-        progress: 30,
-        is_completed: false,
-        tags: 'performance',
-        due_date: new Date('2024-01-25T17:00:00'),
-        start_date: new Date('2024-01-16T09:15:00'),
-        estimated_hours: 12,
-        actual_hours: null,
-        parent_task_id: null,
-        created_at: new Date('2024-01-16T09:15:00'),
-        updated_at: new Date('2024-01-17T11:45:00'),
-    },
-])
-
+const tasks = ref<Task[]>([])
 const showCreateForm = ref(false)
+const isLoading = ref(false)
+const error = ref<string | null>(null)
+const editingTaskId = ref<string | null>(null)
+const editingTaskElement = ref<HTMLElement | null>(null)
 
 const newTaskForm = reactive({
     title: '' as string,
     description: '' as string,
-    user_id: null as number | null,
-    project_id: null as number | null,
+    userId: '1' as string,
+    projectId: null as string | null,
     status: 'TODO' as Task['status'],
     priority: 'MEDIUM' as Task['priority'],
     progress: 0 as number,
-    is_completed: false as boolean,
+    isCompleted: false as boolean,
     tags: '' as string,
-    due_date_input: '' as string,
-    start_date_input: '' as string,
-    estimated_hours: null as number | null,
-    actual_hours: null as number | null,
-    parent_task_id: null as number | null,
+    dueDateInput: '' as string,
+    startDateInput: '' as string,
+    estimatedHours: null as number | null,
+    actualHours: null as number | null,
+    parentTaskId: null as string | null,
 })
 
 const formatDateTime = (date: Date | null): string => {
@@ -137,12 +63,6 @@ const taskPriorities = {
 const getPriorityColor = (priority: Task['priority']): string =>
     taskPriorities[priority] ? taskPriorities[priority] : '#81c784'
 
-const parseDateTimeLocal = (value: string): Date | null => {
-    if (!value) return null
-    const date = new Date(value)
-    return isNaN(date.getTime()) ? null : date
-}
-
 const tagsToArray = (tags: string | null): string[] => {
     if (!tags) return []
     return tags
@@ -151,107 +71,209 @@ const tagsToArray = (tags: string | null): string[] => {
         .filter((t) => t.length > 0)
 }
 
-const createTask = (): void => {
-    if (!newTaskForm.title.trim()) return
+const createTask = async () => {
+    if (!canCreate.value) return
 
-    const now = new Date()
-    const task: Task = {
-        id: Date.now(),
-        title: newTaskForm.title.trim(),
-        description: newTaskForm.description.trim() || null,
-        user_id: Number(newTaskForm.user_id ?? 0),
-        project_id: newTaskForm.project_id == null ? null : Number(newTaskForm.project_id),
-        status: newTaskForm.status,
-        priority: newTaskForm.priority,
-        progress: Number(newTaskForm.progress) || 0,
-        is_completed: Boolean(newTaskForm.is_completed),
-        tags: newTaskForm.tags.trim() || null,
-        due_date: parseDateTimeLocal(newTaskForm.due_date_input),
-        start_date: parseDateTimeLocal(newTaskForm.start_date_input),
-        estimated_hours:
-            newTaskForm.estimated_hours == null ? null : Number(newTaskForm.estimated_hours),
-        actual_hours: newTaskForm.actual_hours == null ? null : Number(newTaskForm.actual_hours),
-        parent_task_id:
-            newTaskForm.parent_task_id == null ? null : Number(newTaskForm.parent_task_id),
-        created_at: now,
-        updated_at: now,
+    isLoading.value = true
+    error.value = null
+
+    try {
+        const taskData: CreateTaskRequest = {
+            title: newTaskForm.title.trim(),
+            description: newTaskForm.description.trim() || '',
+            userId: newTaskForm.userId,
+            projectId: newTaskForm.projectId,
+            status: newTaskForm.status,
+            priority: newTaskForm.priority,
+            progress: Number(newTaskForm.progress) || 0,
+            isCompleted: Boolean(newTaskForm.isCompleted),
+            tags: newTaskForm.tags.trim() || null,
+            dueDate: newTaskForm.dueDateInput || null,
+            startDate: newTaskForm.startDateInput || null,
+            estimatedHours:
+                newTaskForm.estimatedHours == null ? null : Number(newTaskForm.estimatedHours),
+            actualHours: newTaskForm.actualHours == null ? null : Number(newTaskForm.actualHours),
+            parentTaskId: newTaskForm.parentTaskId,
+        }
+
+        if (editingTaskId.value) {
+            // Update existing task
+            const updatedTask = await tasksApi.updateTask(Number(editingTaskId.value), taskData)
+            if (updatedTask) {
+                const index = tasks.value.findIndex((t) => t.id === String(editingTaskId.value))
+                if (index !== -1) {
+                    tasks.value[index] = updatedTask
+                }
+            }
+        } else {
+            // Create new task
+            const newTaskData = await tasksApi.createTask(taskData)
+            console.log('New task created:', newTaskData)
+            if (newTaskData) {
+                tasks.value.unshift(newTaskData)
+                console.log('Updated tasks array:', tasks.value)
+            }
+        }
+
+        showCreateForm.value = false
+        resetForm()
+
+        // Restore scroll position after editing if it was an edit operation
+        if (editingTaskId.value && editingTaskElement.value) {
+            nextTick(() => {
+                if (editingTaskElement.value) {
+                    editingTaskElement.value.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center',
+                    })
+                    editingTaskElement.value = null
+                }
+            })
+        }
+    } catch (e) {
+        error.value = editingTaskId.value ? 'Failed to update task' : 'Failed to create task'
+        console.error('Failed to save task', e)
+    } finally {
+        isLoading.value = false
     }
-
-    if (task.progress === 100) {
-        task.status = 'COMPLETED'
-        task.is_completed = true
-    }
-
-    tasks.value.unshift(task)
-
-    newTaskForm.title = ''
-    newTaskForm.description = ''
-    newTaskForm.user_id = null
-    newTaskForm.project_id = null
-    newTaskForm.status = 'TODO'
-    newTaskForm.priority = 'MEDIUM'
-    newTaskForm.progress = 0
-    newTaskForm.is_completed = false
-    newTaskForm.tags = ''
-    newTaskForm.due_date_input = ''
-    newTaskForm.start_date_input = ''
-    newTaskForm.estimated_hours = null
-    newTaskForm.actual_hours = null
-    newTaskForm.parent_task_id = null
-    showCreateForm.value = false
 }
 
-const updateProgress = (taskId: number, progress: number): void => {
+const updateProgress = async (taskId: string, progress: number) => {
     const task = tasks.value.find((t) => t.id === taskId)
     if (!task) return
+
+    const originalProgress = task.progress
+    const originalStatus = task.status
+
+    // Optimistically update UI
     task.progress = progress
-    task.updated_at = new Date()
     if (progress === 100) {
         task.status = 'COMPLETED'
-        task.is_completed = true
+        task.isCompleted = true
     } else {
         if (task.status === 'COMPLETED') task.status = 'IN_PROGRESS'
-        task.is_completed = false
+        task.isCompleted = false
         if (progress === 0 && task.status !== 'CANCELLED') task.status = 'TODO'
         if (progress > 0 && task.status === 'TODO') task.status = 'IN_PROGRESS'
     }
+
+    try {
+        await tasksApi.updateTaskProgress(Number(taskId), progress)
+    } catch (e) {
+        // Rollback changes on error
+        task.progress = originalProgress
+        task.status = originalStatus
+        error.value = 'Failed to update progress'
+        console.error('Failed to update progress', e)
+    }
 }
 
-const editTask = (taskId: number): void => {
+const editTask = (taskId: string): void => {
     const task = tasks.value.find((t) => t.id === taskId)
     if (!task) return
 
-    // Заполняем форму данными задачи
+    // Save reference to the task element that was clicked
+    const taskElement = document.querySelector(`[data-task-id="${taskId}"]`) as HTMLElement
+    editingTaskElement.value = taskElement
+
+    // Fill form with task data
     newTaskForm.title = task.title
     newTaskForm.description = task.description || ''
-    newTaskForm.user_id = task.user_id
-    newTaskForm.project_id = task.project_id
+    newTaskForm.userId = task.userId
+    newTaskForm.projectId = task.projectId
     newTaskForm.status = task.status
     newTaskForm.priority = task.priority
     newTaskForm.progress = task.progress
-    newTaskForm.is_completed = task.is_completed
+    newTaskForm.isCompleted = task.isCompleted
     newTaskForm.tags = task.tags || ''
-    newTaskForm.due_date_input = task.due_date ? task.due_date.toISOString().slice(0, 16) : ''
-    newTaskForm.start_date_input = task.start_date ? task.start_date.toISOString().slice(0, 16) : ''
-    newTaskForm.estimated_hours = task.estimated_hours
-    newTaskForm.actual_hours = task.actual_hours
-    newTaskForm.parent_task_id = task.parent_task_id
+    newTaskForm.dueDateInput = task.dueDate ? task.dueDate.toISOString().slice(0, 16) : ''
+    newTaskForm.startDateInput = task.startDate ? task.startDate.toISOString().slice(0, 16) : ''
+    newTaskForm.estimatedHours = task.estimatedHours
+    newTaskForm.actualHours = task.actualHours
+    newTaskForm.parentTaskId = task.parentTaskId
 
-    // Удаляем старую задачу
-    deleteTask(taskId)
-
-    // Показываем форму
+    // Set editing mode
+    editingTaskId.value = taskId
     showCreateForm.value = true
+
+    // Scroll to top where the form is located
+    const taskContent = document.querySelector('.task-content')
+    if (taskContent) {
+        taskContent.scrollTo({
+            top: 0,
+            behavior: 'smooth',
+        })
+    }
 }
 
-const deleteTask = (taskId: number): void => {
-    tasks.value = tasks.value.filter((t) => t.id !== taskId)
+const deleteTask = async (taskId: string) => {
+    if (!confirm('Are you sure you want to delete this task?')) return
+
+    isLoading.value = true
+    error.value = null
+
+    try {
+        await tasksApi.deleteTask(Number(taskId))
+        tasks.value = tasks.value.filter((t) => t.id !== taskId)
+    } catch (e) {
+        error.value = 'Failed to delete task'
+        console.error('Failed to delete task', e)
+    } finally {
+        isLoading.value = false
+    }
 }
 
 // Calculate circumference for circular progress bar
 const circumference = 2 * Math.PI * 45
 
-onMounted(() => {})
+const loadTasks = async () => {
+    isLoading.value = true
+    error.value = null
+    try {
+        tasks.value = await tasksApi.getTasks()
+        console.log('Loaded tasks:', tasks.value)
+    } catch (e) {
+        error.value = 'Failed to load tasks'
+        console.error('Failed to load tasks', e)
+    } finally {
+        isLoading.value = false
+    }
+}
+
+const submitButtonText = computed(() => {
+    return editingTaskId.value ? 'Update' : 'Create'
+})
+
+const cancelForm = () => {
+    showCreateForm.value = false
+    resetForm()
+    // Clear saved task element reference when canceling
+    editingTaskElement.value = null
+}
+
+const canCreate = computed(() => newTaskForm.title.trim().length > 0)
+
+const resetForm = () => {
+    newTaskForm.title = ''
+    newTaskForm.description = ''
+    newTaskForm.userId = '1'
+    newTaskForm.projectId = null
+    newTaskForm.status = 'TODO'
+    newTaskForm.priority = 'MEDIUM'
+    newTaskForm.progress = 0
+    newTaskForm.isCompleted = false
+    newTaskForm.tags = ''
+    newTaskForm.dueDateInput = ''
+    newTaskForm.startDateInput = ''
+    newTaskForm.estimatedHours = null
+    newTaskForm.actualHours = null
+    newTaskForm.parentTaskId = null
+    editingTaskId.value = null
+}
+
+onMounted(() => {
+    loadTasks()
+})
 </script>
 
 <template>
@@ -283,6 +305,27 @@ onMounted(() => {})
         </div>
 
         <div class="task-content">
+            <!-- Error message -->
+            <div v-if="error" class="error-message">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
+                </svg>
+                <span>{{ error }}</span>
+                <button @click="error = null" class="close-error">×</button>
+            </div>
+
+            <!-- Loading overlay -->
+            <div v-if="isLoading" class="loading-overlay">
+                <div class="loading-spinner"></div>
+                <p>Loading...</p>
+            </div>
+
             <!-- Task creation form -->
             <div v-if="showCreateForm" class="create-task-form">
                 <div class="form-grid">
@@ -308,27 +351,23 @@ onMounted(() => {})
                     </div>
 
                     <div class="form-row">
-                        <div class="form-col">
+                        <!-- <div class="form-col">
                             <label class="form-label">User ID</label>
                             <input
-                                v-model.number="newTaskForm.user_id"
-                                type="number"
+                                v-model="newTaskForm.userId"
+                                type="text"
                                 class="task-input"
                             />
-                        </div>
+                        </div> -->
                         <div class="form-col">
                             <label class="form-label">Project ID</label>
-                            <input
-                                v-model.number="newTaskForm.project_id"
-                                type="number"
-                                class="task-input"
-                            />
+                            <input v-model="newTaskForm.projectId" type="text" class="task-input" />
                         </div>
                         <div class="form-col">
                             <label class="form-label">Parent Task ID</label>
                             <input
-                                v-model.number="newTaskForm.parent_task_id"
-                                type="number"
+                                v-model="newTaskForm.parentTaskId"
+                                type="text"
                                 class="task-input"
                             />
                         </div>
@@ -349,7 +388,7 @@ onMounted(() => {})
                         </div>
                         <div class="form-col form-col-checkbox">
                             <label class="form-label">Completed</label>
-                            <input v-model="newTaskForm.is_completed" type="checkbox" />
+                            <input v-model="newTaskForm.isCompleted" type="checkbox" />
                         </div>
                     </div>
 
@@ -370,7 +409,7 @@ onMounted(() => {})
                         <div class="form-col">
                             <label class="form-label">Start Date</label>
                             <input
-                                v-model="newTaskForm.start_date_input"
+                                v-model="newTaskForm.startDateInput"
                                 type="datetime-local"
                                 class="task-input"
                             />
@@ -378,7 +417,7 @@ onMounted(() => {})
                         <div class="form-col">
                             <label class="form-label">Due Date</label>
                             <input
-                                v-model="newTaskForm.due_date_input"
+                                v-model="newTaskForm.dueDateInput"
                                 type="datetime-local"
                                 class="task-input"
                             />
@@ -389,7 +428,7 @@ onMounted(() => {})
                         <div class="form-col">
                             <label class="form-label">Estimated Hours</label>
                             <input
-                                v-model.number="newTaskForm.estimated_hours"
+                                v-model.number="newTaskForm.estimatedHours"
                                 type="number"
                                 step="0.1"
                                 class="task-input"
@@ -398,7 +437,7 @@ onMounted(() => {})
                         <div class="form-col">
                             <label class="form-label">Actual Hours</label>
                             <input
-                                v-model.number="newTaskForm.actual_hours"
+                                v-model.number="newTaskForm.actualHours"
                                 type="number"
                                 step="0.1"
                                 class="task-input"
@@ -418,14 +457,20 @@ onMounted(() => {})
                 </div>
 
                 <div class="form-actions">
-                    <button @click="createTask" class="btn-primary">Create</button>
-                    <button @click="showCreateForm = false" class="btn-secondary">Cancel</button>
+                    <button
+                        @click="createTask"
+                        :disabled="!canCreate || isLoading"
+                        class="btn-primary"
+                    >
+                        {{ submitButtonText }}
+                    </button>
+                    <button @click="cancelForm" class="btn-secondary">Cancel</button>
                 </div>
             </div>
 
             <!-- Tasks list -->
             <div class="tasks-list">
-                <div v-if="tasks.length === 0" class="empty-state">
+                <div v-if="tasks.length === 0 && !isLoading" class="empty-state">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path
                             d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
@@ -439,12 +484,12 @@ onMounted(() => {})
                     <small>Create your first task by clicking the "+" button</small>
                 </div>
 
-                <div v-for="task in tasks" :key="task.id" class="task-item">
+                <div v-for="task in tasks" :key="task.id" :data-task-id="task.id" class="task-item">
                     <div class="task-main">
                         <div class="task-info">
                             <h4 class="task-title">{{ task.title }}</h4>
-                            <p class="task-date">Created: {{ formatDateTime(task.created_at) }}</p>
-                            <p class="task-date">Updated: {{ formatDateTime(task.updated_at) }}</p>
+                            <p class="task-date">Created: {{ formatDateTime(task.createdAt) }}</p>
+                            <p class="task-date">Updated: {{ formatDateTime(task.updatedAt) }}</p>
                         </div>
 
                         <div class="task-meta">
@@ -460,7 +505,7 @@ onMounted(() => {})
                             >
                                 {{ task.priority }}
                             </span>
-                            <span v-if="task.is_completed" class="completed-badge">Completed</span>
+                            <span v-if="task.isCompleted" class="completed-badge">Completed</span>
                         </div>
                     </div>
 
@@ -475,23 +520,23 @@ onMounted(() => {})
                     </div>
 
                     <div class="dates-row">
-                        <div class="date-chip">Start: {{ formatDateTime(task.start_date) }}</div>
-                        <div class="date-chip">Due: {{ formatDateTime(task.due_date) }}</div>
-                        <div class="date-chip" v-if="task.user_id">User ID: {{ task.user_id }}</div>
-                        <div class="date-chip" v-if="task.project_id != null">
-                            Project ID: {{ task.project_id }}
+                        <div class="date-chip">Start: {{ formatDateTime(task.startDate) }}</div>
+                        <div class="date-chip">Due: {{ formatDateTime(task.dueDate) }}</div>
+                        <!-- <div class="date-chip" v-if="task.userId">User ID: {{ task.userId }}</div> -->
+                        <div class="date-chip" v-if="task.projectId != null">
+                            Project ID: {{ task.projectId }}
                         </div>
-                        <div class="date-chip" v-if="task.parent_task_id != null">
-                            Parent ID: {{ task.parent_task_id }}
+                        <div class="date-chip" v-if="task.parentTaskId != null">
+                            Parent ID: {{ task.parentTaskId }}
                         </div>
                     </div>
 
                     <div class="hours-row">
-                        <div class="hour-chip" v-if="task.estimated_hours != null">
-                            Est: {{ task.estimated_hours }}h
+                        <div class="hour-chip" v-if="task.estimatedHours != null">
+                            Est: {{ task.estimatedHours }}h
                         </div>
-                        <div class="hour-chip" v-if="task.actual_hours != null">
-                            Actual: {{ task.actual_hours }}h
+                        <div class="hour-chip" v-if="task.actualHours != null">
+                            Actual: {{ task.actualHours }}h
                         </div>
                     </div>
 
@@ -542,7 +587,12 @@ onMounted(() => {})
                     </div>
 
                     <div class="task-actions">
-                        <button @click="editTask(task.id)" class="edit-button" title="Edit task">
+                        <button
+                            @click="editTask(task.id)"
+                            :disabled="isLoading"
+                            class="edit-button"
+                            title="Edit task"
+                        >
                             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path
                                     d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
@@ -552,6 +602,7 @@ onMounted(() => {})
                         </button>
                         <button
                             @click="deleteTask(task.id)"
+                            :disabled="isLoading"
                             class="delete-button"
                             title="Delete task"
                         >
@@ -670,6 +721,107 @@ onMounted(() => {})
 
 .dark-theme .task-content::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.2);
+}
+
+.error-message {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #dc2626;
+    padding: 16px 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 6px rgba(239, 68, 68, 0.1);
+}
+
+.error-message svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.error-message span {
+    flex: 1;
+    font-weight: 500;
+}
+
+.close-error {
+    background: none;
+    border: none;
+    color: #dc2626;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.close-error:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.dark-theme .error-message {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+}
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(8px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 20px;
+}
+
+.dark-theme .loading-overlay {
+    background: rgba(42, 42, 42, 0.9);
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(76, 175, 80, 0.3);
+    border-top: 4px solid #4caf50;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.loading-overlay p {
+    color: #4caf50;
+    font-weight: 500;
+    margin: 0;
+}
+
+.dark-theme .loading-overlay p {
+    color: #81c784;
 }
 
 .create-task-form {
@@ -876,6 +1028,17 @@ onMounted(() => {})
 
 .btn-primary:active {
     transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
+}
+
+.btn-primary:disabled::before {
+    display: none;
 }
 
 .btn-secondary {
@@ -1366,6 +1529,25 @@ onMounted(() => {})
 
 .edit-button:hover svg {
     transform: scale(1.1);
+}
+
+.edit-button:disabled,
+.delete-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.edit-button:disabled:hover,
+.delete-button:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.edit-button:disabled svg,
+.delete-button:disabled svg {
+    transform: none;
 }
 
 @media (max-width: 768px) {
