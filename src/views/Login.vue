@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted, defineComponent } from 'vue'
+import { ref, onMounted, defineComponent, watch } from 'vue'
 import AuthModals from '../components/AuthModals.vue'
+import { useStateStore } from '@/stores/state'
 
 defineComponent({
     name: 'LoginView',
 })
+
+const stateStore = useStateStore()
 
 const isLoginModalVisible = ref(false)
 const isRegisterModalVisible = ref(false)
@@ -31,6 +34,22 @@ const closeAuthModals = () => {
     // router.push('/chat')
 }
 
+// Автоматический показ модального окна в PWA режиме
+const checkPWAAndShowModal = () => {
+    if (stateStore.isPWAMode) {
+      isLoginModalVisible.value = true
+    }
+}
+
+// Отслеживаем изменения PWA режима
+watch(
+    () => stateStore.isPWAMode,
+    () => {
+        checkPWAAndShowModal()
+    },
+    { immediate: true },
+)
+
 // Эффект печатающего текста для лого
 onMounted(() => {
     const text = 'Easy Task Manager'
@@ -44,6 +63,8 @@ onMounted(() => {
             setTimeout(typeWriter, 150)
         } else {
             typingComplete.value = true
+            // Проверяем PWA режим после завершения анимации
+            checkPWAAndShowModal()
         }
     }
 
@@ -130,6 +151,12 @@ onMounted(() => {
                     Create Account
                 </button>
             </div>
+
+            <!-- Показываем подсказку в PWA режиме -->
+            <!-- <div v-if="stateStore.isPWAMode" class="pwa-login-hint">
+                <p>Welcome to the PWA version!</p>
+                <p class="hint-text">The login form will appear automatically</p>
+            </div> -->
 
             <div class="manifesto-link-container">
                 <router-link to="/manifesto" class="manifesto-link">Read our Manifesto</router-link>
@@ -381,6 +408,45 @@ onMounted(() => {
     opacity: 0.9;
 }
 
+.pwa-login-hint {
+    text-align: center;
+    margin: 32px 0;
+    padding: 20px;
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    border-radius: 12px;
+    color: white;
+    animation: pulse 2s infinite;
+}
+
+.dark-theme .pwa-login-hint {
+    background: linear-gradient(135deg, #0d47a1, #1565c0);
+}
+
+.pwa-login-hint p {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.pwa-login-hint .hint-text {
+    font-size: 14px;
+    font-weight: 400;
+    opacity: 0.9;
+    margin-top: 8px;
+}
+
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.02);
+    }
+}
+
 @media (max-width: 768px) {
     .auth-container {
         padding: 30px 20px;
@@ -427,6 +493,19 @@ onMounted(() => {
         width: 100%;
         padding: 12px 0;
         font-size: 15px;
+    }
+
+    .pwa-login-hint {
+        margin: 20px 0;
+        padding: 16px;
+    }
+
+    .pwa-login-hint p {
+        font-size: 15px;
+    }
+
+    .pwa-login-hint .hint-text {
+        font-size: 13px;
     }
 }
 </style>

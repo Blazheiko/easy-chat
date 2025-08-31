@@ -34,7 +34,7 @@ onMounted(() => {
 const toggleNotifications = () => {
     notificationsEnabled.value = !notificationsEnabled.value
     localStorage.setItem('notifications_enabled', String(notificationsEnabled.value))
-    eventBus.emit('toggle_notifications', notificationsEnabled.value)
+    eventBus.emit('toggle_notifications', { enabled: notificationsEnabled.value })
 }
 
 // Вернуться назад

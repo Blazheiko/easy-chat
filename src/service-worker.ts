@@ -3,9 +3,19 @@
 declare const self: ServiceWorkerGlobalScope
 declare const BUILD_TIMESTAMP: string
 
-const cacheName = 'EasyChat-' + BUILD_TIMESTAMP
+const cacheName =
+    'EasyChat-' + (typeof BUILD_TIMESTAMP !== 'undefined' ? BUILD_TIMESTAMP : Date.now())
 
-const filesToCache = ['manifest.json']
+const filesToCache = [
+    '/',
+    '/manifest.json',
+    '/favicon.svg',
+    '/icons/icon_192x192.png',
+    '/icons/icon_512x512.png',
+    '/audio/notification.mp3',
+    '/audio/notification_1.mp3',
+    '/audio/click-button-140881.mp3',
+]
 
 self.addEventListener('install', function (e: ExtendableEvent) {
     console.log('[ServiceWorker] Install')
@@ -28,7 +38,7 @@ self.addEventListener('activate', function (e: ExtendableEvent) {
                 keyList.map(function (key) {
                     if (key !== cacheName) {
                         console.log('[ServiceWorker] Removing old cache', key)
-                        sendMessageToAll('NEW_VERSION', () => {})
+                        sendMessageToAll('NEW_VERSION')
                         return caches.delete(key)
                     }
                 }),
@@ -39,11 +49,89 @@ self.addEventListener('activate', function (e: ExtendableEvent) {
 })
 
 self.addEventListener('fetch', function (e: FetchEvent) {
-    e.respondWith(
-        caches.match(e.request, { ignoreSearch: true }).then(function (response) {
-            return response || fetch(e.request)
-        }),
-    )
+    console.log('[ServiceWorker] Fetch', e.request.url)
+
+    // Стратегия кэширования: Cache First для статических ресурсов
+    if (
+        e.request.url.includes('/icons/') ||
+        e.request.url.includes('/audio/') ||
+        e.request.url.includes('manifest.json') ||
+        e.request.url.includes('favicon.svg') ||
+        e.request.url.includes('.css') ||
+        e.request.url.includes('/assets/')
+    ) {
+        e.respondWith(
+            caches.match(e.request).then(function (response) {
+                return (
+                    response ||
+                    fetch(e.request).then(function (fetchResponse) {
+                        if (fetchResponse.status === 200) {
+                            const responseClone = fetchResponse.clone()
+                            caches.open(cacheName).then(function (cache) {
+                                cache.put(e.request, responseClone)
+                            })
+                        }
+                        return fetchResponse
+                    })
+                )
+            }),
+        )
+    }
+    // Network First для API запросов
+    else if (e.request.url.includes('/api/')) {
+        e.respondWith(
+            fetch(e.request)
+                .then(function (response) {
+                    return response
+                })
+                .catch(function () {
+                    return caches.match(e.request).then(function (cachedResponse) {
+                        return cachedResponse || new Response('Network error', { status: 503 })
+                    })
+                }),
+        )
+    }
+    // Network First для HTML страниц
+    else if (e.request.mode === 'navigate' || e.request.destination === 'document') {
+        e.respondWith(
+            fetch(e.request)
+                .then(function (response) {
+                    if (response.status === 200) {
+                        const responseClone = response.clone()
+                        caches.open(cacheName).then(function (cache) {
+                            cache.put(e.request, responseClone)
+                        })
+                    }
+                    return response
+                })
+                .catch(function () {
+                    return caches.match(e.request).then(function (cachedResponse) {
+                        if (cachedResponse) return cachedResponse
+                        return caches.match('/').then(function (indexResponse) {
+                            return indexResponse || new Response('Offline', { status: 503 })
+                        })
+                    })
+                }),
+        )
+    }
+    // Stale While Revalidate для остальных ресурсов
+    else {
+        e.respondWith(
+            caches.match(e.request, { ignoreSearch: true }).then(function (response) {
+                const fetchPromise = fetch(e.request).then(function (networkResponse) {
+                    if (networkResponse.status === 200) {
+                        const responseClone = networkResponse.clone()
+                        caches.open(cacheName).then(function (cache) {
+                            cache.put(e.request, responseClone)
+                        })
+                    }
+                    return networkResponse
+                })
+
+                return response || fetchPromise
+            }),
+        )
+    }
 })
 
 // --- events from/to js application ---
@@ -53,14 +141,11 @@ function sendMessage(client: Client, msg: unknown): Promise<void> {
     })
 }
 
-function sendMessageToAll(msg: unknown, callback?: () => void): void {
+function sendMessageToAll(msg: unknown): void {
     self.clients.matchAll().then((clients) => {
         clients.forEach((client) => {
             sendMessage(client, msg)
         })
-        if (callback && typeof callback == 'function') {
-            callback()
-        }
     })
 }
 
@@ -73,49 +158,106 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
     }
 })
 
-// --- web push ---
+// --- web push notifications ---
+interface ServiceWorkerNotificationAction {
+    action: string
+    title: string
+}
 
-// self.addEventListener('push', (event) => {
-// 	let payload = event.data.json();
-// 	let options = payload.notification;
-// 	// let data = payload.data;
+interface ServiceWorkerNotificationOptions {
+    body?: string
+    icon?: string
+    badge?: string
+    vibrate?: number[]
+    data?: Record<string, unknown>
+    requireInteraction?: boolean
+    actions?: ServiceWorkerNotificationAction[]
+    title?: string
+}
 
-// 	options.data = {};
-// 	options.requireInteraction = true;
-// 	options.data.url = options.click_action || (event.currentTarget ? event.currentTarget.origin : null);
+interface NotificationPayload {
+    notification?: ServiceWorkerNotificationOptions
+    data?: Record<string, unknown>
+}
 
-// 	options.body = options.body || 'Need your attention';
-// 	options.icon = options.icon || '/images/logo-512.png';
-// 	options.badge = options.badge || '/images/badge-72.png';
+self.addEventListener('push', (event: PushEvent) => {
+    console.log('[ServiceWorker] Push received:', event)
 
-// 	let title = options.title;
+    let options: ServiceWorkerNotificationOptions = {
+        body: 'You have a new message',
+        icon: '/icons/icon_192x192.png',
+        badge: '/icons/badge-72.png',
+        vibrate: [200, 100, 200],
+        data: {
+            url: '/',
+        },
+        requireInteraction: false,
+        actions: [
+            {
+                action: 'open',
+                title: 'Open App',
+            },
+            {
+                action: 'close',
+                title: 'Close',
+            },
+        ],
+    }
 
-// 	event.waitUntil(
-// 		self.registration.showNotification(title, options)
-// 	);
-// });
+    if (event.data) {
+        try {
+            const payload: NotificationPayload = event.data.json()
+            if (payload.notification) {
+                options = { ...options, ...payload.notification }
+            }
+            if (payload.data) {
+                options.data = { ...options.data, ...payload.data }
+            }
+        } catch {
+            console.log('[ServiceWorker] Push payload not JSON:', event.data.text())
+            options.body = event.data.text() || options.body
+        }
+    }
 
-// self.addEventListener('notificationclick', (event) => {
-// 	event.notification.close();
+    const title = options.title || 'Easy Chat'
 
-// 	let url = event.notification.data && event.notification.data.url ? event.notification.data.url : event.currentTarget ? event.currentTarget.origin : null;
-// 	let clickResponsePromise = Promise.resolve();
+    event.waitUntil(self.registration.showNotification(title, options))
+})
 
-// 	if (url) {
-// 		event.waitUntil(clients.matchAll({
-// 			type: "window"
-// 		}).then((clientList) => {
-// 			for (let i = 0; i < clientList.length; i++) {
-// 				let client = clientList[i];
-// 				if (client.url && 'focus' in client)
-// 					return client.focus();
-// 			}
-// 			if (clients.openWindow)
-// 				return clients.openWindow(url);
-// 		}));
-// 	} else {
-// 		event.waitUntil(
-// 			clickResponsePromise
-// 		);
-// 	}
-// });
+self.addEventListener('notificationclick', (event: NotificationEvent) => {
+    console.log('[ServiceWorker] Notification clicked:', event)
+    event.notification.close()
+
+    const url =
+        event.notification.data && event.notification.data.url ? event.notification.data.url : '/'
+
+    if (event.action === 'close') {
+        return
+    }
+
+    event.waitUntil(
+        self.clients
+            .matchAll({
+                type: 'window',
+                includeUncontrolled: true,
+            })
+            .then((clientList) => {
+                // Проверяем, есть ли уже открытое окно приложения
+                for (let i = 0; i < clientList.length; i++) {
+                    const client = clientList[i]
+                    if (client.url.includes(url) && 'focus' in client) {
+                        return client.focus()
+                    }
+                }
+                // Если нет открытого окна, открываем новое
+                if (self.clients.openWindow) {
+                    return self.clients.openWindow(url)
+                }
+            }),
+    )
+})
+
+// Обработка закрытия уведомления
+self.addEventListener('notificationclose', (event: NotificationEvent) => {
+    console.log('[ServiceWorker] Notification closed:', event)
+})

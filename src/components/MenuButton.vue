@@ -10,6 +10,15 @@ const eventBus = useEventBus()
 // Состояние меню
 const isMenuOpen = ref(false)
 
+// PWA установка
+interface BeforeInstallPromptEvent extends Event {
+    prompt(): Promise<void>
+    userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+
+const deferredPrompt = ref<BeforeInstallPromptEvent | null>(null)
+const showInstallButton = ref(false)
+
 // Управление меню
 const toggleMenu = () => {
     isMenuOpen.value = !isMenuOpen.value
@@ -27,13 +36,38 @@ const handleClickOutside = (event: MouseEvent) => {
     }
 }
 
-// Добавляем обработчик клика вне меню
+// Обработчик события beforeinstallprompt
+const handleBeforeInstallPrompt = (e: Event) => {
+    e.preventDefault()
+    deferredPrompt.value = e as BeforeInstallPromptEvent
+    showInstallButton.value = true
+}
+
+// Функция установки PWA
+const installApp = async () => {
+    if (!deferredPrompt.value) return
+
+    deferredPrompt.value.prompt()
+    const { outcome } = await deferredPrompt.value.userChoice
+
+    if (outcome === 'accepted') {
+        console.log('PWA установлено')
+        showInstallButton.value = false
+    }
+
+    deferredPrompt.value = null
+    closeMenu()
+}
+
+// Добавляем обработчики событий
 onMounted(() => {
     window.addEventListener('click', handleClickOutside)
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
 })
 
 onUnmounted(() => {
     window.removeEventListener('click', handleClickOutside)
+    window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
 })
 
 // Переход в аккаунт
@@ -88,6 +122,18 @@ const logout = async () => {
         </button>
 
         <div class="dropdown-menu" :class="{ show: isMenuOpen }">
+            <button v-if="showInstallButton" class="menu-item install-app" @click="installApp">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    width="20"
+                    height="20"
+                    fill="currentColor"
+                >
+                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
+                </svg>
+                Install App
+            </button>
             <button class="menu-item" @click="goToAccount">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -219,6 +265,15 @@ const logout = async () => {
 
 .dark-theme .menu-item {
     color: #e0e0e0;
+}
+
+.menu-item.install-app {
+    color: #007bff;
+    font-weight: 600;
+}
+
+.dark-theme .menu-item.install-app {
+    color: #4dabf7;
 }
 
 .menu-item:last-child {
