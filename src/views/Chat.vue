@@ -265,6 +265,7 @@ const logout = () => {
 }
 
 const formatChatMesssage = (message: ApiMessage): Message => ({
+    id: message.id,
     text: message.content,
     time: new Date(message.createdAt).toLocaleTimeString([], {
         hour: '2-digit',
@@ -281,6 +282,13 @@ const formatChatMesssage = (message: ApiMessage): Message => ({
 const sendMessage = async (newMessage: string) => {
     console.log('sendMessage', newMessage)
     if (newMessage && selectedContact.value && userStore.user) {
+        // Запрашиваем разрешение на уведомления при отправке сообщения
+        try {
+            await stateStore.ensureNotificationPermission()
+        } catch (error) {
+            console.warn('Не удалось получить разрешение на уведомления:', error)
+        }
+
         console.log('selectedContact', selectedContact.value)
         const contactId = selectedContact.value.contactId
         const { error, data } = await api.http('POST', '/api/chat/send-chat-messages', {
@@ -406,6 +414,7 @@ onMounted(() => {
             if (selectedContact.value && message.senderId === selectedContact.value.contactId) {
                 console.log('new_message')
                 messagesStore.addMessage({
+                    id: message.id,
                     text: message.content,
                     time: new Date().toLocaleTimeString([], {
                         hour: '2-digit',

@@ -11,6 +11,59 @@ interface ApiResponse<T> {
     error: { message: string; code: number } | null
 }
 
+// Интерфейсы для Push Subscriptions
+interface PushSubscriptionData extends Record<string, unknown> {
+    endpoint: string
+    p256dhKey: string
+    authKey: string
+    userAgent?: string
+    ipAddress?: string
+    deviceType?: string
+    browserName?: string
+    browserVersion?: string
+    osName?: string
+    osVersion?: string
+    notificationTypes?: string[]
+    timezone?: string
+}
+
+interface PushSubscriptionResponse {
+    id: number
+    user_id: number
+    endpoint: string
+    p256dh_key: string
+    auth_key: string
+    user_agent?: string
+    device_type?: string
+    browser_name?: string
+    is_active: boolean
+    created_at: string
+    updated_at: string
+}
+
+interface PushSubscriptionStatistics {
+    total_sent: number
+    total_delivered: number
+    last_sent_at?: string
+    subscription_duration: number
+}
+
+// Интерфейс для ответа при обновлении сообщения
+interface UpdateMessageResponse {
+    status: string
+    message?: {
+      id: number
+      sender_id: number
+      receiver_id: number
+      type: string
+      content: string
+      src: string
+      is_read: boolean
+      created_at: string
+      updated_at: string
+    }
+}
+
 interface ApiMethods {
     http: <T = HttpResponse>(
         method: string,
@@ -31,7 +84,6 @@ interface RequestInit {
 const BASE_URL = 'http://127.0.0.1:5174'
 let webSocketClient: WebsocketBase | null = null
 const eventBus = useEventBus()
-
 
 const api: ApiMethods = {
     http: async <T = HttpResponse>(
@@ -120,6 +172,122 @@ const api: ApiMethods = {
             console.error(e)
             return null
         }
+    },
+}
+
+// API функции для сообщений
+export const messagesApi = {
+    // Удалить сообщение
+    deleteMessage: async (messageId: number): Promise<ApiResponse<{ success: boolean }>> => {
+        return api.http<{ success: boolean }>('DELETE', `/api/chat/messages/${messageId}`)
+    },
+
+    // Редактировать сообщение
+    updateMessage: async (
+        messageId: number,
+        content: string,
+        userId: number,
+    ): Promise<ApiResponse<UpdateMessageResponse>> => {
+        return api.http<UpdateMessageResponse>('PUT', `/api/chat/messages/${messageId}`, {
+            userId,
+            messageId,
+            content,
+        })
+    },
+}
+
+// API функции для Push Subscriptions
+export const pushSubscriptionApi = {
+    // Получить все подписки пользователя
+    getSubscriptions: async (): Promise<ApiResponse<PushSubscriptionResponse[]>> => {
+        return api.http<PushSubscriptionResponse[]>('GET', '/api/push-subscriptions')
+    },
+
+    // Создать новую подписку
+    createSubscription: async (
+        subscriptionData: PushSubscriptionData,
+    ): Promise<ApiResponse<PushSubscriptionResponse>> => {
+        return api.http<PushSubscriptionResponse>(
+            'POST',
+            '/api/push-subscriptions',
+            subscriptionData,
+        )
+    },
+
+    // Получить конкретную подписку
+    getSubscription: async (
+        subscriptionId: number,
+    ): Promise<ApiResponse<PushSubscriptionResponse>> => {
+        return api.http<PushSubscriptionResponse>(
+            'GET',
+            `/api/push-subscriptions/${subscriptionId}`,
+        )
+    },
+
+    // Удалить подписку
+    deleteSubscription: async (
+        subscriptionId: number,
+    ): Promise<ApiResponse<{ success: boolean }>> => {
+        return api.http<{ success: boolean }>('DELETE', `/api/push-subscriptions/${subscriptionId}`)
+    },
+
+    // Удалить подписку по endpoint
+    deleteSubscriptionByEndpoint: async (
+        endpoint: string,
+    ): Promise<ApiResponse<{ success: boolean }>> => {
+        return api.http<{ success: boolean }>('DELETE', '/api/push-subscriptions', { endpoint })
+    },
+
+    // Получить статистику подписки
+    getSubscriptionStatistics: async (
+        subscriptionId: number,
+    ): Promise<ApiResponse<PushSubscriptionStatistics>> => {
+        return api.http<PushSubscriptionStatistics>(
+            'GET',
+            `/api/push-subscriptions/${subscriptionId}/statistics`,
+        )
+    },
+
+    // Деактивировать подписку
+    deactivateSubscription: async (
+        subscriptionId: number,
+    ): Promise<ApiResponse<PushSubscriptionResponse>> => {
+        return api.http<PushSubscriptionResponse>(
+            'PUT',
+            `/api/push-subscriptions/${subscriptionId}/deactivate`,
+        )
+    },
+
+    // Отправить уведомление о статусе подписки
+    sendSubscriptionNotification: async (
+        notificationData: Record<string, unknown>,
+    ): Promise<ApiResponse<{ success: boolean; message: string }>> => {
+        return api.http<{ success: boolean; message: string }>(
+            'POST',
+            '/api/notifications/subscription-status',
+            notificationData,
+        )
+    },
+
+    // Отправить системное уведомление админам
+    sendSystemNotification: async (
+        message: string,
+        type: string = 'info',
+        metadata?: Record<string, unknown>,
+    ): Promise<ApiResponse<{ success: boolean }>> => {
+        return api.http<{ success: boolean }>('POST', '/api/notifications/system', {
+            message,
+            type,
+            metadata,
+        })
+    },
+
+    // Получить VAPID публичный ключ с сервера
+    getVapidPublicKey: async (): Promise<ApiResponse<{ vapidPublicKey: string }>> => {
+        return api.http<{ vapidPublicKey: string }>(
+            'GET',
+            '/api/push-subscriptions/vapid-public-key',
+        )
     },
 }
 

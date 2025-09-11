@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useStateStore } from '@/stores/state'
+import { pushSubscriptionApi } from '@/utils/api'
 // Глобальный хедер теперь рендерится в App.vue
 
 defineOptions({
@@ -16,6 +17,7 @@ const user = ref(userStore.user)
 const darkMode = ref(stateStore.darkMode)
 const notificationsEnabled = ref(true)
 const soundEnabled = ref(true)
+const pushNotificationsEnabled = ref(stateStore.isSubscribedToPush)
 
 // Загрузка данных пользователя из localStorage
 // onMounted(() => {
@@ -47,6 +49,188 @@ const toggleNotifications = () => {
 const toggleSound = () => {
     soundEnabled.value = !soundEnabled.value
 }
+
+const togglePushNotifications = async () => {
+    try {
+        if (!pushNotificationsEnabled.value) {
+            // Переключатель выключен -> включаем push-уведомления
+            // Сначала запрашиваем разрешение на уведомления
+            const hasPermission = await stateStore.ensureNotificationPermission()
+            if (!hasPermission) {
+                console.warn('Пользователь не дал разрешение на уведомления')
+                pushNotificationsEnabled.value = false
+                return
+            }
+
+            // Подписываемся на push-уведомления
+            const subscription = await stateStore.subscribeToPush()
+            if (subscription) {
+                console.log('✅ Успешно подписались на push-уведомления')
+
+                // Отправляем уведомление на сервер о включении push-уведомлений
+                try {
+                    const clientIP = '127.0.0.1'
+                    const browserInfo = getBrowserInfo()
+                    const osInfo = getOSInfo()
+                    await pushSubscriptionApi.createSubscription({
+                        endpoint: subscription.endpoint,
+                        p256dhKey: arrayBufferToBase64(subscription.getKey('p256dh')),
+                        authKey: arrayBufferToBase64(subscription.getKey('auth')),
+                        userAgent: navigator.userAgent,
+                        ipAddress: clientIP || undefined,
+                        deviceType: getDeviceType(),
+                        browserName: browserInfo.name,
+                        browserVersion: browserInfo.version,
+                        osName: osInfo.name,
+                        osVersion: osInfo.version,
+                        notificationTypes: ['new_message', 'mention', 'system'], // Типы уведомлений по умолчанию
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    })
+                } catch (notificationError) {
+                    console.warn(
+                        'Не удалось отправить уведомление о включении push:',
+                        notificationError,
+                    )
+                    pushNotificationsEnabled.value = false
+                }
+            } else {
+                console.error('❌ Не удалось подписаться на push-уведомления')
+                console.info('💡 Возможные причины:')
+                console.info('- VAPID ключ не настроен на сервере')
+                console.info('- Браузер не поддерживает push-уведомления')
+                console.info('- Сервер недоступен')
+
+                // Возвращаем предыдущее состояние в случае ошибки
+                pushNotificationsEnabled.value = false
+
+                // Показываем пользователю понятное сообщение
+                alert(
+                    '❌ Не удалось включить push-уведомления.\n\nВозможные причины:\n• Сервер временно недоступен\n• Push-уведомления не настроены\n• Ваш браузер не поддерживает эту функцию',
+                )
+            }
+        } else {
+            // Переключатель включен -> отключаем push-уведомления
+            const subscriptionId = stateStore.pushSubscriptionId
+            const success = await stateStore.unsubscribeFromPush()
+            if (success) {
+                console.log('Успешно отписались от push-уведомлений')
+
+                // Отправляем уведомление на сервер об отключении push-уведомлений
+                try {
+
+                    if (subscriptionId) {
+                        await pushSubscriptionApi.deleteSubscription(subscriptionId)
+                    }
+                } catch (notificationError) {
+                    console.warn(
+                        'Не удалось отправить уведомление об отключении push:',
+                        notificationError,
+                    )
+                }
+            } else {
+                console.error('Не удалось отписаться от push-уведомлений')
+                // Возвращаем предыдущее состояние в случае ошибки
+                pushNotificationsEnabled.value = true
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка при переключении push-уведомлений:', error)
+        // Возвращаем предыдущее состояние в случае ошибки
+        pushNotificationsEnabled.value = !pushNotificationsEnabled.value
+    }
+}
+
+// Вспомогательные функции для определения устройства и браузера
+const getDeviceType = (): string => {
+    const userAgent = navigator.userAgent.toLowerCase()
+    if (/mobile|android|iphone|ipad|tablet/.test(userAgent)) {
+        return 'mobile'
+    }
+    return 'desktop'
+}
+
+const getBrowserInfo = (): { name: string; version: string } => {
+    const userAgent = navigator.userAgent
+    const userAgentLower = userAgent.toLowerCase()
+
+    let browserName = 'Unknown'
+    let browserVersion = 'Unknown'
+
+    if (userAgentLower.includes('chrome') && !userAgentLower.includes('edg')) {
+        browserName = 'Chrome'
+        const match = userAgent.match(/Chrome\/(\d+\.\d+)/)
+        browserVersion = match ? match[1] : 'Unknown'
+    } else if (userAgentLower.includes('firefox')) {
+        browserName = 'Firefox'
+        const match = userAgent.match(/Firefox\/(\d+\.\d+)/)
+        browserVersion = match ? match[1] : 'Unknown'
+    } else if (userAgentLower.includes('safari') && !userAgentLower.includes('chrome')) {
+        browserName = 'Safari'
+        const match = userAgent.match(/Version\/(\d+\.\d+)/)
+        browserVersion = match ? match[1] : 'Unknown'
+    } else if (userAgentLower.includes('edg')) {
+        browserName = 'Edge'
+        const match = userAgent.match(/Edg\/(\d+\.\d+)/)
+        browserVersion = match ? match[1] : 'Unknown'
+    }
+
+    return { name: browserName, version: browserVersion }
+}
+
+const getOSInfo = (): { name: string; version: string } => {
+    const userAgent = navigator.userAgent
+
+    let osName = 'Unknown'
+    let osVersion = 'Unknown'
+
+    if (userAgent.includes('Windows NT')) {
+        osName = 'Windows'
+        const match = userAgent.match(/Windows NT (\d+\.\d+)/)
+        osVersion = match ? match[1] : 'Unknown'
+    } else if (userAgent.includes('Mac OS X')) {
+        osName = 'macOS'
+        const match = userAgent.match(/Mac OS X (\d+[._]\d+[._]?\d*)/)
+        osVersion = match ? match[1].replace(/_/g, '.') : 'Unknown'
+    } else if (userAgent.includes('Linux')) {
+        osName = 'Linux'
+        osVersion = 'Unknown'
+    } else if (userAgent.includes('Android')) {
+        osName = 'Android'
+        const match = userAgent.match(/Android (\d+\.\d+)/)
+        osVersion = match ? match[1] : 'Unknown'
+    } else if (userAgent.includes('iPhone') || userAgent.includes('iPad')) {
+        osName = 'iOS'
+        const match = userAgent.match(/OS (\d+[._]\d+[._]?\d*)/)
+        osVersion = match ? match[1].replace(/_/g, '.') : 'Unknown'
+    }
+
+    return { name: osName, version: osVersion }
+}
+
+// Инициализация компонента
+onMounted(() => {
+    // Обновляем состояние push-уведомлений при загрузке
+    pushNotificationsEnabled.value = stateStore.isSubscribedToPush
+})
+
+// Отслеживаем изменения в store
+watch(
+    () => stateStore.isSubscribedToPush,
+    (newValue) => {
+        pushNotificationsEnabled.value = newValue
+    },
+)
+
+// Отслеживаем изменения разрешений на уведомления
+watch(
+    () => stateStore.notificationPermission,
+    (newPermission) => {
+        if (newPermission === 'denied' && pushNotificationsEnabled.value) {
+            // Если разрешение отозвано, отключаем push-уведомления
+            pushNotificationsEnabled.value = false
+        }
+    },
+)
 </script>
 
 <template>
@@ -54,7 +238,7 @@ const toggleSound = () => {
         <div class="account-content">
             <div class="profile-section">
                 <div class="avatar-container">
-                    <div class="avatar">{{ user.name?.charAt(0) || 'U' }}</div>
+                    <div class="avatar">{{ user?.name?.charAt(0) || 'U' }}</div>
                 </div>
                 <div class="user-info" v-if="user">
                     <h2>{{ user.name || 'User' }}</h2>
@@ -101,6 +285,33 @@ const toggleSound = () => {
                     <label class="toggle">
                         <input type="checkbox" v-model="soundEnabled" @change="toggleSound" />
                         <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-item">
+                    <div>
+                        <h4>Push Notifications</h4>
+                        <p>Enable push notifications for new messages</p>
+                        <div
+                            class="setting-status"
+                            v-if="stateStore.notificationPermission !== 'granted'"
+                        >
+                            <small class="permission-warning">
+                                ⚠️ Browser permission required
+                            </small>
+                        </div>
+                    </div>
+                    <label class="toggle">
+                        <input
+                            type="checkbox"
+                            v-model="pushNotificationsEnabled"
+                            @change="togglePushNotifications"
+                            :disabled="stateStore.notificationPermission === 'denied'"
+                        />
+                        <span
+                            class="toggle-slider"
+                            :class="{ disabled: stateStore.notificationPermission === 'denied' }"
+                        ></span>
                     </label>
                 </div>
             </div>
@@ -397,6 +608,43 @@ input:checked + .toggle-slider:before {
 
 input:focus + .toggle-slider {
     box-shadow: 0 0 1px #1a73e8;
+}
+
+/* Setting status and warnings */
+.setting-status {
+    margin-top: 8px;
+}
+
+.permission-warning {
+    color: #f57c00;
+    font-size: 12px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.dark-theme .permission-warning {
+    color: #ffb74d;
+}
+
+/* Disabled toggle */
+.toggle-slider.disabled {
+    background-color: #ccc !important;
+    cursor: not-allowed;
+}
+
+.dark-theme .toggle-slider.disabled {
+    background-color: #666 !important;
+}
+
+input:disabled + .toggle-slider {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+input:disabled + .toggle-slider:before {
+    cursor: not-allowed;
 }
 
 @media (max-width: 768px) {

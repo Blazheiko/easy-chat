@@ -76,20 +76,20 @@ class ServiceWorkerManager {
 }
 
 // Push Notifications
-async function requestNotificationPermission(): Promise<NotificationPermission> {
-    if (!('Notification' in window)) {
-        console.warn('[Push] Notifications not supported')
-        return 'denied'
-    }
+// async function requestNotificationPermission(): Promise<NotificationPermission> {
+//     if (!('Notification' in window)) {
+//         console.warn('[Push] Notifications not supported')
+//         return 'denied'
+//     }
 
-    if (Notification.permission !== 'granted') {
-        const permission = await Notification.requestPermission()
-        console.log('[Push] Permission result:', permission)
-        return permission
-    }
+//     if (Notification.permission !== 'granted') {
+//         const permission = await Notification.requestPermission()
+//         console.log('[Push] Permission result:', permission)
+//         return permission
+//     }
 
-    return Notification.permission
-}
+//     return Notification.permission
+// }
 
 // Инициализация Service Worker
 async function initializeServiceWorker() {
@@ -110,7 +110,7 @@ async function initializeServiceWorker() {
             })
 
             // Запрашиваем разрешение на уведомления
-            await requestNotificationPermission()
+            // await requestNotificationPermission()
 
             // Проверяем обновления каждую минуту
             setInterval(async () => {

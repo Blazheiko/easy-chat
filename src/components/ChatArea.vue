@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import type { PropType } from 'vue'
 // Menu moved to AppHeader; keep only chat controls locally
-import { useMessagesStore } from '@/stores/messages'
+import { useMessagesStore, type Message } from '@/stores/messages'
 import type { Contact } from '@/stores/contacts'
-// import api from '@/utils/api'
-// import { useUserStore } from '@/stores/user'
+import { messagesApi } from '@/utils/api'
+import { useUserStore } from '@/stores/user'
 
-// const userStore = useUserStore()
+const userStore = useUserStore()
 // Тип звонка
 
 // interface Props {
@@ -43,6 +43,16 @@ const messagesStore = useMessagesStore()
 useRouter()
 const newMessage = ref('')
 const messageContainerRef = ref(null)
+
+// Функция для проверки, является ли пользователь владельцем сообщения
+const isMessageOwner = (message: Message): boolean => {
+    // Проверяем по sender_id, если он есть
+    if (message.sender_id && userStore.user?.id) {
+        return message.sender_id === userStore.user.id
+    }
+    // Fallback на isSent для совместимости
+    return message.isSent === true
+}
 
 // Добавляем состояние для контекстного меню
 const contextMenu = ref({
@@ -205,6 +215,13 @@ const toggleMute = () => {
 // Функции для работы с контекстным меню
 const showContextMenu = (event: MouseEvent, index: number, text: string) => {
     event.preventDefault()
+
+    // Проверяем, является ли пользователь владельцем сообщения
+    const message = messagesStore.messages[index]
+    if (!isMessageOwner(message)) {
+        return // Не показываем контекстное меню для чужих сообщений
+    }
+
     contextMenu.value = {
         show: true,
         x: event.clientX,
@@ -221,12 +238,66 @@ const hideContextMenu = () => {
 }
 
 const startEditing = () => {
-    contextMenu.value.isEditing = true
+    // Переключаемся на inline редактирование вместо контекстного меню
+    const index = contextMenu.value.messageIndex
+    const text = contextMenu.value.editText
+
+    hideContextMenu()
+    startMessageEdit(index, text)
 }
 
-const saveEdit = () => {
-    if (contextMenu.value.messageIndex !== -1 && contextMenu.value.editText.trim()) {
-        messagesStore.updateMessage(contextMenu.value.messageIndex, contextMenu.value.editText)
+const saveEdit = async () => {
+    const trimmedText = contextMenu.value.editText.trim()
+    if (contextMenu.value.messageIndex !== -1 && trimmedText) {
+        // Валидация длины контента
+        if (trimmedText.length > 10000) {
+            console.error('Сообщение слишком длинное (максимум 10000 символов)')
+            return
+        }
+        const message = messagesStore.messages[contextMenu.value.messageIndex]
+
+        // Проверяем, есть ли ID сообщения для отправки на сервер
+        if (message.id) {
+            try {
+                // Проверяем наличие userId
+                if (!userStore.user?.id) {
+                    console.error('User ID не найден')
+                    return
+                }
+
+                const { data, error } = await messagesApi.updateMessage(
+                    message.id,
+                    trimmedText,
+                    userStore.user.id,
+                )
+
+                if (error || !data || !data.message || data.status !== 'ok') {
+                    console.error('Ошибка при редактировании сообщения:', error?.message)
+                    contextMenu.value.isEditing = false
+                    return
+                }
+
+                // Если редактирование на сервере прошло успешно, обновляем локальный стор
+                const serverData = data?.message
+                    ? {
+                          id: data.message.id,
+                          sender_id: data.message.sender_id,
+                          receiver_id: data.message.receiver_id,
+                          text: data.message.content,
+                          createdAt: data.message.updated_at,
+                      }
+                    : undefined
+                messagesStore.updateMessage(contextMenu.value.messageIndex, trimmedText, serverData)
+            } catch (error) {
+                console.error('Ошибка сети при редактировании сообщения:', error)
+                return
+            }
+        }
+        // else {
+        //     // Если нет ID, обновляем только локально
+        //     messagesStore.updateMessage(contextMenu.value.messageIndex, trimmedText)
+        // }
+
         contextMenu.value.isEditing = false
     }
 }
@@ -236,9 +307,40 @@ const cancelEdit = () => {
     contextMenu.value.editText = ''
 }
 
-const deleteMessage = () => {
+const deleteMessage = async () => {
     if (contextMenu.value.messageIndex !== -1) {
-        messagesStore.deleteMessage(contextMenu.value.messageIndex)
+        const message = messagesStore.messages[contextMenu.value.messageIndex]
+
+        // Проверяем, является ли пользователь владельцем сообщения
+        if (!isMessageOwner(message)) {
+            console.error('Нельзя удалить чужое сообщение')
+            hideContextMenu()
+            return
+        }
+
+        // Проверяем, есть ли ID сообщения для отправки на сервер
+        if (message.id) {
+            try {
+                const { error } = await messagesApi.deleteMessage(message.id)
+
+                if (error) {
+                    console.error('Ошибка при удалении сообщения:', error.message)
+                    // Можно показать уведомление об ошибке пользователю
+                    return
+                }
+
+                // Если удаление на сервере прошло успешно, удаляем из локального стора
+                messagesStore.deleteMessage(contextMenu.value.messageIndex)
+            } catch (error) {
+                console.error('Ошибка сети при удалении сообщения:', error)
+                // Можно показать уведомление об ошибке пользователю
+                return
+            }
+        } else {
+            // Если нет ID (например, для локальных сообщений), удаляем только локально
+            messagesStore.deleteMessage(contextMenu.value.messageIndex)
+        }
+
         hideContextMenu()
     }
 }
@@ -254,15 +356,80 @@ const createTask = () => {
 
 // Функции для работы с редактированием сообщения
 const startMessageEdit = (index: number, text: string) => {
+    // Проверяем, является ли пользователь владельцем сообщения
+    const message = messagesStore.messages[index]
+    if (!isMessageOwner(message)) {
+        return // Не позволяем редактировать чужие сообщения
+    }
+
     editingMessage.value = {
         index,
         text,
     }
+
+    // Автофокус на textarea при следующем тике
+    nextTick(() => {
+        const textarea = document.querySelector('.message-edit-input') as HTMLTextAreaElement
+        if (textarea) {
+            textarea.focus()
+            textarea.select()
+        }
+    })
 }
 
-const saveMessageEdit = () => {
-    if (editingMessage.value.index !== -1 && editingMessage.value.text.trim()) {
-        messagesStore.updateMessage(editingMessage.value.index, editingMessage.value.text)
+const saveMessageEdit = async () => {
+    const trimmedText = editingMessage.value.text.trim()
+    if (editingMessage.value.index !== -1 && trimmedText) {
+        // Валидация длины контента
+        if (trimmedText.length > 10000) {
+            console.error('Сообщение слишком длинное (максимум 10000 символов)')
+            return
+        }
+        const message = messagesStore.messages[editingMessage.value.index]
+
+        // Проверяем, есть ли ID сообщения для отправки на сервер
+        if (message.id) {
+            try {
+                // Проверяем наличие userId
+                if (!userStore.user?.id) {
+                    console.error('User ID не найден')
+                    return
+                }
+
+                const { data, error } = await messagesApi.updateMessage(
+                    message.id,
+                    trimmedText,
+                    userStore.user.id,
+                )
+
+                if (error) {
+                    console.error('Ошибка при редактировании сообщения:', error.message)
+                    // Можно показать уведомление об ошибке пользователю
+                    return
+                }
+
+                // Если редактирование на сервере прошло успешно, обновляем локальный стор
+                const serverData = data?.message
+                    ? {
+                          id: data.message.id,
+                          sender_id: data.message.sender_id,
+                          receiver_id: data.message.receiver_id,
+                          text: data.message.content,
+                          createdAt: data.message.updated_at,
+                      }
+                    : undefined
+                messagesStore.updateMessage(editingMessage.value.index, trimmedText, serverData)
+            } catch (error) {
+                console.error('Ошибка сети при редактировании сообщения:', error)
+                // Можно показать уведомление об ошибке пользователю
+                return
+            }
+        } else {
+            // Если нет ID (например, для локальных сообщений), обновляем только локально
+            messagesStore.updateMessage(editingMessage.value.index, trimmedText)
+        }
+
+        // Выходим из режима редактирования
         editingMessage.value.index = -1
         editingMessage.value.text = ''
     }
@@ -321,9 +488,19 @@ onUnmounted(() => {
                         <span>{{ message.date }}</span>
                     </div>
                     <div
-                        :class="['message', message.isSent ? 'sent' : 'received']"
-                        @contextmenu="showContextMenu($event, index, message.text)"
-                        @dblclick="startMessageEdit(index, message.text)"
+                        :class="[
+                            'message',
+                            message.isSent ? 'sent' : 'received',
+                            { editable: isMessageOwner(message) },
+                        ]"
+                        @contextmenu.prevent="
+                            isMessageOwner(message)
+                                ? showContextMenu($event, index, message.text)
+                                : null
+                        "
+                        @dblclick="
+                            isMessageOwner(message) ? startMessageEdit(index, message.text) : null
+                        "
                     >
                         <div v-if="editingMessage.index === index" class="message-edit-mode">
                             <textarea
@@ -1699,14 +1876,30 @@ onUnmounted(() => {
 }
 
 .message {
+    cursor: default;
+}
+
+.message.editable {
     cursor: context-menu;
 }
 
+.message.editable:hover {
+    opacity: 0.9;
+}
+
 .message.sent {
+    cursor: default;
+}
+
+.message.sent.editable {
     cursor: context-menu;
 }
 
 .message.received {
+    cursor: default;
+}
+
+.message.received.editable {
     cursor: context-menu;
 }
 

@@ -9,6 +9,9 @@ import { ref } from 'vue'
 // },
 
 export interface Message {
+    id?: number
+    sender_id?: number
+    receiver_id?: number
     text: string
     time: string
     isSent: boolean
@@ -28,12 +31,14 @@ export const useMessagesStore = defineStore('messages', () => {
         messages.value.splice(index, 1)
     }
 
-    function updateMessage(index: number, newText: string) {
+    function updateMessage(index: number, newText: string, serverData?: Partial<Message>) {
         if (index >= 0 && index < messages.value.length) {
             messages.value[index] = {
                 ...messages.value[index],
                 text: newText,
                 status: 'sent',
+                // Если есть данные с сервера, применяем их
+                ...serverData,
             }
         }
     }
