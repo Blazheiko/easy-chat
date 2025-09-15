@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 
 defineOptions({
     name: 'CalendarComponent',
 })
 
 const currentDate = ref(new Date())
-const selectedDate = ref<Date | null>(null)
-const showDateDetails = ref(false)
+const selectedDate = ref<Date | null>(new Date())
+const dayTimelineRef = ref<HTMLElement | null>(null)
+const hourRefs = ref<HTMLElement[]>([])
 const dateEvents = ref<
     {
         date: Date
@@ -148,13 +149,53 @@ function nextMonth() {
 // Select date
 function selectDate(date: Date) {
     selectedDate.value = new Date(date)
-    showDateDetails.value = true
 }
 
-// Return to calendar from detailed view
-function backToCalendar() {
-    showDateDetails.value = false
-}
+// Reset timeline scroll when a new date is selected
+watch(selectedDate, async () => {
+    await nextTick()
+    const container = dayTimelineRef.value
+    if (container) {
+        container.scrollTo({ top: 0, behavior: 'auto' })
+    }
+})
+
+// Auto-scroll to earliest event in the selected day
+watch(
+    eventsForSelectedDate,
+    async (events) => {
+        if (!events || events.length === 0) return
+
+        // Determine earliest event hour
+        let earliestHour: number | null = null
+        let earliestMinutes: number | null = null
+        for (const event of events) {
+            if (!event.startTime) continue
+            const [hStr, mStr] = event.startTime.split(':')
+            const h = parseInt(hStr)
+            const m = parseInt(mStr || '0')
+            if (earliestHour === null) {
+                earliestHour = h
+                earliestMinutes = m
+            } else if (h < earliestHour || (h === earliestHour && m < (earliestMinutes || 0))) {
+                earliestHour = h
+                earliestMinutes = m
+            }
+        }
+
+        if (earliestHour === null) return
+
+        await nextTick()
+        const container = dayTimelineRef.value
+        const block = hourRefs.value[earliestHour]
+        if (container && block) {
+            container.scrollTo({ top: block.offsetTop, behavior: 'smooth' })
+        }
+    },
+    { immediate: true },
+)
+
+//
 
 // Open add event modal
 function openAddEventModal() {
@@ -382,7 +423,7 @@ function getEventColor(index: number): string {
             <div class="header-buttons"></div>
         </div>
 
-        <div v-if="!showDateDetails" class="calendar-view">
+        <div class="calendar-view">
             <!-- Навигация по месяцам -->
             <div class="month-navigation">
                 <button @click="prevMonth" class="nav-button">
@@ -429,18 +470,15 @@ function getEventColor(index: number): string {
         </div>
 
         <!-- Детальный просмотр выбранной даты -->
-        <div v-else class="date-details">
+        <div class="date-details">
             <div class="date-details-header">
-                <button @click="backToCalendar" class="back-button">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path
-                            d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"
-                            fill="currentColor"
-                        />
-                    </svg>
-                    <span>Back to calendar</span>
-                </button>
-                <h3>{{ selectedDate ? formatDate(selectedDate) : '' }}</h3>
+                <h3>
+                    {{ selectedDate ? formatDate(selectedDate) : '' }}
+                    <span v-if="eventsForSelectedDate.length > 0" class="events-count">
+                        Events: {{ eventsForSelectedDate.length }}
+                    </span>
+                    <span v-else class="events-count"> No events for selected date </span>
+                </h3>
                 <button @click="openAddEventModal" class="add-event-button">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor" />
@@ -449,12 +487,17 @@ function getEventColor(index: number): string {
                 </button>
             </div>
 
-            <div class="events-list" v-if="eventsForSelectedDate.length === 0">
+            <!-- <div class="events-list" v-if="eventsForSelectedDate.length === 0">
                 <div class="no-events">No events for selected date</div>
-            </div>
+            </div> -->
 
-            <div v-else class="day-timeline">
-                <div v-for="hour in hoursOfDay" :key="hour" class="hour-block">
+            <div class="day-timeline" ref="dayTimelineRef">
+                <div
+                    v-for="(hour, idx) in hoursOfDay"
+                    :key="hour"
+                    class="hour-block"
+                    :ref="(el) => (hourRefs[idx] = el as HTMLElement)"
+                >
                     <div class="hour-label">{{ hour }}</div>
                     <div class="hour-content">
                         <div
@@ -763,6 +806,18 @@ function getEventColor(index: number): string {
     color: var(--text-color, #333);
 }
 
+.events-count {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: rgba(26, 115, 232, 0.1);
+    color: #1a73e8;
+    font-size: 12px;
+    font-weight: 600;
+    vertical-align: middle;
+}
+
 .dark-theme .date-details-header h3 {
     color: #e0e0e0;
 }
@@ -792,12 +847,12 @@ function getEventColor(index: number): string {
 }
 
 .events-list {
-    flex: 1;
+    flex: 0 0 auto;
 }
 
 .no-events {
     text-align: center;
-    padding: 40px 0;
+    padding: 6px 0;
     color: #6c757d;
     font-size: 16px;
 }
