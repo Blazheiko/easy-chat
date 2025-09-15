@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive, computed, nextTick } from 'vue'
 import { tasksApi, type Task, type CreateTaskRequest } from '@/utils/tasks-api'
+import { projectsApi, type Project } from '@/utils/projects-api'
 
 const STATUSES: Task['status'][] = ['TODO', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED']
 const PRIORITIES: Task['priority'][] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
@@ -8,6 +9,10 @@ const PRIORITIES: Task['priority'][] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
 const emit = defineEmits(['toggle-contacts'])
 
 const tasks = ref<Task[]>([])
+const projects = ref<Project[]>([])
+const parentTaskOptions = computed(() =>
+    tasks.value.filter((t) => t.id !== (editingTaskId.value ?? '')),
+)
 const showCreateForm = ref(false)
 const isLoading = ref(false)
 const error = ref<string | null>(null)
@@ -71,6 +76,29 @@ const tagsToArray = (tags: string | null): string[] => {
         .filter((t) => t.length > 0)
 }
 
+// Maps for quick lookup of related titles
+const projectIdToTitle = computed<Record<string, string>>(() => {
+    const map: Record<string, string> = {}
+    for (const p of projects.value) map[p.id] = p.title
+    return map
+})
+
+const taskIdToTitle = computed<Record<string, string>>(() => {
+    const map: Record<string, string> = {}
+    for (const t of tasks.value) map[t.id] = t.title
+    return map
+})
+
+const getProjectTitle = (projectId: string | null): string | null => {
+    if (!projectId) return null
+    return projectIdToTitle.value[projectId] || null
+}
+
+const getParentTaskTitle = (parentTaskId: string | null): string | null => {
+    if (!parentTaskId) return null
+    return taskIdToTitle.value[parentTaskId] || null
+}
+
 const createTask = async () => {
     if (!canCreate.value) return
 
@@ -78,11 +106,18 @@ const createTask = async () => {
     error.value = null
 
     try {
+        const normalizedProjectId =
+            newTaskForm.projectId && newTaskForm.projectId !== '' ? newTaskForm.projectId : null
+        const normalizedParentTaskId =
+            newTaskForm.parentTaskId && newTaskForm.parentTaskId !== ''
+                ? newTaskForm.parentTaskId
+                : null
+
         const taskData: CreateTaskRequest = {
             title: newTaskForm.title.trim(),
             description: newTaskForm.description.trim() || '',
             userId: newTaskForm.userId,
-            projectId: newTaskForm.projectId,
+            projectId: normalizedProjectId,
             status: newTaskForm.status,
             priority: newTaskForm.priority,
             progress: Number(newTaskForm.progress) || 0,
@@ -93,7 +128,7 @@ const createTask = async () => {
             estimatedHours:
                 newTaskForm.estimatedHours == null ? null : Number(newTaskForm.estimatedHours),
             actualHours: newTaskForm.actualHours == null ? null : Number(newTaskForm.actualHours),
-            parentTaskId: newTaskForm.parentTaskId,
+            parentTaskId: normalizedParentTaskId,
         }
 
         if (editingTaskId.value) {
@@ -240,6 +275,15 @@ const loadTasks = async () => {
     }
 }
 
+const loadProjects = async () => {
+    try {
+        const list = await projectsApi.getProjects()
+        projects.value = list
+    } catch (e) {
+        console.error('Failed to load projects', e)
+    }
+}
+
 const submitButtonText = computed(() => {
     return editingTaskId.value ? 'Update' : 'Create'
 })
@@ -273,6 +317,7 @@ const resetForm = () => {
 
 onMounted(() => {
     loadTasks()
+    loadProjects()
 })
 </script>
 
@@ -360,16 +405,22 @@ onMounted(() => {
                             />
                         </div> -->
                         <div class="form-col">
-                            <label class="form-label">Project ID</label>
-                            <input v-model="newTaskForm.projectId" type="text" class="task-input" />
+                            <label class="form-label">Project</label>
+                            <select v-model="newTaskForm.projectId" class="task-select">
+                                <option :value="null">No project</option>
+                                <option v-for="p in projects" :key="p.id" :value="p.id">
+                                    {{ p.title }}
+                                </option>
+                            </select>
                         </div>
                         <div class="form-col">
-                            <label class="form-label">Parent Task ID</label>
-                            <input
-                                v-model="newTaskForm.parentTaskId"
-                                type="text"
-                                class="task-input"
-                            />
+                            <label class="form-label">Parent Task</label>
+                            <select v-model="newTaskForm.parentTaskId" class="task-select">
+                                <option :value="null">No parent</option>
+                                <option v-for="pt in parentTaskOptions" :key="pt.id" :value="pt.id">
+                                    {{ pt.title }}
+                                </option>
+                            </select>
                         </div>
                     </div>
 
@@ -523,11 +574,20 @@ onMounted(() => {
                         <div class="date-chip">Start: {{ formatDateTime(task.startDate) }}</div>
                         <div class="date-chip">Due: {{ formatDateTime(task.dueDate) }}</div>
                         <!-- <div class="date-chip" v-if="task.userId">User ID: {{ task.userId }}</div> -->
-                        <div class="date-chip" v-if="task.projectId != null">
-                            Project ID: {{ task.projectId }}
+                    </div>
+
+                    <div class="relations-row">
+                        <div
+                            class="relation-chip"
+                            v-if="task.projectId && getProjectTitle(task.projectId)"
+                        >
+                            Project: {{ getProjectTitle(task.projectId) }}
                         </div>
-                        <div class="date-chip" v-if="task.parentTaskId != null">
-                            Parent ID: {{ task.parentTaskId }}
+                        <div
+                            class="relation-chip"
+                            v-if="task.parentTaskId && getParentTaskTitle(task.parentTaskId)"
+                        >
+                            Parent task: {{ getParentTaskTitle(task.parentTaskId) }}
                         </div>
                     </div>
 
@@ -1344,6 +1404,21 @@ onMounted(() => {
 .hour-chip {
     background: rgba(30, 136, 229, 0.12);
     color: #1e88e5;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.relations-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.relation-chip {
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
     padding: 4px 8px;
     border-radius: 8px;
     font-size: 12px;
