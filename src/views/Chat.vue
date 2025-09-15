@@ -86,6 +86,8 @@ export interface ApiMessage {
     content: string
     createdAt: string
     senderId: number
+    taskId?: number | null
+    calendarId?: number | null
 }
 
 interface MessagesResponse {
@@ -274,6 +276,8 @@ const formatChatMesssage = (message: ApiMessage): Message => ({
     isSent: userStore.user?.id === message.senderId,
     status: 'delivered',
     createdAt: message.createdAt,
+    taskId: message.taskId ?? undefined,
+    calendarId: message.calendarId ?? undefined,
     date: isToday(new Date(message.createdAt))
         ? 'Today'
         : formatMessageDate(String(message.createdAt)),
@@ -423,6 +427,8 @@ onMounted(() => {
                     isSent: false,
                     status: 'delivered',
                     createdAt: new Date().toISOString(),
+                    taskId: message.taskId ?? undefined,
+                    calendarId: message.calendarId ?? undefined,
                     date: isToday(new Date())
                         ? 'Today'
                         : formatMessageDate(new Date().toISOString()),

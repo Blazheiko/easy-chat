@@ -200,6 +200,9 @@ const toggleTheme = () => {
     --border-radius: 8px;
     --content-max-width: 800px;
     --header-height: 36px;
+    /* Цвета индикаторов: календарь и задачи */
+    --calendar-color: #ff3b30; /* оттенок красного, как в календаре */
+    --task-color: #4caf50; /* зеленый как в task manager */
 }
 
 :root.dark-theme {
@@ -209,6 +212,8 @@ const toggleTheme = () => {
     --text-color: #e0e0e0;
     --border-color: #424242;
     --box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    --calendar-color: #ff6b6b;
+    --task-color: #66bb6a;
 }
 
 * {

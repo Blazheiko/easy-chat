@@ -492,6 +492,10 @@ onUnmounted(() => {
                             'message',
                             message.isSent ? 'sent' : 'received',
                             { editable: isMessageOwner(message) },
+                            {
+                                'with-calendar': !!message.calendarId,
+                                'with-task': !!message.taskId,
+                            },
                         ]"
                         @contextmenu.prevent="
                             isMessageOwner(message)
@@ -1009,6 +1013,19 @@ onUnmounted(() => {
     line-height: 1.5;
     font-size: 15px;
     cursor: context-menu;
+}
+
+/* Акцентный фон по кругу для календаря/задачи */
+.message.with-calendar {
+    box-shadow:
+        0 0 0 3px var(--calendar-color),
+        0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.message.with-task {
+    box-shadow:
+        0 0 0 3px var(--task-color),
+        0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .message.sent {
@@ -2013,6 +2030,17 @@ onUnmounted(() => {
 
 .placeholder-button.primary:hover {
     background-color: var(--accent-color);
+}
+
+/* Темная тема для кнопки Add contact */
+.dark-theme .placeholder-button {
+    background: #2a2a2a;
+    color: #e0e0e0;
+    border-color: #444;
+}
+
+.dark-theme .placeholder-button:hover {
+    background-color: #333;
 }
 
 /* Показывать кнопку открытия контактов только на мобильных */

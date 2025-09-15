@@ -17,6 +17,10 @@ export interface Message {
     isSent: boolean
     status?: 'sent' | 'delivered' | 'read'
     date?: string
+    // Идентификатор календарного события, если сообщение связано с календарём
+    calendarId?: number
+    // Идентификатор задачи, если сообщение связано с задачей
+    taskId?: number
     createdAt: string
 }
 
