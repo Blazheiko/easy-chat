@@ -265,7 +265,9 @@ const loadTasks = async () => {
     isLoading.value = true
     error.value = null
     try {
-        tasks.value = await tasksApi.getTasks()
+        const { tasks: tasksData, projects: projectsData } = await tasksApi.getTasks()
+        tasks.value = tasksData
+        projects.value = projectsData
         console.log('Loaded tasks:', tasks.value)
     } catch (e) {
         error.value = 'Failed to load tasks'
@@ -275,14 +277,14 @@ const loadTasks = async () => {
     }
 }
 
-const loadProjects = async () => {
-    try {
-        const list = await projectsApi.getProjects()
-        projects.value = list
-    } catch (e) {
-        console.error('Failed to load projects', e)
-    }
-}
+// const loadProjects = async () => {
+//     try {
+//         const list = await projectsApi.getProjects()
+//         projects.value = list
+//     } catch (e) {
+//         console.error('Failed to load projects', e)
+//     }
+// }
 
 const submitButtonText = computed(() => {
     return editingTaskId.value ? 'Update' : 'Create'
@@ -317,7 +319,7 @@ const resetForm = () => {
 
 onMounted(() => {
     loadTasks()
-    loadProjects()
+    // loadProjects()
 })
 </script>
 

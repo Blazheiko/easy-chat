@@ -1,4 +1,5 @@
 import api from './api'
+import type { Project } from './projects-api'
 
 export interface Task {
     id: string
@@ -117,41 +118,43 @@ const transformTaskDates = (task: Record<string, unknown>): Task => {
         transformedTask.id = String(transformedTask.id)
     }
 
-    return transformedTask as Task
+    return transformedTask as unknown as Task
 }
 
 export const tasksApi = {
     // Get all tasks
-    async getTasks(): Promise<Task[]> {
+    async getTasks(): Promise<{tasks: Task[], projects: Project[]}> {
         try {
             const response = await api.http<TasksResponse>('GET', '/api/tasks')
             console.log('Tasks API response:', response)
 
             if (response.error || !response.data) {
                 console.error('Error loading tasks:', response.error)
-                return []
+                return {tasks: [], projects: []}
             }
 
-            if (response.data?.tasks) {
-                console.log('Raw tasks from server:', response.data.tasks)
-                return response.data.tasks.map((t: unknown) =>
-                    transformTaskDates(t as Record<string, unknown>),
-                )
-            }
+            return response.data as {tasks: Task[], projects: Project[]}
+
+            // if (response.data?.tasks) {
+            //     console.log('Raw tasks from server:', response.data.tasks)
+            //     return response.data.tasks.map((t: unknown) =>
+            //         transformTaskDates(t as Record<string, unknown>),
+            //     )
+            // }
 
             // Check if response data is directly an array of tasks
-            if (Array.isArray(response.data)) {
-                console.log('Direct array of tasks from server:', response.data)
-                return response.data.map((t: unknown) =>
-                    transformTaskDates(t as Record<string, unknown>),
-                )
-            }
+            // if (Array.isArray(response.data)) {
+            //     console.log('Direct array of tasks from server:', response.data)
+            //     return response.data.map((t: unknown) =>
+            //         transformTaskDates(t as Record<string, unknown>),
+            //     )
+            // }
 
-            console.log('No tasks found in response:', response.data)
-            return []
+            // console.log('No tasks found in response:', response.data)
+            // return []
         } catch (error) {
             console.error('Failed to load tasks:', error)
-            return []
+            return {tasks: [], projects: []}
         }
     },
 
