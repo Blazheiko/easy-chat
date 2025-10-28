@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import api from '@/utils/api'
+import baseApi from '@/utils/base-api'
 import { useEventBus } from '@/utils/event-bus'
 
 const router = useRouter()
@@ -84,7 +84,7 @@ const goToProjects = () => {
 
 // Выход из аккаунта
 const logout = async () => {
-    const { error, data } = await api.http('POST', '/api/auth/logout')
+    const { error, data } = await baseApi.http('POST', '/api/auth/logout')
     if (error) {
         console.error(error)
     } else {

@@ -8,7 +8,7 @@ import { useRouter, useRoute } from 'vue-router'
 import type { User } from '@/stores/user'
 import { useContactsStore } from '@/stores/contacts'
 import { useMessagesStore } from '@/stores/messages'
-import api from '@/utils/api'
+import baseApi from '@/utils/base-api'
 import WebsocketBase from '@/utils/websocket-base'
 import type { WebsocketMessage } from '@/utils/websocket-base'
 import { useEventBus } from '@/utils/event-bus'
@@ -84,7 +84,7 @@ onBeforeUnmount(() => {
 const onReauthorize = async () => {
     console.error('onReauthorize')
     websocketBase?.destroy()
-    api.setWebSocketClient(null)
+    baseApi.setWebSocketClient(null)
     userStore.clearUser()
     router.push('/')
     // setTimeout(async () => {
@@ -117,7 +117,7 @@ const eventHandler = {
     },
     change_online: (event: WebsocketMessage) => {
         console.log('change_online', event.payload)
-        contactsStore.updateContactById(Number(event.payload.userId), {
+        contactsStore.updateContactById(String(event.payload.userId), {
             isOnline: event.payload.status === 'online',
         })
         // eventBus.emit('change_online', event.payload as { userId: number; status: string })
@@ -138,7 +138,7 @@ let websocketBase: WebsocketBase | null = null
 
 const initializeApp = async () => {
     try {
-        const { data, error } = await api.http('GET', '/api/main/init')
+        const { data, error } = await baseApi.http('GET', '/api/main/init')
         console.log(data)
 
         if (error) {
@@ -153,7 +153,7 @@ const initializeApp = async () => {
             websocketBase = new WebsocketBase(data.wsUrl as string, {
                 callbacks: { onReauthorize, onBroadcast },
             })
-            api.setWebSocketClient(websocketBase)
+            baseApi.setWebSocketClient(websocketBase)
         } else if (data && data.status === 'unauthorized' && route.name !== 'JoinChat') {
             userStore.setUser(null as unknown as User)
             router.push({ name: 'Login' })

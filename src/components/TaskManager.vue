@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive, computed, nextTick } from 'vue'
 import { tasksApi, type Task, type CreateTaskRequest } from '@/utils/tasks-api'
-import { projectsApi, type Project } from '@/utils/projects-api'
+import { type Project } from '@/utils/projects-api'
 
 const STATUSES: Task['status'][] = ['TODO', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED']
 const PRIORITIES: Task['priority'][] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']

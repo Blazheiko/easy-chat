@@ -1,4 +1,4 @@
-import api from './api'
+import baseApi from './base-api'
 import type { Project } from './projects-api'
 
 export interface Task {
@@ -125,7 +125,7 @@ export const tasksApi = {
     // Get all tasks
     async getTasks(): Promise<{tasks: Task[], projects: Project[]}> {
         try {
-            const response = await api.http<TasksResponse>('GET', '/api/tasks')
+            const response = await baseApi.http<TasksResponse>('GET', '/api/tasks')
             console.log('Tasks API response:', response)
 
             if (response.error || !response.data) {
@@ -161,7 +161,7 @@ export const tasksApi = {
     // Get specific task
     async getTask(taskId: number): Promise<Task | null> {
         try {
-            const response = await api.http<Record<string, unknown>>('GET', `/api/tasks/${taskId}`)
+            const response = await baseApi.http<Record<string, unknown>>('GET', `/api/tasks/${taskId}`)
 
             if (response.error || !response.data) {
                 console.error('Error loading task:', response.error)
@@ -180,7 +180,7 @@ export const tasksApi = {
     // Create new task
     async createTask(taskData: CreateTaskRequest): Promise<Task | null> {
         try {
-            const response = await api.http<Record<string, unknown>>('POST', '/api/tasks', taskData)
+            const response = await baseApi.http<Record<string, unknown>>('POST', '/api/tasks', taskData)
 
             if (response.error) {
                 console.error('Error creating task:', response.error)
@@ -202,7 +202,7 @@ export const tasksApi = {
     // Update task
     async updateTask(taskId: number, taskData: UpdateTaskRequest): Promise<Task | null> {
         try {
-            const response = await api.http<Record<string, unknown>>(
+            const response = await baseApi.http<Record<string, unknown>>(
                 'PUT',
                 `/api/tasks/${taskId}`,
                 taskData,
@@ -225,7 +225,7 @@ export const tasksApi = {
     // Delete task
     async deleteTask(taskId: number): Promise<boolean> {
         try {
-            const response = await api.http<Record<string, unknown>>(
+            const response = await baseApi.http<Record<string, unknown>>(
                 'DELETE',
                 `/api/tasks/${taskId}`,
             )
@@ -245,7 +245,7 @@ export const tasksApi = {
     // Update task status
     async updateTaskStatus(taskId: number, status: Task['status']): Promise<Task | null> {
         try {
-            const response = await api.http<Record<string, unknown>>(
+            const response = await baseApi.http<Record<string, unknown>>(
                 'PUT',
                 `/api/tasks/${taskId}/status`,
                 { status },
@@ -268,7 +268,7 @@ export const tasksApi = {
     // Update task progress
     async updateTaskProgress(taskId: number, progress: number): Promise<Task | null> {
         try {
-            const response = await api.http<Record<string, unknown>>(
+            const response = await baseApi.http<Record<string, unknown>>(
                 'PUT',
                 `/api/tasks/${taskId}/progress`,
                 { progress },
@@ -291,7 +291,7 @@ export const tasksApi = {
     // Get tasks by project
     async getTasksByProject(projectId: number): Promise<Task[]> {
         try {
-            const response = await api.http<TasksResponse>('GET', `/api/tasks/project/${projectId}`)
+            const response = await baseApi.http<TasksResponse>('GET', `/api/tasks/project/${projectId}`)
 
             if (response.error || !response.data) {
                 console.error('Error loading tasks by project:', response.error)
@@ -320,7 +320,7 @@ export const tasksApi = {
     // Get subtasks
     async getSubTasks(parentTaskId: number): Promise<Task[]> {
         try {
-            const response = await api.http<TasksResponse>(
+            const response = await baseApi.http<TasksResponse>(
                 'GET',
                 `/api/tasks/${parentTaskId}/subtasks`,
             )

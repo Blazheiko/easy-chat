@@ -21,7 +21,7 @@ import ProjectsView from '@/views/Projects.vue'
 import LoaderOverlay from '@/components/LoaderOverlay.vue'
 import ConnectionStatus from '@/components/ConnectionStatus.vue'
 import formatMessageDate from '@/utils/formatMessageDate'
-import api from '@/utils/api'
+import baseApi from '@/utils/base-api'
 import { useMessagesStore, type Message } from '@/stores/messages'
 import type { Contact } from '@/stores/contacts'
 import { useEventBus } from '@/utils/event-bus'
@@ -176,7 +176,7 @@ const handleConnectionRetry = () => {
 }
 
 const initChatData = async () => {
-    const { error, data } = await api.http<ApiInitialResponse>(
+    const { error, data } = await baseApi.http<ApiInitialResponse>(
         'POST',
         '/api/chat/get-contact-list',
         {
@@ -295,7 +295,7 @@ const sendMessage = async (newMessage: string) => {
 
         console.log('selectedContact', selectedContact.value)
         const contactId = selectedContact.value.contactId
-        const { error, data } = await api.http('POST', '/api/chat/send-chat-messages', {
+        const { error, data } = await baseApi.http('POST', '/api/chat/send-chat-messages', {
             contactId,
             content: newMessage,
             userId: userStore.user?.id,
@@ -342,7 +342,7 @@ const selectContact = async (contact: Contact) => {
     contactsStore.setActiveContact(contact)
     localStorage.setItem('current_contact_id', selectedContact.value.contactId.toString())
     messagesStore.resetMessages()
-    const { error, data } = await api.http<MessagesResponse>('POST', '/api/chat/get-messages', {
+    const { error, data } = await baseApi.http<MessagesResponse>('POST', '/api/chat/get-messages', {
         contactId: selectedContact.value.contactId,
         userId: userStore.user?.id,
     })
@@ -412,7 +412,7 @@ onMounted(() => {
         console.log('event new_message', payload)
         const message: ApiMessage = payload.message as ApiMessage
         if (message?.senderId) {
-            contactsStore.updateContactById(Number(message.senderId), {
+            contactsStore.updateContactById(String(message.senderId), {
                 lastMessage: message.content,
             })
             if (selectedContact.value && message.senderId === selectedContact.value.contactId) {
@@ -443,7 +443,7 @@ onMounted(() => {
                 // Воспроизводим звук при получении нового сообщения в неактивный чат
                 playNotificationSound()
                 contactsStore.incrementUnreadCount(message.senderId)
-                contactsStore.updateContactById(Number(message.senderId), {
+                contactsStore.updateContactById(String(message.senderId), {
                     isOnline: true,
                     lastMessage: message.content,
                     lastMessageTime: formatMessageDate(String(message.createdAt)),
@@ -481,7 +481,7 @@ onMounted(() => {
 const eventTyping = async () => {
     console.log('eventTyping')
     if (selectedContact.value) {
-        const res = await api.ws('event_typing', {
+        const res = await baseApi.ws('event_typing', {
             userId: userStore.user?.id,
             contactId: selectedContact.value?.contactId,
         })

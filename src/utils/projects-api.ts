@@ -1,4 +1,4 @@
-import api from './api'
+import baseApi from './base-api'
 
 export interface Project {
     id: string
@@ -74,7 +74,7 @@ export const projectsApi = {
     // Get all projects
     async getProjects(): Promise<Project[]> {
         try {
-            const response = await api.http<ProjectsResponse>('GET', '/api/projects')
+            const response = await baseApi.http<ProjectsResponse>('GET', '/api/projects')
             console.log(response)
 
             if (response.error || !response.data) {
@@ -108,7 +108,7 @@ export const projectsApi = {
     // Get specific project
     async getProject(projectId: number): Promise<Project | null> {
         try {
-            const response = await api.http<Record<string, unknown>>(
+            const response = await baseApi.http<Record<string, unknown>>(
                 'GET',
                 `/api/projects/${projectId}`,
             )
@@ -133,7 +133,7 @@ export const projectsApi = {
     // Create new project
     async createProject(projectData: CreateProjectRequest): Promise<Project | null> {
         try {
-            const response = await api.http<Record<string, unknown>>(
+            const response = await baseApi.http<Record<string, unknown>>(
                 'POST',
                 '/api/projects/create',
                 projectData,
@@ -164,7 +164,7 @@ export const projectsApi = {
         projectData: UpdateProjectRequest,
     ): Promise<Project | null> {
         try {
-            const response = await api.http<Record<string, unknown>>(
+            const response = await baseApi.http<Record<string, unknown>>(
                 'PUT',
                 `/api/projects/${projectId}`,
                 projectData,
@@ -190,7 +190,7 @@ export const projectsApi = {
     // Delete project
     async deleteProject(projectId: number): Promise<boolean> {
         try {
-            const response = await api.http('DELETE', `/api/projects/${projectId}`)
+            const response = await baseApi.http('DELETE', `/api/projects/${projectId}`)
 
             if (response.error) {
                 console.error('Error deleting project:', response.error)

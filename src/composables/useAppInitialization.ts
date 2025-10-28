@@ -1,17 +1,12 @@
-import api from '@/utils/api'
+import baseApi from '@/utils/base-api'
 import WebsocketBase from '@/utils/websocket-base'
 
-/**
- * Композабл для инициализации данных приложения
- * Выполняет запрос на бэкенд для получения начальных данных
- */
+
 export function useAppInitialization() {
-    /**
-     * Инициализирует данные приложения при загрузке
-     */
+
     async function initializeApp() {
         try {
-            const { data, error } = await api.http('GET', '/api/main/init')
+            const { data, error } = await baseApi.http('GET', '/api/main/init')
             console.log(data)
 
             if (error ) {
@@ -22,14 +17,14 @@ export function useAppInitialization() {
                     callbacks: {
                         onReauthorize: async () => {
                             console.error('onReauthorize')
-                            api.setWebSocketClient(null)
+                            baseApi.setWebSocketClient(null)
                             setTimeout(async () => {
                                 await initializeApp()
                             }, 1000)
                         },
                     },
                 })
-                api.setWebSocketClient(websocketBase)
+                baseApi.setWebSocketClient(websocketBase)
                 return data
             } else if (data && data.status === 'unauthorized') {
                 return null

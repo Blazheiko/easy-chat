@@ -1,17 +1,11 @@
-import WebsocketBase from './websocket-base'
-import { useEventBus } from './event-bus'
+import baseApi from './base-api'
 
-interface HttpResponse {
-    [key: string]: unknown
-}
-
-// Обновленный интерфейс с правильной типизацией ответа
 interface ApiResponse<T> {
-    data: T | null
-    error: { message: string; code: number } | null
+  data: T | null
+  error: { message: string; code: number } | null
 }
 
-// Интерфейсы для Push Subscriptions
+// Interfaces for Push Subscriptions
 interface PushSubscriptionData extends Record<string, unknown> {
     endpoint: string
     p256dhKey: string
@@ -48,147 +42,33 @@ interface PushSubscriptionStatistics {
     subscription_duration: number
 }
 
-// Интерфейс для ответа при обновлении сообщения
 interface UpdateMessageResponse {
     status: string
     message?: {
-      id: number
-      sender_id: number
-      receiver_id: number
-      type: string
-      content: string
-      src: string
-      is_read: boolean
-      created_at: string
-      updated_at: string
+        id: number
+        sender_id: number
+        receiver_id: number
+        type: string
+        content: string
+        src: string
+        is_read: boolean
+        created_at: string
+        updated_at: string
     }
 }
 
-interface ApiMethods {
-    http: <T = HttpResponse>(
-        method: string,
-        route: string,
-        body?: Record<string, unknown>,
-    ) => Promise<ApiResponse<T>>
-    ws: <T = HttpResponse>(route: string, body?: Record<string, unknown>) => Promise<T | null>
-    setWebSocketClient: (client: WebsocketBase | null) => void
-}
-
-type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | string
-
-interface RequestInit {
-    method: HttpMethod
-    headers: Record<string, string>
-    body?: string
-}
-const BASE_URL = 'http://127.0.0.1:5174'
-let webSocketClient: WebsocketBase | null = null
-const eventBus = useEventBus()
-
-const api: ApiMethods = {
-    http: async <T = HttpResponse>(
-        method: HttpMethod,
-        route: string,
-        body: Record<string, unknown> = {},
-    ): Promise<ApiResponse<T>> => {
-        // const BASE_URL = baseUrl
-        const init: RequestInit = {
-            method,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        }
-
-        if (method.toLowerCase() !== 'get' && method.toLowerCase() !== 'delete') {
-            init.body = JSON.stringify(body)
-        }
-
-        try {
-            const response = await fetch(`${BASE_URL}${route}`, init)
-
-            if (!response.ok && response.status === 422) {
-                console.log('!response.ok && response.status === 422')
-                const errorData = await response.json()
-                console.log({ errorData })
-                return {
-                    data: errorData,
-                    error: { code: 422, message: String(errorData.message || 'Validation Error') },
-                }
-            }
-
-            if (!response.ok) {
-                console.log('!response.ok')
-                if (response.status === 401) {
-                    eventBus.emit('unauthorized')
-                    return {
-                        data: null,
-                        error: { code: 401, message: 'Unauthorized' },
-                    }
-                }
-                return {
-                    data: null,
-                    error: {
-                        code: response.status,
-                        message: `HTTP error! status: ${response.status}`,
-                    },
-                }
-            }
-
-            const data = await response.json()
-            console.log({ data })
-            return { data: data as T, error: null }
-        } catch (error: unknown) {
-            console.error('Network error:', error)
-            return {
-                data: null,
-                error: {
-                    code: 0,
-                    message:
-                        error instanceof Error
-                            ? error.message
-                            : 'Network error. Please try again later.',
-                },
-            }
-        }
-    },
-
-    setWebSocketClient: (client: WebsocketBase | null) => {
-        webSocketClient = client
-    },
-
-    ws: async <T = HttpResponse>(
-        route: string,
-        body: Record<string, unknown> = {},
-    ): Promise<T | null> => {
-        if (!webSocketClient) return null
-
-        try {
-            // console.log('webSocketClient')
-            // console.log(webSocketClient)
-            const result = await webSocketClient.api(route, body)
-            console.log({ result })
-            return result as unknown as T
-        } catch (e) {
-            console.error(e)
-            return null
-        }
-    },
-}
-
-// API функции для сообщений
 export const messagesApi = {
-    // Удалить сообщение
     deleteMessage: async (messageId: number): Promise<ApiResponse<{ success: boolean }>> => {
-        return api.http<{ success: boolean }>('DELETE', `/api/chat/messages/${messageId}`)
+        return baseApi.http<{ success: boolean }>('DELETE', `/api/chat/messages/${messageId}`)
     },
 
-    // Редактировать сообщение
+    // Edit message
     updateMessage: async (
         messageId: number,
         content: string,
         userId: number,
     ): Promise<ApiResponse<UpdateMessageResponse>> => {
-        return api.http<UpdateMessageResponse>('PUT', `/api/chat/messages/${messageId}`, {
+        return baseApi.http<UpdateMessageResponse>('PUT', `/api/chat/messages/${messageId}`, {
             userId,
             messageId,
             content,
@@ -196,102 +76,105 @@ export const messagesApi = {
     },
 }
 
-// API функции для Push Subscriptions
+// API functions for Push Subscriptions
 export const pushSubscriptionApi = {
-    // Получить все подписки пользователя
+    // Get all user subscriptions
     getSubscriptions: async (): Promise<ApiResponse<PushSubscriptionResponse[]>> => {
-        return api.http<PushSubscriptionResponse[]>('GET', '/api/push-subscriptions')
+        return baseApi.http<PushSubscriptionResponse[]>('GET', '/api/push-subscriptions')
     },
 
-    // Создать новую подписку
+    // Create a new subscription
     createSubscription: async (
         subscriptionData: PushSubscriptionData,
     ): Promise<ApiResponse<PushSubscriptionResponse>> => {
-        return api.http<PushSubscriptionResponse>(
+        return baseApi.http<PushSubscriptionResponse>(
             'POST',
             '/api/push-subscriptions',
             subscriptionData,
         )
     },
 
-    // Получить конкретную подписку
+    // Get a specific subscription
     getSubscription: async (
         subscriptionId: number,
     ): Promise<ApiResponse<PushSubscriptionResponse>> => {
-        return api.http<PushSubscriptionResponse>(
+        return baseApi.http<PushSubscriptionResponse>(
             'GET',
             `/api/push-subscriptions/${subscriptionId}`,
         )
     },
 
-    // Удалить подписку
+    // Delete a subscription
     deleteSubscription: async (
         subscriptionId: number,
     ): Promise<ApiResponse<{ success: boolean }>> => {
-        return api.http<{ success: boolean }>('DELETE', `/api/push-subscriptions/${subscriptionId}`)
+        return baseApi.http<{ success: boolean }>(
+            'DELETE',
+            `/api/push-subscriptions/${subscriptionId}`,
+        )
     },
 
-    // Удалить подписку по endpoint
+    // Delete a subscription by endpoint
     deleteSubscriptionByEndpoint: async (
         endpoint: string,
     ): Promise<ApiResponse<{ success: boolean }>> => {
-        return api.http<{ success: boolean }>('DELETE', '/api/push-subscriptions', { endpoint })
+        return baseApi.http<{ success: boolean }>('DELETE', '/api/push-subscriptions', { endpoint })
     },
 
-    // Получить статистику подписки
+    // Get subscription statistics
     getSubscriptionStatistics: async (
         subscriptionId: number,
     ): Promise<ApiResponse<PushSubscriptionStatistics>> => {
-        return api.http<PushSubscriptionStatistics>(
+        return baseApi.http<PushSubscriptionStatistics>(
             'GET',
             `/api/push-subscriptions/${subscriptionId}/statistics`,
         )
     },
 
-    // Деактивировать подписку
+    // Deactivate a subscription
     deactivateSubscription: async (
         subscriptionId: number,
     ): Promise<ApiResponse<PushSubscriptionResponse>> => {
-        return api.http<PushSubscriptionResponse>(
+        return baseApi.http<PushSubscriptionResponse>(
             'PUT',
             `/api/push-subscriptions/${subscriptionId}/deactivate`,
         )
     },
 
-    // Отправить уведомление о статусе подписки
+    // Send a subscription status notification
     sendSubscriptionNotification: async (
         notificationData: Record<string, unknown>,
     ): Promise<ApiResponse<{ success: boolean; message: string }>> => {
-        return api.http<{ success: boolean; message: string }>(
+        return baseApi.http<{ success: boolean; message: string }>(
             'POST',
             '/api/notifications/subscription-status',
             notificationData,
         )
     },
 
-    // Отправить системное уведомление админам
+    // Send a system notification to admins
     sendSystemNotification: async (
         message: string,
         type: string = 'info',
         metadata?: Record<string, unknown>,
     ): Promise<ApiResponse<{ success: boolean }>> => {
-        return api.http<{ success: boolean }>('POST', '/api/notifications/system', {
+        return baseApi.http<{ success: boolean }>('POST', '/api/notifications/system', {
             message,
             type,
             metadata,
         })
     },
 
-    // Получить VAPID публичный ключ с сервера
+    // Get VAPID public key from the server
     getVapidPublicKey: async (): Promise<ApiResponse<{ vapidPublicKey: string }>> => {
-        return api.http<{ vapidPublicKey: string }>(
+        return baseApi.http<{ vapidPublicKey: string }>(
             'GET',
             '/api/push-subscriptions/vapid-public-key',
         )
     },
 }
 
-// // Создание экземпляра API
+// // Create an API instance
 // const api = createApi('http://127.0.0.1:8088', new WebsocketBase('ws://127.0.0.1:8088'))
 
-export default api
+// export default baseApi

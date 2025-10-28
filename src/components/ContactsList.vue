@@ -4,7 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useContactsStore } from '@/stores/contacts'
 import { useUserStore } from '@/stores/user'
 import type { Contact } from '@/stores/contacts'
-import api from '@/utils/api'
+import baseApi from '@/utils/base-api'
 // import { TransitionGroup } from 'vue'
 
 const contactsStore = useContactsStore()
@@ -176,7 +176,7 @@ const deleteContact = () => {
 
 const generateShareLink = async () => {
     // Генерируем уникальный идентификатор для ссылки
-    const { error, data } = await api.http('POST', '/api/chat/invitations', {
+    const { error, data } = await baseApi.http('POST', '/api/chat/invitations', {
         name: newContact.value.name,
         userId: userStore.user?.id,
     })

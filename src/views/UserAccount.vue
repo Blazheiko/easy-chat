@@ -117,7 +117,6 @@ const togglePushNotifications = async () => {
 
                 // Отправляем уведомление на сервер об отключении push-уведомлений
                 try {
-
                     if (subscriptionId) {
                         await pushSubscriptionApi.deleteSubscription(subscriptionId)
                     }
@@ -138,6 +137,17 @@ const togglePushNotifications = async () => {
         // Возвращаем предыдущее состояние в случае ошибки
         pushNotificationsEnabled.value = !pushNotificationsEnabled.value
     }
+}
+
+// Вспомогательная функция для конвертации ArrayBuffer в Base64
+const arrayBufferToBase64 = (buffer: ArrayBuffer | null): string => {
+    if (!buffer) return ''
+    const bytes = new Uint8Array(buffer)
+    let binary = ''
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i])
+    }
+    return window.btoa(binary)
 }
 
 // Вспомогательные функции для определения устройства и браузера
