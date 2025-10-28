@@ -86,7 +86,10 @@ const onReauthorize = async () => {
     websocketBase?.destroy()
     api.setWebSocketClient(null)
     userStore.clearUser()
-    await initializeApp()
+    router.push('/')
+    // setTimeout(async () => {
+    //     await initializeApp()
+    // }, 1000)
 }
 
 // interface UserOnlineData {
@@ -135,7 +138,7 @@ let websocketBase: WebsocketBase | null = null
 
 const initializeApp = async () => {
     try {
-        const { data, error } = await api.http('GET', '/api/init')
+        const { data, error } = await api.http('GET', '/api/main/init')
         console.log(data)
 
         if (error) {

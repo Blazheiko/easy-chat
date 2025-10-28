@@ -34,5 +34,6 @@ alwaysApply: true
       - Use Nuxt UI and Tailwind CSS for components and styling.
       - Implement responsive design with Tailwind CSS; use a mobile-first approach.
 
-      отвечай мне на русском языке
+      All comments in code and .md documents must be written in English.
+
       

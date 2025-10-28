@@ -339,6 +339,7 @@ class WebsocketBase {
         try {
             this.destroy()
             if (this.callbacks?.onReauthorize) {
+                console.error('handleReauthorize callback')
                 await this.callbacks.onReauthorize()
             }
         } catch (error) {

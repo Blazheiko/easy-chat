@@ -11,7 +11,7 @@ export function useAppInitialization() {
      */
     async function initializeApp() {
         try {
-            const { data, error } = await api.http('GET', '/api/init')
+            const { data, error } = await api.http('GET', '/api/main/init')
             console.log(data)
 
             if (error ) {
@@ -23,7 +23,9 @@ export function useAppInitialization() {
                         onReauthorize: async () => {
                             console.error('onReauthorize')
                             api.setWebSocketClient(null)
-                            await initializeApp()
+                            setTimeout(async () => {
+                                await initializeApp()
+                            }, 1000)
                         },
                     },
                 })
