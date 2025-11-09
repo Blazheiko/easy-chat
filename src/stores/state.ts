@@ -1,6 +1,12 @@
-import { ref, watch } from 'vue'
+import { ref, watch, reactive } from 'vue'
 import { defineStore } from 'pinia'
 import { pushSubscriptionApi } from '@/utils/api'
+
+export interface IncomingCall {
+    callerId: string | number
+    callerName: string
+    callType: 'video' | 'audio'
+}
 
 export const useStateStore = defineStore('state', () => {
     const theme = localStorage.getItem('theme')
@@ -17,6 +23,19 @@ export const useStateStore = defineStore('state', () => {
     const isSubscribedToPush = ref(false)
     const pushSubscriptionId = ref<number | null>(null)
     // const doubleCount = computed(() => count.value * 2)
+
+    // Incoming call state
+    const incomingCall = reactive<{
+        isActive: boolean
+        callerId: string | number | null
+        callerName: string
+        callType: 'video' | 'audio' | null
+    }>({
+        isActive: false,
+        callerId: null,
+        callerName: '',
+        callType: null,
+    })
 
     const handleResize = () => {
         windowWidth.value = window.innerWidth
@@ -489,6 +508,21 @@ export const useStateStore = defineStore('state', () => {
     // Отслеживаем изменения темы
     watch(darkMode, applyTheme)
 
+    // Функции для управления входящим звонком
+    const setIncomingCall = (call: IncomingCall) => {
+        incomingCall.isActive = true
+        incomingCall.callerId = call.callerId
+        incomingCall.callerName = call.callerName
+        incomingCall.callType = call.callType
+    }
+
+    const clearIncomingCall = () => {
+        incomingCall.isActive = false
+        incomingCall.callerId = null
+        incomingCall.callerName = ''
+        incomingCall.callType = null
+    }
+
     return {
         darkMode,
         setDarkMode,
@@ -505,5 +539,9 @@ export const useStateStore = defineStore('state', () => {
         subscribeToPush,
         unsubscribeFromPush,
         loadUserSubscriptions,
+        // Incoming call
+        incomingCall,
+        setIncomingCall,
+        clearIncomingCall,
     }
 })

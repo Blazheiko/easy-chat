@@ -36,6 +36,7 @@ const emit = defineEmits([
     'event-typing',
     'toggle-notifications',
     'open-add-contact',
+    'start-call',
 ])
 type CallType = 'video' | 'audio' | null
 
@@ -140,6 +141,7 @@ const startVideoCall = async () => {
             if (localVideoRef.value) {
                 localVideoRef.value.srcObject = stream
             }
+            emit('start-call')
 
             // Имитация подключения собеседника (в реальном приложении здесь будет WebRTC логика)
             if (remoteVideoRef.value) {
@@ -702,8 +704,10 @@ onUnmounted(() => {
 
                 <div class="call-body">
                     <div class="user-avatar" v-if="activeCallType === 'audio'">
-                        <div class="avatar-circle">JS</div>
-                        <div class="call-status">John Smith</div>
+                        <div class="avatar-circle">
+                            {{ selectedContact?.name?.substring(0, 2).toUpperCase() || 'JS' }}
+                        </div>
+                        <div class="call-status">{{ selectedContact?.name || 'Unknown' }}</div>
                     </div>
 
                     <div class="video-container" v-if="activeCallType === 'video'">
@@ -715,9 +719,9 @@ onUnmounted(() => {
                                 class="video-player remote"
                             ></video>
                             <div class="avatar-circle large" v-if="!remoteVideoRef?.srcObject">
-                                JS
+                                {{ selectedContact?.name?.substring(0, 2).toUpperCase() || 'JS' }}
                             </div>
-                            <div class="call-status">John Smith</div>
+                            <div class="call-status">{{ selectedContact?.name || 'Unknown' }}</div>
                         </div>
                         <div class="local-video">
                             <video

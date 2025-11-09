@@ -92,6 +92,10 @@ export const useContactsStore = defineStore('contacts', () => {
         contacts.value = []
     }
 
+    function getContactById(contactId: string): Contact | undefined {
+        return contacts.value.find((contact) => String(contact.contactId) === String(contactId))
+    }
+
     return {
         contacts,
         setActiveContact,
@@ -102,6 +106,7 @@ export const useContactsStore = defineStore('contacts', () => {
         resetContacts,
         incrementUnreadCount,
         resetUnreadCount,
-        updateContactById
+        updateContactById,
+        getContactById,
     }
 })

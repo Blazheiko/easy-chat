@@ -489,6 +489,18 @@ const eventTyping = async () => {
     }
 }
 
+const startCall = async () => {
+    console.log('startCall')
+    if (selectedContact.value) {
+        const result = await baseApi.ws('main/incoming_call', {
+          userId: userStore.user?.id,
+          contactId: selectedContact.value?.contactId,
+          callType: 'video',
+          callerName: userStore.user?.name,
+        })
+        console.log('startCall result', result)
+    }
+}
 // Отписываемся от событий при размонтировании
 onBeforeUnmount(() => {
     document.removeEventListener('click', closeMenuOnClickOutside)
@@ -558,6 +570,7 @@ onBeforeUnmount(() => {
                     @logout="logout"
                     @send-message="sendMessage"
                     @event-typing="eventTyping"
+                    @start-call="startCall"
                     @toggle-notifications="toggleNotifications"
                 />
             </div>

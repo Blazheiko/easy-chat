@@ -14,6 +14,7 @@ import type { WebsocketMessage } from '@/utils/websocket-base'
 import { useEventBus } from '@/utils/event-bus'
 import type { ApiMessage } from '@/views/Chat.vue'
 import AppHeader from '@/components/AppHeader.vue'
+import IncomingCallModal from '@/components/IncomingCallModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -122,6 +123,23 @@ const eventHandler = {
         })
         // eventBus.emit('change_online', event.payload as { userId: number; status: string })
     },
+    incoming_call: (event: WebsocketMessage) => {
+        console.log('incoming_call', event.payload)
+        const payload = event.payload as {
+            callerId: string | number
+            callerName: string
+            callType: 'video' | 'audio'
+        }
+
+        // Находим контакт в списке для получения имени
+        const contact = contactsStore.getContactById(String(payload.callerId))
+
+        stateStore.setIncomingCall({
+            callerId: payload.callerId,
+            callerName: contact?.name || payload.callerName || 'Unknown',
+            callType: payload.callType || 'audio',
+        })
+    },
 }
 const onBroadcast = async (data: WebsocketMessage) => {
     console.log('onBroadcast')
@@ -167,6 +185,31 @@ const initializeApp = async () => {
 const toggleTheme = () => {
     stateStore.setDarkMode(!stateStore.darkMode)
 }
+
+// Обработка входящего звонка
+const handleAcceptCall = () => {
+    console.log('Call accepted:', stateStore.incomingCall)
+    // TODO: Интегрировать с WebRTC логикой для начала звонка
+    // Здесь можно отправить WebSocket сообщение о принятии звонка
+    if (stateStore.incomingCall.callerId) {
+        baseApi.ws('main/accept_call', {
+            callerId: stateStore.incomingCall.callerId,
+            callType: stateStore.incomingCall.callType,
+        })
+    }
+    stateStore.clearIncomingCall()
+}
+
+const handleDeclineCall = () => {
+    console.log('Call declined:', stateStore.incomingCall)
+    // Отправляем WebSocket сообщение об отклонении звонка
+    if (stateStore.incomingCall.callerId) {
+        baseApi.ws('main/decline_call', {
+            callerId: stateStore.incomingCall.callerId,
+        })
+    }
+    stateStore.clearIncomingCall()
+}
 </script>
 
 <template>
@@ -189,6 +232,16 @@ const toggleTheme = () => {
             </div>
             <router-view />
         </template>
+
+        <!-- Глобальное модальное окно для входящих звонков -->
+        <IncomingCallModal
+            v-if="stateStore.incomingCall.isActive"
+            :caller-name="stateStore.incomingCall.callerName"
+            :caller-id="stateStore.incomingCall.callerId!"
+            :call-type="stateStore.incomingCall.callType!"
+            @accept="handleAcceptCall"
+            @decline="handleDeclineCall"
+        />
     </div>
 </template>
 
