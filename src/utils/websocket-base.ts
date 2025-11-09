@@ -126,7 +126,7 @@ class WebsocketBase {
 
         this.wsConnection.ws.onmessage = (message: MessageEvent): void => {
             try {
-                // console.log('onmessage: ', message.data)
+                console.log('onmessage: ', message.data)
                 const data: WebsocketMessage = JSON.parse(message.data as string)
                 if (!this.validateMessage(data)) {
                     console.error('Invalid message format:', data)
@@ -139,7 +139,7 @@ class WebsocketBase {
                     this.handleBroadcast(data)
                 } else if (data.event.startsWith('service:')) {
                     this.service(data)
-                } else if (data.event.startsWith('api:')) {
+                } else if (data.event.startsWith('api')) {
                     this.messageHandler(data)
                 }
             } catch (error) {
@@ -282,11 +282,9 @@ class WebsocketBase {
     async api(route: string, payload: Record<string, unknown> = {}): Promise<WebsocketMessage> {
         return new Promise((resolve, reject) => {
             if (this.apiResolve[route]) reject()
-            this.send({
-                event: `api:${route}`,
-                payload,
-            })
-            this.apiResolve[route] = {
+            const event = `api/${route}`
+            this.send({ event, payload })
+            this.apiResolve[event] = {
                 resolve,
                 reject,
                 timeout: window.setTimeout(() => {
@@ -319,13 +317,13 @@ class WebsocketBase {
 
     private messageHandler(data: WebsocketMessage): void {
         console.log('message handler')
-        const arr = data.event.split(':')
-        if (arr.length < 2) return
-        const route = arr[1]
-        const cb = this.apiResolve[route]
+        // const arr = data.event.split(':')
+        // if (arr.length < 2) return
+        // const route = arr[1]
+        const cb = this.apiResolve[data.event]
         if (!cb) return
         window.clearTimeout(cb.timeout)
-        delete this.apiResolve[route]
+        delete this.apiResolve[data.event]
         if (data.status === 200 && cb.resolve) cb.resolve(data)
         else if (cb.reject)
             cb.reject({
@@ -355,7 +353,7 @@ class WebsocketBase {
     }
 
     private handleBroadcast(message: WebsocketMessage): void {
-        console.log('handleBroadcast')
+        console.log('handleBroadcast', message)
         if (this.callbacks?.onBroadcast) {
             this.callbacks.onBroadcast(message)
         }

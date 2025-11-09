@@ -481,7 +481,7 @@ onMounted(() => {
 const eventTyping = async () => {
     console.log('eventTyping')
     if (selectedContact.value) {
-        const res = await baseApi.ws('event_typing', {
+        const res = await baseApi.ws('main/event_typing', {
             userId: userStore.user?.id,
             contactId: selectedContact.value?.contactId,
         })
