@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 
 interface Props {
     callerName: string
@@ -16,36 +16,120 @@ const emit = defineEmits<{
 
 // Звук входящего звонка
 const ringtoneAudio = ref<HTMLAudioElement | null>(null)
+const audioError = ref<string | null>(null)
+const isAudioPlaying = ref(false)
 
-onMounted(() => {
-    // Воспроизводим звук входящего звонка
-    ringtoneAudio.value = new Audio('/audio/notification_1.mp3')
-    ringtoneAudio.value.loop = true
-    ringtoneAudio.value.play().catch((error) => {
+// Функция для попытки воспроизведения звука
+const tryPlayRingtone = async () => {
+    if (!ringtoneAudio.value) return
+
+    try {
+        // Устанавливаем громкость
+        ringtoneAudio.value.volume = 0.7
+
+        // Пытаемся воспроизвести
+        await ringtoneAudio.value.play()
+        isAudioPlaying.value = true
+        audioError.value = null
+        console.log('Ringtone started playing successfully')
+    } catch (error: unknown) {
         console.error('Failed to play ringtone:', error)
+        const errorMessage = error instanceof Error ? error.message : 'Unknown audio error'
+        audioError.value = errorMessage
+
+        // Если автовоспроизведение заблокировано, попробуем fallback звук
+        if (error instanceof DOMException && error.name === 'NotAllowedError') {
+            console.log('Autoplay blocked, trying fallback sound...')
+            await tryFallbackSound()
+        }
+    }
+}
+
+// Функция для попытки воспроизведения fallback звука
+const tryFallbackSound = async () => {
+    try {
+        const fallbackAudio = new Audio('/audio/notification_1.mp3')
+        fallbackAudio.volume = 0.5
+        fallbackAudio.loop = true
+        await fallbackAudio.play()
+
+        // Заменяем основной аудио на fallback
+        if (ringtoneAudio.value) {
+            ringtoneAudio.value.pause()
+        }
+        ringtoneAudio.value = fallbackAudio
+        isAudioPlaying.value = true
+        console.log('Fallback sound started playing')
+    } catch (fallbackError) {
+        console.error('Failed to play fallback sound:', fallbackError)
+        audioError.value = 'Unable to play any ringtone sound'
+    }
+}
+
+// Функция для остановки звука
+const stopRingtone = () => {
+    if (ringtoneAudio.value && isAudioPlaying.value) {
+        ringtoneAudio.value.pause()
+        ringtoneAudio.value.currentTime = 0
+        isAudioPlaying.value = false
+    }
+}
+
+onMounted(async () => {
+    await nextTick()
+
+    // Создаем аудио элемент
+    ringtoneAudio.value = new Audio('/audio/pdjyznja.mp3')
+    ringtoneAudio.value.loop = true
+    ringtoneAudio.value.preload = 'auto'
+
+    // Добавляем обработчики событий
+    ringtoneAudio.value.addEventListener('loadeddata', () => {
+        console.log('Ringtone audio loaded successfully')
     })
+
+    ringtoneAudio.value.addEventListener('error', (e) => {
+        console.error('Audio loading error:', e)
+        audioError.value = 'Failed to load audio file'
+    })
+
+    ringtoneAudio.value.addEventListener('canplaythrough', () => {
+        console.log('Audio can play through')
+        // Пытаемся воспроизвести после загрузки
+        tryPlayRingtone()
+    })
+
+    // Если аудио уже готово к воспроизведению
+    if (ringtoneAudio.value.readyState >= 3) {
+        tryPlayRingtone()
+    }
 })
 
 onUnmounted(() => {
-    // Останавливаем звук при закрытии модального окна
+    stopRingtone()
     if (ringtoneAudio.value) {
-        ringtoneAudio.value.pause()
+        ringtoneAudio.value.removeEventListener('loadeddata', () => {})
+        ringtoneAudio.value.removeEventListener('error', () => {})
+        ringtoneAudio.value.removeEventListener('canplaythrough', () => {})
         ringtoneAudio.value = null
     }
 })
 
 const handleAccept = () => {
-    if (ringtoneAudio.value) {
-        ringtoneAudio.value.pause()
-    }
+    stopRingtone()
     emit('accept')
 }
 
 const handleDecline = () => {
-    if (ringtoneAudio.value) {
-        ringtoneAudio.value.pause()
-    }
+    stopRingtone()
     emit('decline')
+}
+
+// Функция для ручного запуска звука (если автовоспроизведение заблокировано)
+const manualPlayRingtone = () => {
+    if (!isAudioPlaying.value) {
+        tryPlayRingtone()
+    }
 }
 </script>
 
@@ -86,6 +170,22 @@ const handleDecline = () => {
                 <p class="call-type-label">
                     Incoming {{ callType === 'video' ? 'video' : 'voice' }} call...
                 </p>
+
+                <!-- Показываем статус аудио и кнопку для ручного воспроизведения -->
+                <div v-if="audioError && !isAudioPlaying" class="audio-status">
+                    <p class="audio-error">{{ audioError }}</p>
+                    <button
+                        class="play-sound-btn"
+                        @click="manualPlayRingtone"
+                        title="Click to play ringtone"
+                    >
+                        🔊 Play Ringtone
+                    </button>
+                </div>
+
+                <div v-else-if="isAudioPlaying" class="audio-status">
+                    <p class="audio-playing">🔊 Ringtone playing...</p>
+                </div>
             </div>
 
             <div class="call-actions">
@@ -216,6 +316,44 @@ const handleDecline = () => {
     color: #adb5bd;
 }
 
+.audio-status {
+    margin-top: 12px;
+    text-align: center;
+}
+
+.audio-error {
+    font-size: 12px;
+    color: #f44336;
+    margin: 0 0 8px 0;
+}
+
+.audio-playing {
+    font-size: 12px;
+    color: #4caf50;
+    margin: 0;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.play-sound-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.play-sound-btn:hover {
+    background-color: #1976d2;
+    transform: translateY(-1px);
+}
+
+.play-sound-btn:active {
+    transform: translateY(0);
+}
+
 .call-actions {
     display: flex;
     gap: 20px;
@@ -247,6 +385,7 @@ const handleDecline = () => {
 .call-button.accept {
     background-color: #4caf50;
     color: white;
+    animation: acceptPulse 1.5s ease-in-out infinite;
 }
 
 .call-button.accept:hover {
@@ -302,6 +441,21 @@ const handleDecline = () => {
     100% {
         transform: scale(1);
         opacity: 0.6;
+    }
+}
+
+@keyframes acceptPulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 6px 20px rgba(76, 175, 80, 0.6);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
     }
 }
 
