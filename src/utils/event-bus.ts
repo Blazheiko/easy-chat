@@ -8,6 +8,13 @@ export type Events = {
     toggle_notifications: { enabled: boolean }
     init_app: void
     unauthorized: void
+    webrtc_ice_candidate: { candidate: RTCIceCandidateInit }
+    webrtc_call_answer: { answer: RTCSessionDescriptionInit }
+    webrtc_call_offer: { 
+        targetUserId: string | number
+        callType: 'video' | 'audio'
+        offer: RTCSessionDescriptionInit 
+    }
 }
 
 const emitter = mitt<Events>()

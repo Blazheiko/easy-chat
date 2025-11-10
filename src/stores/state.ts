@@ -30,11 +30,17 @@ export const useStateStore = defineStore('state', () => {
         callerId: string | number | null
         callerName: string
         callType: 'video' | 'audio' | null
+        isConnecting: boolean
+        isConnected: boolean
+        error: string | null
     }>({
         isActive: false,
         callerId: null,
         callerName: '',
         callType: null,
+        isConnecting: false,
+        isConnected: false,
+        error: null,
     })
 
     const handleResize = () => {
@@ -521,6 +527,27 @@ export const useStateStore = defineStore('state', () => {
         incomingCall.callerId = null
         incomingCall.callerName = ''
         incomingCall.callType = null
+        incomingCall.isConnecting = false
+        incomingCall.isConnected = false
+        incomingCall.error = null
+    }
+
+    const setCallConnecting = () => {
+        incomingCall.isConnecting = true
+        incomingCall.isConnected = false
+        incomingCall.error = null
+    }
+
+    const setCallConnected = () => {
+        incomingCall.isConnecting = false
+        incomingCall.isConnected = true
+        incomingCall.error = null
+    }
+
+    const setCallError = (error: string) => {
+        incomingCall.isConnecting = false
+        incomingCall.isConnected = false
+        incomingCall.error = error
     }
 
     return {
@@ -543,5 +570,8 @@ export const useStateStore = defineStore('state', () => {
         incomingCall,
         setIncomingCall,
         clearIncomingCall,
+        setCallConnecting,
+        setCallConnected,
+        setCallError,
     }
 })

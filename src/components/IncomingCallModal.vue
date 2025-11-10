@@ -1,34 +1,56 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 
 interface Props {
     callerName: string
     callerId: string | number
     callType: 'video' | 'audio'
+    isConnecting?: boolean
+    isConnected?: boolean
+    error?: string | null
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
     'accept-call': []
     'decline-call': []
+    'cancel-connection': []
 }>()
 
-// Звук входящего звонка
-const ringtoneAudio = ref<HTMLAudioElement | null>(null)
+// Звук входящего звонка - НЕ реактивный для лучшей производительности
+let ringtoneAudio: HTMLAudioElement | null = null
 const audioError = ref<string | null>(null)
 const isAudioPlaying = ref(false)
+const isAudioStopped = ref(false) // Флаг для предотвращения повторного запуска
 
 // Функция для попытки воспроизведения звука
 const tryPlayRingtone = async () => {
-    if (!ringtoneAudio.value) return
+    console.log(
+        'tryPlayRingtone called, audio exists:',
+        !!ringtoneAudio,
+        'isAudioStopped:',
+        isAudioStopped.value,
+    )
+
+    // Не запускаем звук если он был остановлен пользователем
+    if (!ringtoneAudio || isAudioStopped.value) {
+        console.log('Skipping ringtone play - audio stopped or not available')
+        return
+    }
+
+    // Не запускаем если уже играет
+    if (isAudioPlaying.value) {
+        console.log('Ringtone already playing, skipping')
+        return
+    }
 
     try {
         // Устанавливаем громкость
-        ringtoneAudio.value.volume = 0.7
+        ringtoneAudio.volume = 0.7
 
         // Пытаемся воспроизвести
-        await ringtoneAudio.value.play()
+        await ringtoneAudio.play()
         isAudioPlaying.value = true
         audioError.value = null
         console.log('Ringtone started playing successfully')
@@ -40,37 +62,54 @@ const tryPlayRingtone = async () => {
         // Если автовоспроизведение заблокировано, попробуем fallback звук
         if (error instanceof DOMException && error.name === 'NotAllowedError') {
             console.log('Autoplay blocked, trying fallback sound...')
-            await tryFallbackSound()
+            // await tryFallbackSound()
         }
     }
 }
 
-// Функция для попытки воспроизведения fallback звука
-const tryFallbackSound = async () => {
-    try {
-        const fallbackAudio = new Audio('/audio/notification_1.mp3')
-        fallbackAudio.volume = 0.5
-        fallbackAudio.loop = true
-        await fallbackAudio.play()
+// Функция для попытки воспроизведения fallback звука (отключена)
+// const tryFallbackSound = async () => {
+//     try {
+//         const fallbackAudio = new Audio('/audio/notification_1.mp3')
+//         fallbackAudio.volume = 0.5
+//         fallbackAudio.loop = true
+//         await fallbackAudio.play()
 
-        // Заменяем основной аудио на fallback
-        if (ringtoneAudio.value) {
-            ringtoneAudio.value.pause()
-        }
-        ringtoneAudio.value = fallbackAudio
-        isAudioPlaying.value = true
-        console.log('Fallback sound started playing')
-    } catch (fallbackError) {
-        console.error('Failed to play fallback sound:', fallbackError)
-        audioError.value = 'Unable to play any ringtone sound'
-    }
-}
+//         // Заменяем основной аудио на fallback
+//         if (ringtoneAudio) {
+//             ringtoneAudio.pause()
+//         }
+//         ringtoneAudio = fallbackAudio
+//         isAudioPlaying.value = true
+//         console.log('Fallback sound started playing')
+//     } catch (fallbackError) {
+//         console.error('Failed to play fallback sound:', fallbackError)
+//         audioError.value = 'Unable to play any ringtone sound'
+//     }
+// }
 
 // Функция для остановки звука
 const stopRingtone = () => {
-    if (ringtoneAudio.value && isAudioPlaying.value) {
-        ringtoneAudio.value.pause()
-        ringtoneAudio.value.currentTime = 0
+    console.log('stopRingtone called, current state:', {
+        hasAudio: !!ringtoneAudio,
+        isPlaying: isAudioPlaying.value,
+        isStopped: isAudioStopped.value,
+    })
+
+    // Устанавливаем флаг остановки
+    isAudioStopped.value = true
+
+    if (ringtoneAudio) {
+        try {
+            ringtoneAudio.pause()
+            ringtoneAudio.currentTime = 0
+            isAudioPlaying.value = false
+            console.log('Ringtone stopped successfully')
+        } catch (error) {
+            console.error('Error stopping ringtone:', error)
+            isAudioPlaying.value = false
+        }
+    } else {
         isAudioPlaying.value = false
     }
 }
@@ -78,44 +117,49 @@ const stopRingtone = () => {
 onMounted(async () => {
     await nextTick()
 
+    console.log('IncomingCallModal mounted - creating audio element')
+
     // Создаем аудио элемент
-    ringtoneAudio.value = new Audio('/audio/pdjyznja.mp3')
-    ringtoneAudio.value.loop = true
-    ringtoneAudio.value.preload = 'auto'
+    ringtoneAudio = new Audio('/audio/pdjyznja.mp3')
+    ringtoneAudio.loop = true
+    ringtoneAudio.preload = 'auto'
 
     // Добавляем обработчики событий
-    ringtoneAudio.value.addEventListener('loadeddata', () => {
+    ringtoneAudio.addEventListener('loadeddata', () => {
         console.log('Ringtone audio loaded successfully')
     })
 
-    ringtoneAudio.value.addEventListener('error', (e) => {
+    ringtoneAudio.addEventListener('error', (e) => {
         console.error('Audio loading error:', e)
         audioError.value = 'Failed to load audio file'
     })
 
-    ringtoneAudio.value.addEventListener('canplaythrough', () => {
-        console.log('Audio can play through')
+    ringtoneAudio.addEventListener('canplaythrough', () => {
+        console.log('Audio can play through - attempting to play')
         // Пытаемся воспроизвести после загрузки
         tryPlayRingtone()
     })
 
     // Если аудио уже готово к воспроизведению
-    if (ringtoneAudio.value.readyState >= 3) {
+    if (ringtoneAudio.readyState >= 3) {
+        console.log('Audio already ready - attempting to play immediately')
         tryPlayRingtone()
     }
 })
 
 onUnmounted(() => {
+    console.log('IncomingCallModal unmounted - cleaning up audio')
     stopRingtone()
-    if (ringtoneAudio.value) {
-        ringtoneAudio.value.removeEventListener('loadeddata', () => {})
-        ringtoneAudio.value.removeEventListener('error', () => {})
-        ringtoneAudio.value.removeEventListener('canplaythrough', () => {})
-        ringtoneAudio.value = null
+    if (ringtoneAudio) {
+        ringtoneAudio.removeEventListener('loadeddata', () => {})
+        ringtoneAudio.removeEventListener('error', () => {})
+        ringtoneAudio.removeEventListener('canplaythrough', () => {})
+        ringtoneAudio = null
     }
 })
 
 const handleAccept = () => {
+    console.log('handleAccept called - stopping ringtone and emitting accept-call')
     stopRingtone()
     emit('accept-call')
 }
@@ -125,12 +169,36 @@ const handleDecline = () => {
     emit('decline-call')
 }
 
+const handleCancelConnection = () => {
+    stopRingtone()
+    emit('cancel-connection')
+}
+
 // Функция для ручного запуска звука (если автовоспроизведение заблокировано)
 const manualPlayRingtone = () => {
+    console.log('manualPlayRingtone called')
     if (!isAudioPlaying.value) {
+        isAudioStopped.value = false // Сбрасываем флаг остановки для ручного запуска
         tryPlayRingtone()
     }
 }
+
+// Отслеживаем изменения состояния соединения и останавливаем звук
+watch(
+    () => [props.isConnecting, props.isConnected, props.error],
+    ([isConnecting, isConnected, error]) => {
+        // Останавливаем звук при любом изменении состояния соединения
+        if (isConnecting || isConnected || error) {
+            console.log('Stopping ringtone due to connection state change:', {
+                isConnecting,
+                isConnected,
+                error,
+            })
+            stopRingtone()
+        }
+    },
+    { immediate: false },
+)
 </script>
 
 <template>
@@ -168,46 +236,98 @@ const manualPlayRingtone = () => {
                 </div>
                 <h2 class="caller-name">{{ callerName }}</h2>
                 <p class="call-type-label">
-                    Incoming {{ callType === 'video' ? 'video' : 'voice' }} call...
+                    <template v-if="props.isConnecting">
+                        Connecting {{ callType === 'video' ? 'video' : 'voice' }} call...
+                    </template>
+                    <template v-else-if="props.isConnected">
+                        {{ callType === 'video' ? 'Video' : 'Voice' }} call connected!
+                    </template>
+                    <template v-else-if="props.error"> Call error: {{ props.error }} </template>
+                    <template v-else>
+                        Incoming {{ callType === 'video' ? 'video' : 'voice' }} call...
+                    </template>
                 </p>
 
-                <!-- Показываем статус аудио и кнопку для ручного воспроизведения -->
-                <div v-if="audioError && !isAudioPlaying" class="audio-status">
-                    <p class="audio-error">{{ audioError }}</p>
-                    <button
-                        class="play-sound-btn"
-                        @click="manualPlayRingtone"
-                        title="Click to play ringtone"
-                    >
-                        🔊 Play Ringtone
-                    </button>
-                </div>
+                <!-- Показываем статус аудио и кнопку для ручного воспроизведения только если не подключаемся -->
+                <div v-if="!props.isConnecting && !props.isConnected && !props.error">
+                    <div v-if="audioError && !isAudioPlaying" class="audio-status">
+                        <p class="audio-error">{{ audioError }}</p>
+                        <button
+                            class="play-sound-btn"
+                            @click="manualPlayRingtone"
+                            title="Click to play ringtone"
+                        >
+                            🔊 Play Ringtone
+                        </button>
+                    </div>
 
-                <div v-else-if="isAudioPlaying" class="audio-status">
-                    <p class="audio-playing">🔊 Ringtone playing...</p>
+                    <div v-else-if="isAudioPlaying" class="audio-status">
+                        <p class="audio-playing">🔊 Ringtone playing...</p>
+                    </div>
                 </div>
             </div>
 
-            <div class="call-actions">
-                <button class="call-button decline" @click="handleDecline" title="Decline call">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path
-                            d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"
-                            fill="currentColor"
-                        />
-                    </svg>
-                    <span>Decline</span>
-                </button>
+            <!-- Индикатор состояния соединения -->
+            <div v-if="props.isConnecting" class="connection-status connecting">
+                <div class="connection-loader"></div>
+                <p>Establishing connection...</p>
+            </div>
 
-                <button class="call-button accept" @click="handleAccept" title="Accept call">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path
-                            d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"
-                            fill="currentColor"
-                        />
-                    </svg>
-                    <span>Accept</span>
-                </button>
+            <div v-else-if="props.isConnected" class="connection-status connected">
+                <div class="connection-success">✓</div>
+                <p>Call connected successfully!</p>
+            </div>
+
+            <div v-else-if="props.error" class="connection-status error">
+                <div class="connection-error">⚠</div>
+                <p>{{ props.error }}</p>
+            </div>
+
+            <div class="call-actions" v-if="!props.isConnected">
+                <!-- Показываем кнопку отмены во время установки соединения -->
+                <template v-if="props.isConnecting">
+                    <button
+                        class="call-button cancel"
+                        @click="handleCancelConnection"
+                        title="Cancel connection"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                                fill="currentColor"
+                            />
+                        </svg>
+                        <span>Cancel</span>
+                    </button>
+                </template>
+
+                <!-- Обычные кнопки принять/отклонить -->
+                <template v-else>
+                    <button class="call-button decline" @click="handleDecline" title="Decline call">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"
+                                fill="currentColor"
+                            />
+                        </svg>
+                        <span>Decline</span>
+                    </button>
+
+                    <button
+                        class="call-button accept"
+                        @click="handleAccept"
+                        title="Accept call"
+                        :class="{ connecting: props.isConnecting }"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"
+                                fill="currentColor"
+                            />
+                        </svg>
+                        <span>Accept</span>
+                    </button>
+                </template>
             </div>
         </div>
     </div>
@@ -405,8 +525,136 @@ const manualPlayRingtone = () => {
     box-shadow: 0 6px 20px rgba(244, 67, 54, 0.4);
 }
 
+.call-button.cancel {
+    background-color: #ff9800;
+    color: white;
+    max-width: 200px;
+    margin: 0 auto;
+}
+
+.call-button.cancel:hover {
+    background-color: #f57c00;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
+}
+
 .call-button:active {
     transform: translateY(0);
+}
+
+.call-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.call-button:disabled:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Состояние соединения */
+.connection-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 12px;
+    margin: 16px 0;
+    text-align: center;
+}
+
+.connection-status.connecting {
+    background-color: rgba(33, 150, 243, 0.1);
+    border: 2px solid rgba(33, 150, 243, 0.3);
+}
+
+.connection-status.connected {
+    background-color: rgba(76, 175, 80, 0.1);
+    border: 2px solid rgba(76, 175, 80, 0.3);
+}
+
+.connection-status.error {
+    background-color: rgba(244, 67, 54, 0.1);
+    border: 2px solid rgba(244, 67, 54, 0.3);
+}
+
+.connection-loader {
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(33, 150, 243, 0.3);
+    border-top: 3px solid #2196f3;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.connection-success {
+    width: 32px;
+    height: 32px;
+    background-color: #4caf50;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.connection-error {
+    width: 32px;
+    height: 32px;
+    background-color: #f44336;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.connection-status p {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.connection-status.connecting p {
+    color: #2196f3;
+}
+
+.connection-status.connected p {
+    color: #4caf50;
+}
+
+.connection-status.error p {
+    color: #f44336;
+}
+
+/* Лоадер в кнопке */
+.button-loader {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.call-button.connecting {
+    background-color: #2196f3 !important;
+    animation: none;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 @keyframes fadeIn {
