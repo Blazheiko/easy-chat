@@ -140,6 +140,14 @@ const eventHandler = {
             callType: payload.callType || 'audio',
         })
     },
+    accept_call: (event: WebsocketMessage) => {
+        console.log('accept_call', event.payload)
+        stateStore.clearIncomingCall()
+    },
+    decline_call: (event: WebsocketMessage) => {
+        console.log('decline_call', event.payload)
+        stateStore.clearIncomingCall()
+    },
 }
 const onBroadcast = async (data: WebsocketMessage) => {
     console.log('onBroadcast')
@@ -195,9 +203,10 @@ const handleAcceptCall = () => {
         baseApi.ws('main/accept_call', {
             callerId: stateStore.incomingCall.callerId,
             callType: stateStore.incomingCall.callType,
+            callerName: stateStore.incomingCall.callerName,
         })
     }
-    stateStore.clearIncomingCall()
+    // stateStore.clearIncomingCall()
 }
 
 const handleDeclineCall = () => {
@@ -206,6 +215,8 @@ const handleDeclineCall = () => {
     if (stateStore.incomingCall.callerId) {
         baseApi.ws('main/decline_call', {
             callerId: stateStore.incomingCall.callerId,
+            callerName: stateStore.incomingCall.callerName,
+            callType: stateStore.incomingCall.callType,
         })
     }
     stateStore.clearIncomingCall()
@@ -239,8 +250,8 @@ const handleDeclineCall = () => {
             :caller-name="stateStore.incomingCall.callerName"
             :caller-id="stateStore.incomingCall.callerId!"
             :call-type="stateStore.incomingCall.callType!"
-            @accept="handleAcceptCall"
-            @decline="handleDeclineCall"
+            @accept-call="handleAcceptCall"
+            @decline-call="handleDeclineCall"
         />
     </div>
 </template>

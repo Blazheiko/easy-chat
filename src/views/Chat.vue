@@ -493,7 +493,7 @@ const startCall = async () => {
     console.log('startCall')
     if (selectedContact.value) {
         const result = await baseApi.ws('main/incoming_call', {
-          userId: userStore.user?.id,
+          callerId: userStore.user?.id,
           contactId: selectedContact.value?.contactId,
           callType: 'video',
           callerName: userStore.user?.name,

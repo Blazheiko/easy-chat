@@ -10,8 +10,8 @@ interface Props {
 defineProps<Props>()
 
 const emit = defineEmits<{
-    accept: []
-    decline: []
+    'accept-call': []
+    'decline-call': []
 }>()
 
 // Звук входящего звонка
@@ -117,12 +117,12 @@ onUnmounted(() => {
 
 const handleAccept = () => {
     stopRingtone()
-    emit('accept')
+    emit('accept-call')
 }
 
 const handleDecline = () => {
     stopRingtone()
-    emit('decline')
+    emit('decline-call')
 }
 
 // Функция для ручного запуска звука (если автовоспроизведение заблокировано)
