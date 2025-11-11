@@ -28,8 +28,10 @@ const {
     callState,
     getLocalStream,
     getRemoteStream,
-    startCall,
-    acceptCall,
+    prepareCall,
+    sendOffer,
+    prepareAcceptCall,
+    sendAnswer,
     handleAnswer,
     handleIceCandidate,
     toggleLocalVideo,
@@ -60,6 +62,12 @@ const showLocalVideoLarge = ref(false)
 
 // Флаг для блокировки кнопки Accept (предотвращение повторного нажатия)
 const isAccepting = ref(false)
+
+// Флаг готовности локального видео потока
+const isLocalVideoReady = ref(false)
+
+// Флаг для отслеживания готовности к началу звонка
+const isReadyToCall = ref(false)
 
 // Computed для отображения маленького видео - только когда соединение установлено И есть оба потока
 const shouldShowSmallVideo = computed(() => {
@@ -163,6 +171,52 @@ const stopRingtone = () => {
     }
 }
 
+// Функция для ожидания готовности видео элемента
+const waitForVideoReady = (videoElement: HTMLVideoElement): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+            reject(new Error('Video ready timeout'))
+        }, 10000) // 10 секунд таймаут
+
+        const onLoadedData = () => {
+            console.log('Video loadeddata event fired')
+            cleanup()
+            resolve()
+        }
+
+        const onCanPlay = () => {
+            console.log('Video canplay event fired')
+            cleanup()
+            resolve()
+        }
+
+        const onError = (error: Event) => {
+            console.error('Video error event:', error)
+            cleanup()
+            reject(new Error('Video loading error'))
+        }
+
+        const cleanup = () => {
+            clearTimeout(timeout)
+            videoElement.removeEventListener('loadeddata', onLoadedData)
+            videoElement.removeEventListener('canplay', onCanPlay)
+            videoElement.removeEventListener('error', onError)
+        }
+
+        // Если видео уже готово
+        if (videoElement.readyState >= 2) {
+            console.log('Video already ready, readyState:', videoElement.readyState)
+            cleanup()
+            resolve()
+            return
+        }
+
+        videoElement.addEventListener('loadeddata', onLoadedData)
+        videoElement.addEventListener('canplay', onCanPlay)
+        videoElement.addEventListener('error', onError)
+    })
+}
+
 // Функция для установки медиа потоков в video элементы - устанавливаем только один раз
 const attachMediaStreams = async () => {
     console.log('attachMediaStreams called:', {
@@ -179,9 +233,22 @@ const attachMediaStreams = async () => {
         if (localStream && localVideoRef.value && !localVideoRef.value.srcObject) {
             localVideoRef.value.srcObject = localStream
             console.log('✅ Set local video stream')
-            await localVideoRef.value.play().catch((e) => {
-                console.error('Error playing local video:', e)
-            })
+
+            // Для видео звонков дожидаемся готовности видео
+            if (props.callType === 'video') {
+                try {
+                    await localVideoRef.value.play()
+                    await waitForVideoReady(localVideoRef.value)
+                    isLocalVideoReady.value = true
+                    console.log('✅ Local video is ready for display')
+                } catch (error) {
+                    console.error('Error preparing local video:', error)
+                    isLocalVideoReady.value = false
+                }
+            } else {
+                // Для аудио звонков сразу считаем готовым
+                isLocalVideoReady.value = true
+            }
         }
 
         // Устанавливаем удаленный поток только один раз
@@ -262,10 +329,17 @@ onMounted(async () => {
             tryPlayRingtone()
         }
     } else {
-        // Для исходящих звонков начинаем звонок
-        console.log('Starting outgoing call...')
+        // Для исходящих звонков сначала получаем локальный поток
+        console.log('Preparing outgoing call - getting local stream first...')
         showLocalVideoLarge.value = true
-        await startCall(props.callType, props.callerId)
+
+        // Запускаем процесс получения медиа потока
+        try {
+            await prepareCall(props.callType, props.callerId)
+            console.log('Call prepared, waiting for video to be ready...')
+        } catch (error) {
+            console.error('Failed to prepare outgoing call:', error)
+        }
     }
 })
 
@@ -319,33 +393,73 @@ const handleAccept = async () => {
         // Принимаем входящий звонок с передачей targetUserId (callerId)
         if (props.offer) {
             console.log('Calling acceptCall...')
-            const success = await acceptCall(props.callType, props.offer, props.callerId)
-            console.log('acceptCall returned:', success)
 
-            if (success) {
-                console.log('Call accepted successfully, emitting accept-call event')
+            // Сначала подготавливаем принятие звонка (получаем медиа поток)
+            try {
+                console.log('Preparing to accept call...')
+                const prepared = await prepareAcceptCall(
+                    props.callType,
+                    props.offer,
+                    props.callerId,
+                )
+                console.log('prepareAcceptCall returned:', prepared)
 
-                // Обновляем локальные потоки из композабла
-                localStream = getLocalStream()
-                remoteStream = getRemoteStream()
-                hasLocalStream.value = !!localStream
-                hasRemoteStream.value = !!remoteStream
+                if (prepared) {
+                    console.log('Call prepared successfully, waiting for local stream...')
 
-                console.log('Streams after accept:', {
-                    localStream: !!localStream,
-                    remoteStream: !!remoteStream,
-                })
+                    // Обновляем локальные потоки из композабла
+                    localStream = getLocalStream()
+                    remoteStream = getRemoteStream()
+                    hasLocalStream.value = !!localStream
+                    hasRemoteStream.value = !!remoteStream
 
-                // Немедленно привязываем потоки к video элементам
-                await nextTick()
-                await attachMediaStreams()
+                    console.log('Streams after prepare:', {
+                        localStream: !!localStream,
+                        remoteStream: !!remoteStream,
+                    })
 
-                emit('accept-call')
-                // Не сбрасываем флаг сразу, чтобы предотвратить повторные нажатия
-                // Флаг будет сброшен при размонтировании компонента или изменении состояния
-            } else {
-                // Если не удалось принять звонок, разблокируем кнопку
-                console.error('Call acceptance failed, resetting isAccepting')
+                    // Привязываем потоки к video элементам и дожидаемся готовности
+                    await nextTick()
+                    await attachMediaStreams()
+
+                    // Для видео звонков дожидаемся готовности локального видео
+                    if (props.callType === 'video' && localStream && localVideoRef.value) {
+                        console.log('Waiting for local video to be ready before sending answer...')
+                        // Ждем готовности видео (уже обрабатывается в attachMediaStreams)
+                        let attempts = 0
+                        const maxAttempts = 50 // 5 секунд максимум
+                        while (!isLocalVideoReady.value && attempts < maxAttempts) {
+                            await new Promise((resolve) => setTimeout(resolve, 100))
+                            attempts++
+                        }
+
+                        if (!isLocalVideoReady.value) {
+                            console.warn(
+                                'Local video not ready after timeout, sending answer anyway',
+                            )
+                        } else {
+                            console.log('Local video is ready, sending answer...')
+                        }
+                    }
+
+                    // Теперь отправляем answer
+                    const answerSent = await sendAnswer(props.callerId)
+                    if (answerSent) {
+                        console.log('Answer sent successfully, call accepted')
+                        emit('accept-call')
+                    } else {
+                        console.error('Failed to send answer')
+                    }
+
+                    // Не сбрасываем флаг сразу, чтобы предотвратить повторные нажатия
+                    // Флаг будет сброшен при размонтировании компонента или изменении состояния
+                } else {
+                    // Если не удалось подготовить принятие звонка, разблокируем кнопку
+                    console.error('Call preparation failed, resetting isAccepting')
+                    // isAccepting.value = false
+                }
+            } catch (error) {
+                console.error('Error during call acceptance:', error)
                 // isAccepting.value = false
             }
         } else {
@@ -426,6 +540,19 @@ const handleLocalStreamUpdated = async () => {
     // Немедленно обновляем потоки без таймеров
     await nextTick()
     await attachMediaStreams()
+
+    // Если это исходящий звонок и поток готов, отправляем offer
+    if (props.isOutgoing && localStream && isLocalVideoReady.value && !isReadyToCall.value) {
+        console.log('🔵 Local stream ready for outgoing call, sending offer...')
+        isReadyToCall.value = true
+        try {
+            await sendOffer(props.callType, props.callerId)
+            console.log('🔵 Offer sent successfully from handleLocalStreamUpdated')
+        } catch (error) {
+            console.error('🔵 Failed to send offer from handleLocalStreamUpdated:', error)
+            isReadyToCall.value = false
+        }
+    }
 }
 
 const handleRemoteStreamUpdated = async () => {
@@ -454,6 +581,8 @@ const handleStreamsCleared = async () => {
     remoteStream = null
     hasLocalStream.value = false
     hasRemoteStream.value = false
+    isLocalVideoReady.value = false
+    isReadyToCall.value = false
     await nextTick()
     await attachMediaStreams()
 }
@@ -532,6 +661,22 @@ watch(shouldShowSmallVideo, async (shouldShow, wasShowing) => {
         console.log('Small video appeared, updating layout immediately')
         await nextTick()
         updateVideoLayout()
+    }
+})
+
+// Отслеживаем готовность локального видео для исходящих звонков
+watch(isLocalVideoReady, async (isReady) => {
+    console.log('isLocalVideoReady changed:', isReady)
+    if (isReady && props.isOutgoing && localStream && !isReadyToCall.value) {
+        console.log('Local video ready for outgoing call, sending offer...')
+        isReadyToCall.value = true
+        try {
+            await sendOffer(props.callType, props.callerId)
+            console.log('Offer sent successfully after video ready')
+        } catch (error) {
+            console.error('Failed to send offer after video ready:', error)
+            isReadyToCall.value = false
+        }
     }
 })
 </script>

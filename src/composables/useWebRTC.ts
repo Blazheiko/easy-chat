@@ -181,8 +181,8 @@ export const useWebRTC = () => {
         }
     }
 
-    // Начало исходящего звонка
-    const startCall = async (callType: 'video' | 'audio', targetUserId: string | number) => {
+    // Подготовка к звонку - получение медиа потока без отправки offer
+    const prepareCall = async (callType: 'video' | 'audio', targetUserId: string | number) => {
         try {
             callState.value.isConnecting = true
             callState.value.error = null
@@ -207,9 +207,26 @@ export const useWebRTC = () => {
                 pc.addTrack(track, stream)
             })
 
+            console.log('Call prepared, media stream ready')
+            return true
+        } catch (error) {
+            console.error('Failed to prepare call:', error)
+            callState.value.isConnecting = false
+            callState.value.error = 'Failed to prepare call'
+            return false
+        }
+    }
+
+    // Отправка offer после подготовки
+    const sendOffer = async (callType: 'video' | 'audio', targetUserId: string | number) => {
+        try {
+            if (!peerConnection) {
+                throw new Error('Peer connection not initialized')
+            }
+
             // Создаем offer
-            const offer = await pc.createOffer()
-            await pc.setLocalDescription(offer)
+            const offer = await peerConnection.createOffer()
+            await peerConnection.setLocalDescription(offer)
 
             // Отправляем offer через WebSocket
             eventBus.emit('webrtc_call_offer', {
@@ -217,6 +234,24 @@ export const useWebRTC = () => {
                 callType,
                 offer: offer,
             })
+
+            console.log('Offer sent')
+            return true
+        } catch (error) {
+            console.error('Failed to send offer:', error)
+            callState.value.error = 'Failed to send offer'
+            return false
+        }
+    }
+
+    // Начало исходящего звонка (объединяет prepareCall и sendOffer)
+    const startCall = async (callType: 'video' | 'audio', targetUserId: string | number) => {
+        try {
+            const prepared = await prepareCall(callType, targetUserId)
+            if (!prepared) return false
+
+            const sent = await sendOffer(callType, targetUserId)
+            if (!sent) return false
 
             console.log('Call started, offer sent')
             return true
@@ -228,8 +263,8 @@ export const useWebRTC = () => {
         }
     }
 
-    // Принятие входящего звонка
-    const acceptCall = async (
+    // Подготовка к принятию звонка - получение медиа потока без отправки answer
+    const prepareAcceptCall = async (
         callType: 'video' | 'audio',
         offer: RTCSessionDescriptionInit,
         targetUserId: string | number,
@@ -258,7 +293,7 @@ export const useWebRTC = () => {
                 pc.addTrack(track, stream)
             })
 
-            console.log('Local stream set up in acceptCall, tracks added to peer connection')
+            console.log('Local stream set up in prepareAcceptCall, tracks added to peer connection')
 
             // Устанавливаем удаленное описание (offer)
             await pc.setRemoteDescription(offer)
@@ -266,9 +301,26 @@ export const useWebRTC = () => {
             // Применяем отложенные ICE candidates после установки remote description
             await applyPendingIceCandidates()
 
+            console.log('Call prepared for acceptance, media stream ready')
+            return true
+        } catch (error) {
+            console.error('Failed to prepare accept call:', error)
+            callState.value.isConnecting = false
+            callState.value.error = 'Failed to prepare accept call'
+            return false
+        }
+    }
+
+    // Отправка answer после подготовки
+    const sendAnswer = async (targetUserId: string | number) => {
+        try {
+            if (!peerConnection) {
+                throw new Error('Peer connection not initialized')
+            }
+
             // Создаем answer
-            const answer = await pc.createAnswer()
-            await pc.setLocalDescription(answer)
+            const answer = await peerConnection.createAnswer()
+            await peerConnection.setLocalDescription(answer)
 
             // Отправляем answer через WebSocket с targetUserId
             console.log('Emitting webrtc_call_answer event with targetUserId:', targetUserId)
@@ -276,6 +328,28 @@ export const useWebRTC = () => {
                 answer: answer,
                 targetUserId: targetUserId,
             })
+
+            console.log('Answer sent')
+            return true
+        } catch (error) {
+            console.error('Failed to send answer:', error)
+            callState.value.error = 'Failed to send answer'
+            return false
+        }
+    }
+
+    // Принятие входящего звонка (объединяет prepareAcceptCall и sendAnswer)
+    const acceptCall = async (
+        callType: 'video' | 'audio',
+        offer: RTCSessionDescriptionInit,
+        targetUserId: string | number,
+    ) => {
+        try {
+            const prepared = await prepareAcceptCall(callType, offer, targetUserId)
+            if (!prepared) return false
+
+            const sent = await sendAnswer(targetUserId)
+            if (!sent) return false
 
             console.log('Call accepted, answer sent')
             return true
@@ -451,7 +525,11 @@ export const useWebRTC = () => {
         getRemoteStream,
 
         // Методы
+        prepareCall,
+        sendOffer,
         startCall,
+        prepareAcceptCall,
+        sendAnswer,
         acceptCall,
         handleAnswer,
         handleIceCandidate,

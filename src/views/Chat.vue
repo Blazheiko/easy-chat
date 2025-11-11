@@ -489,18 +489,8 @@ const eventTyping = async () => {
     }
 }
 
-const startCall = async () => {
-    console.log('startCall')
-    if (selectedContact.value) {
-        const result = await baseApi.ws('main/incoming_call', {
-          callerId: userStore.user?.id,
-          contactId: selectedContact.value?.contactId,
-          callType: 'video',
-          callerName: userStore.user?.name,
-        })
-        console.log('startCall result', result)
-    }
-}
+// Функция startCall удалена - теперь используется webrtc_start_call через event bus
+// ChatArea.vue эмитирует webrtc_start_call, который обрабатывается в App.vue
 // Отписываемся от событий при размонтировании
 onBeforeUnmount(() => {
     document.removeEventListener('click', closeMenuOnClickOutside)
@@ -570,7 +560,6 @@ onBeforeUnmount(() => {
                     @logout="logout"
                     @send-message="sendMessage"
                     @event-typing="eventTyping"
-                    @start-call="startCall"
                     @toggle-notifications="toggleNotifications"
                 />
             </div>

@@ -38,7 +38,6 @@ const emit = defineEmits([
     'event-typing',
     'toggle-notifications',
     'open-add-contact',
-    'start-call',
 ])
 
 const messagesStore = useMessagesStore()
@@ -126,8 +125,6 @@ const startVideoCall = async () => {
         targetUserId: props.selectedContact.id,
         callType: 'video',
     })
-
-    emit('start-call', 'video', props.selectedContact.id)
 }
 
 // Функция для начала аудиозвонка
@@ -144,8 +141,6 @@ const startAudioCall = () => {
         targetUserId: props.selectedContact.id,
         callType: 'audio',
     })
-
-    emit('start-call', 'audio', props.selectedContact.id)
 }
 
 // WebRTC функции теперь обрабатываются в App.vue через useWebRTC composable

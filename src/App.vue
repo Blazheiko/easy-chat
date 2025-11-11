@@ -186,24 +186,7 @@ const eventHandler = {
         })
         // eventBus.emit('change_online', event.payload as { userId: number; status: string })
     },
-    incoming_call: (event: WebsocketMessage) => {
-        console.log('event incoming_call', event.payload)
-        const payload = event.payload as {
-            contactId: string
-            callerId: string
-            callerName: string
-            callType: 'video' | 'audio'
-        }
-
-        // Находим контакт в списке для получения имени
-        const contact = contactsStore.getContactById(String(payload.callerId))
-
-        stateStore.setIncomingCall({
-            callerId: payload.callerId,
-            callerName: contact?.name || payload.callerName || 'Unknown',
-            callType: payload.callType || 'audio',
-        })
-    },
+    // incoming_call удален - теперь используется только webrtc_call_offer
     accept_call: (event: WebsocketMessage) => {
         console.log('accept_call', event.payload)
         stateStore.clearIncomingCall()
@@ -378,15 +361,11 @@ const handleStartCall = async (callType: 'video' | 'audio', targetUserId: string
             callType,
         })
 
-        // Отправляем WebSocket сообщение о начале звонка
-        baseApi.ws('main/start_call', {
-            targetUserId,
-            callType,
-            callerName: userStore.user?.name || 'Unknown',
-        })
-
-        // VideoCallModal сам инициирует WebRTC соединение через useWebRTC
-        console.log('Outgoing call initiated, VideoCallModal will handle WebRTC connection')
+        // НЕ отправляем WebSocket сообщение сразу!
+        // VideoCallModal сам отправит webrtc_call_offer когда видео будет готово
+        console.log(
+            'Outgoing call initiated, VideoCallModal will prepare media and send offer when ready',
+        )
     } catch (error) {
         console.error('Failed to start call:', error)
         stateStore.setOutgoingCallError('Failed to start call')
