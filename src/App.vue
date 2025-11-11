@@ -64,6 +64,8 @@ const handleWebRTCCallOffer = (data: {
         targetUserId: data.targetUserId,
         callType: data.callType,
         offer: data.offer,
+        callerId: userStore.user?.id,
+        callerName: userStore.user?.name,
     })
 }
 
@@ -172,9 +174,10 @@ const eventHandler = {
         // eventBus.emit('change_online', event.payload as { userId: number; status: string })
     },
     incoming_call: (event: WebsocketMessage) => {
-        console.log('incoming_call', event.payload)
+        console.log('event incoming_call', event.payload)
         const payload = event.payload as {
-            callerId: string | number
+            contactId: string
+            callerId: string
             callerName: string
             callType: 'video' | 'audio'
         }
@@ -216,13 +219,21 @@ const eventHandler = {
     },
     webrtc_call_answer: (event: WebsocketMessage) => {
         console.log('webrtc_call_answer', event.payload)
-        // VideoCallModal с useWebRTC обработает это через event bus
-        console.log('WebRTC answer received, will be handled by VideoCallModal')
+        const payload = event.payload as { answer: RTCSessionDescriptionInit }
+
+        // Передаем событие через event bus для обработки в useWebRTC
+        eventBus.emit('webrtc_answer_received', {
+            answer: payload.answer,
+        })
     },
     webrtc_ice_candidate: (event: WebsocketMessage) => {
         console.log('webrtc_ice_candidate', event.payload)
-        // VideoCallModal с useWebRTC обработает это через event bus
-        console.log('ICE candidate received, will be handled by VideoCallModal')
+        const payload = event.payload as { candidate: RTCIceCandidateInit }
+
+        // Передаем событие через event bus для обработки в useWebRTC
+        eventBus.emit('webrtc_candidate_received', {
+            candidate: payload.candidate,
+        })
     },
 }
 const onBroadcast = async (data: WebsocketMessage) => {

@@ -22,6 +22,14 @@ export type Events = {
     webrtc_local_stream_updated: { stream: MediaStream | null }
     webrtc_remote_stream_updated: { stream: MediaStream | null }
     webrtc_streams_cleared: Record<string, never>
+    webrtc_answer_received: { answer: RTCSessionDescriptionInit }
+    webrtc_candidate_received: { candidate: RTCIceCandidateInit }
+    webrtc_connection_state_changed: {
+        state: string
+        isConnecting: boolean
+        isConnected: boolean
+        error?: string | null
+    }
 }
 
 const emitter = mitt<Events>()

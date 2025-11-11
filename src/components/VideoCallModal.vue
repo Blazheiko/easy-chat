@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue'
 import { useWebRTC } from '@/composables/useWebRTC'
 import { useEventBus } from '@/utils/event-bus'
 
@@ -30,14 +30,20 @@ const {
     getRemoteStream,
     startCall,
     acceptCall,
+    handleAnswer,
+    handleIceCandidate,
     toggleLocalVideo,
     toggleLocalAudio,
     endCall,
 } = useWebRTC()
 
-// Нереактивные переменные для медиа потоков
+// Нереактивные переменные для медиа потоков (MediaStream не должен быть реактивным!)
 let localStream: MediaStream | null = null
 let remoteStream: MediaStream | null = null
+
+// Реактивные флаги для отслеживания наличия потоков (для v-if)
+const hasLocalStream = ref(false)
+const hasRemoteStream = ref(false)
 
 // Звук входящего звонка - НЕ реактивный для лучшей производительности
 let ringtoneAudio: HTMLAudioElement | null = null
@@ -45,17 +51,27 @@ const audioError = ref<string | null>(null)
 const isAudioPlaying = ref(false)
 const isAudioStopped = ref(false) // Флаг для предотвращения повторного запуска
 
-// Refs для видео элементов
+// Refs для видео элементов - каждый поток имеет свой элемент
 const localVideoRef = ref<HTMLVideoElement | null>(null)
 const remoteVideoRef = ref<HTMLVideoElement | null>(null)
-const mainVideoRef = ref<HTMLVideoElement | null>(null)
-const smallVideoRef = ref<HTMLVideoElement | null>(null)
 
 // Флаг для переключения между большим и маленьким видео
 const showLocalVideoLarge = ref(false)
 
 // Флаг для блокировки кнопки Accept (предотвращение повторного нажатия)
 const isAccepting = ref(false)
+
+// Computed для отображения маленького видео - только когда соединение установлено И есть оба потока
+const shouldShowSmallVideo = computed(() => {
+    const result = callState.value.isConnected && hasLocalStream.value && hasRemoteStream.value
+    console.log('shouldShowSmallVideo computed:', {
+        result,
+        isConnected: callState.value.isConnected,
+        hasLocalStream: hasLocalStream.value,
+        hasRemoteStream: hasRemoteStream.value,
+    })
+    return result
+})
 
 // Функция для попытки воспроизведения звука
 const tryPlayRingtone = async () => {
@@ -147,41 +163,72 @@ const stopRingtone = () => {
     }
 }
 
-// Функция для установки медиа потоков в video элементы через JS
-const attachMediaStreams = () => {
-    if (localVideoRef.value && localStream) {
-        localVideoRef.value.srcObject = localStream
-    }
-    if (remoteVideoRef.value && remoteStream) {
-        remoteVideoRef.value.srcObject = remoteStream
-    }
-    if (mainVideoRef.value && smallVideoRef.value) {
-        // Если соединение установлено, показываем remote большим
-        if (callState.value.isConnected) {
-            mainVideoRef.value.srcObject = remoteStream
-            smallVideoRef.value.srcObject = localStream
-            showLocalVideoLarge.value = false
-        } else if (props.isOutgoing) {
-            // Для исходящих звонков показываем свое видео большим до соединения
-            mainVideoRef.value.srcObject = localStream
-            smallVideoRef.value.srcObject = remoteStream
-            showLocalVideoLarge.value = true
-        } else {
-            // Для входящих звонков показываем remote большим
-            mainVideoRef.value.srcObject = remoteStream
-            smallVideoRef.value.srcObject = localStream
-            showLocalVideoLarge.value = false
+// Функция для установки медиа потоков в video элементы - устанавливаем только один раз
+const attachMediaStreams = async () => {
+    console.log('attachMediaStreams called:', {
+        hasLocalVideoRef: !!localVideoRef.value,
+        hasRemoteVideoRef: !!remoteVideoRef.value,
+        hasLocalStream: !!localStream,
+        hasRemoteStream: !!remoteStream,
+        isConnected: callState.value.isConnected,
+        isOutgoing: props.isOutgoing,
+    })
+
+    try {
+        // Устанавливаем локальный поток только один раз
+        if (localStream && localVideoRef.value && !localVideoRef.value.srcObject) {
+            localVideoRef.value.srcObject = localStream
+            console.log('✅ Set local video stream')
+            await localVideoRef.value.play().catch((e) => {
+                console.error('Error playing local video:', e)
+            })
         }
+
+        // Устанавливаем удаленный поток только один раз
+        if (remoteStream && remoteVideoRef.value && !remoteVideoRef.value.srcObject) {
+            remoteVideoRef.value.srcObject = remoteStream
+            console.log('✅ Set remote video stream')
+            await remoteVideoRef.value.play().catch((e) => {
+                console.error('Error playing remote video:', e)
+            })
+        }
+
+        // Управляем отображением через флаг
+        updateVideoLayout()
+    } catch (error) {
+        console.error('Error in attachMediaStreams:', error)
+    }
+}
+
+// Функция для обновления макета видео без изменения потоков
+const updateVideoLayout = () => {
+    if (callState.value.isConnected && hasLocalStream.value && hasRemoteStream.value) {
+        // Когда соединение установлено - показываем удаленное видео большим
+        showLocalVideoLarge.value = false
+        console.log('✅ Layout: Remote video large, local video small')
+    } else if (hasLocalStream.value) {
+        // До соединения показываем локальное видео большим
+        showLocalVideoLarge.value = true
+        console.log('✅ Layout: Local video large')
     }
 }
 
 onMounted(async () => {
     await nextTick()
 
+    console.log('VideoCallModal mounted, subscribing to events...')
+
     // Подписываемся на события обновления медиа потоков
     eventBus.on('webrtc_local_stream_updated', handleLocalStreamUpdated)
     eventBus.on('webrtc_remote_stream_updated', handleRemoteStreamUpdated)
     eventBus.on('webrtc_streams_cleared', handleStreamsCleared)
+    eventBus.on('webrtc_connection_state_changed', handleConnectionStateChanged)
+
+    // Подписываемся на события WebRTC signaling
+    eventBus.on('webrtc_answer_received', handleAnswerReceived)
+    eventBus.on('webrtc_candidate_received', handleCandidateReceived)
+
+    console.log('VideoCallModal subscribed to all events')
 
     // Создаем аудио элемент только для входящих звонков
     if (!props.isOutgoing) {
@@ -231,6 +278,9 @@ onUnmounted(() => {
     eventBus.off('webrtc_local_stream_updated', handleLocalStreamUpdated)
     eventBus.off('webrtc_remote_stream_updated', handleRemoteStreamUpdated)
     eventBus.off('webrtc_streams_cleared', handleStreamsCleared)
+    eventBus.off('webrtc_connection_state_changed', handleConnectionStateChanged)
+    eventBus.off('webrtc_answer_received', handleAnswerReceived)
+    eventBus.off('webrtc_candidate_received', handleCandidateReceived)
 
     stopRingtone()
     if (ringtoneAudio) {
@@ -272,13 +322,29 @@ const handleAccept = async () => {
 
             if (success) {
                 console.log('Call accepted successfully, emitting accept-call event')
+
+                // Обновляем локальные потоки из композабла
+                localStream = getLocalStream()
+                remoteStream = getRemoteStream()
+                hasLocalStream.value = !!localStream
+                hasRemoteStream.value = !!remoteStream
+
+                console.log('Streams after accept:', {
+                    localStream: !!localStream,
+                    remoteStream: !!remoteStream,
+                })
+
+                // Немедленно привязываем потоки к video элементам
+                await nextTick()
+                await attachMediaStreams()
+
                 emit('accept-call')
                 // Не сбрасываем флаг сразу, чтобы предотвратить повторные нажатия
                 // Флаг будет сброшен при размонтировании компонента или изменении состояния
             } else {
                 // Если не удалось принять звонок, разблокируем кнопку
-                console.log('Call acceptance failed, resetting isAccepting')
-                isAccepting.value = false
+                console.error('Call acceptance failed, resetting isAccepting')
+                // isAccepting.value = false
             }
         } else {
             console.log('No offer provided, resetting isAccepting')
@@ -340,49 +406,94 @@ watch(
 )
 
 // Обработчики событий для обновления медиа потоков
-const handleLocalStreamUpdated = () => {
-    console.log('Local stream updated from event bus')
+const handleLocalStreamUpdated = async () => {
+    console.log('🔵 handleLocalStreamUpdated CALLED from event bus')
+    const streamBefore = localStream
     localStream = getLocalStream()
-    nextTick(() => {
-        attachMediaStreams()
+    hasLocalStream.value = !!localStream
+    console.log('🔵 Local stream updated:', {
+        hadStreamBefore: !!streamBefore,
+        hasStreamNow: !!localStream,
+        hasLocalStreamFlag: hasLocalStream.value,
+        tracks: localStream?.getTracks().length,
+        videoTracks: localStream?.getVideoTracks().length,
+        audioTracks: localStream?.getAudioTracks().length,
+        videoEnabled: localStream?.getVideoTracks()[0]?.enabled,
     })
+
+    // Немедленно обновляем потоки без таймеров
+    await nextTick()
+    await attachMediaStreams()
 }
 
-const handleRemoteStreamUpdated = () => {
-    console.log('Remote stream updated from event bus')
+const handleRemoteStreamUpdated = async () => {
+    console.log('🟢 handleRemoteStreamUpdated CALLED from event bus')
+    const streamBefore = remoteStream
     remoteStream = getRemoteStream()
-    nextTick(() => {
-        attachMediaStreams()
+    hasRemoteStream.value = !!remoteStream
+    console.log('🟢 Remote stream updated:', {
+        hadStreamBefore: !!streamBefore,
+        hasStreamNow: !!remoteStream,
+        hasRemoteStreamFlag: hasRemoteStream.value,
+        tracks: remoteStream?.getTracks().length,
+        videoTracks: remoteStream?.getVideoTracks().length,
+        audioTracks: remoteStream?.getAudioTracks().length,
+        videoEnabled: remoteStream?.getVideoTracks()[0]?.enabled,
     })
+
+    // Немедленно обновляем потоки без таймеров
+    await nextTick()
+    await attachMediaStreams()
 }
 
-const handleStreamsCleared = () => {
+const handleStreamsCleared = async () => {
     console.log('Streams cleared from event bus')
     localStream = null
     remoteStream = null
-    nextTick(() => {
-        attachMediaStreams()
-    })
+    hasLocalStream.value = false
+    hasRemoteStream.value = false
+    await nextTick()
+    await attachMediaStreams()
 }
 
-// Отслеживаем состояние соединения для переключения видео
+// Обработчик изменения состояния соединения
+const handleConnectionStateChanged = async (payload: {
+    state: string
+    isConnecting: boolean
+    isConnected: boolean
+    error?: string | null
+}) => {
+    console.log('🔗 Connection state changed:', payload)
+
+    // Когда соединение установлено, обновляем макет видео
+    if (payload.isConnected) {
+        console.log('🔗 Connection established, updating video layout')
+        await nextTick()
+        updateVideoLayout()
+    }
+}
+
+// Обработчик получения answer от удаленного пользователя
+const handleAnswerReceived = (payload: { answer: RTCSessionDescriptionInit }) => {
+    console.log('Answer received from remote user:', payload.answer)
+    handleAnswer(payload.answer)
+}
+
+// Обработчик получения ICE candidate от удаленного пользователя
+const handleCandidateReceived = (payload: { candidate: RTCIceCandidateInit }) => {
+    console.log('ICE candidate received from remote user:', payload.candidate)
+    handleIceCandidate(payload.candidate)
+}
+
+// Отслеживаем состояние соединения для сброса флага принятия звонка
 watch(
     () => callState.value.isConnected,
     (isConnected) => {
         if (isConnected) {
-            console.log('Call connected - switching video layout')
+            console.log('Call connected - resetting accept flag')
             // Сбрасываем флаг принятия звонка
             isAccepting.value = false
             console.log('isAccepting reset to false after connection established')
-
-            // Когда соединение установлено, показываем remote большим
-            showLocalVideoLarge.value = false
-            // Обновляем потоки из композабла
-            localStream = getLocalStream()
-            remoteStream = getRemoteStream()
-            nextTick(() => {
-                attachMediaStreams()
-            })
         }
     },
 )
@@ -397,6 +508,16 @@ watch(
         }
     },
 )
+
+// Отслеживаем появление маленького видео
+watch(shouldShowSmallVideo, async (shouldShow, wasShowing) => {
+    console.log('shouldShowSmallVideo changed:', { shouldShow, wasShowing })
+    if (shouldShow && !wasShowing) {
+        console.log('Small video appeared, updating layout immediately')
+        await nextTick()
+        updateVideoLayout()
+    }
+})
 </script>
 
 <template>
@@ -430,9 +551,9 @@ watch(
 
             <div class="call-info">
                 <div class="caller-avatar">
-                    {{ callerName.substring(0, 2).toUpperCase() }}
+                    {{ callerName ? callerName.substring(0, 2).toUpperCase() : 'U' }}
                 </div>
-                <h2 class="caller-name">{{ callerName }}</h2>
+                <h2 class="caller-name">{{ callerName || 'Unknown' }}</h2>
                 <p class="call-type-label">
                     <template v-if="callState.isConnecting">
                         Connecting {{ callType === 'video' ? 'video' : 'voice' }} call...
@@ -477,48 +598,46 @@ watch(
 
             <!-- Видео элементы для видео звонка -->
             <div v-if="callType === 'video'" class="video-container">
-                <!-- Главное видео (большое) -->
-                <div class="main-video">
+                <!-- Локальное видео -->
+                <div
+                    class="video-wrapper"
+                    :class="{
+                        'video-large': showLocalVideoLarge,
+                        'video-small': !showLocalVideoLarge && shouldShowSmallVideo,
+                        'video-hidden': !showLocalVideoLarge && !shouldShowSmallVideo,
+                    }"
+                >
                     <video
-                        ref="mainVideoRef"
+                        ref="localVideoRef"
                         autoplay
                         playsinline
-                        :muted="showLocalVideoLarge"
-                        class="video-player main"
+                        muted
+                        class="video-player"
                     ></video>
                     <div
-                        class="avatar-circle large"
-                        v-if="
-                            !showLocalVideoLarge
-                                ? !remoteStream
-                                : !localStream || !callState.isLocalVideoEnabled
-                        "
+                        class="avatar-circle"
+                        v-if="!localStream || !callState.isLocalVideoEnabled"
                     >
-                        {{ !showLocalVideoLarge ? callerName.substring(0, 2).toUpperCase() : 'ME' }}
+                        ME
                     </div>
-                    <div class="call-status">
-                        {{ !showLocalVideoLarge ? callerName : 'You' }}
-                    </div>
+                    <div class="call-status" v-if="showLocalVideoLarge">You</div>
                 </div>
 
-                <!-- Маленькое видео (picture-in-picture) -->
-                <div class="small-video" v-if="callState.isConnected || props.isOutgoing">
-                    <video
-                        ref="smallVideoRef"
-                        autoplay
-                        playsinline
-                        :muted="!showLocalVideoLarge"
-                        class="video-player small"
-                    ></video>
-                    <div
-                        class="avatar-circle small"
-                        v-if="
-                            showLocalVideoLarge
-                                ? !remoteStream
-                                : !localStream || !callState.isLocalVideoEnabled
-                        "
-                    >
-                        {{ showLocalVideoLarge ? callerName.substring(0, 2).toUpperCase() : 'ME' }}
+                <!-- Удаленное видео -->
+                <div
+                    class="video-wrapper"
+                    :class="{
+                        'video-large': !showLocalVideoLarge && hasRemoteStream,
+                        'video-small': showLocalVideoLarge && shouldShowSmallVideo,
+                        'video-hidden': !hasRemoteStream,
+                    }"
+                >
+                    <video ref="remoteVideoRef" autoplay playsinline class="video-player"></video>
+                    <div class="avatar-circle" v-if="!remoteStream">
+                        {{ callerName ? callerName.substring(0, 2).toUpperCase() : 'U' }}
+                    </div>
+                    <div class="call-status" v-if="!showLocalVideoLarge && hasRemoteStream">
+                        {{ callerName || 'Caller' }}
                     </div>
                 </div>
             </div>
@@ -1125,16 +1244,29 @@ watch(
     margin-top: 20px;
 }
 
-.main-video {
-    width: 100%;
+.video-wrapper {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 10px;
-    position: relative;
+    transition: all 0.3s ease;
 }
 
-.main-video .avatar-circle.large {
+/* Большое видео */
+.video-wrapper.video-large {
+    width: 100%;
+    z-index: 1;
+}
+
+.video-wrapper.video-large .video-player {
+    width: 100%;
+    height: 300px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.video-wrapper.video-large .avatar-circle {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -1143,17 +1275,10 @@ watch(
     width: 120px;
     height: 120px;
     font-size: 40px;
-    background-color: var(--primary-color);
-    color: white;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-weight: bold;
-    border-radius: 50%;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-.small-video {
+/* Маленькое видео */
+.video-wrapper.video-small {
     position: absolute;
     bottom: 20px;
     right: 20px;
@@ -1163,7 +1288,14 @@ watch(
     z-index: 2;
 }
 
-.small-video .avatar-circle.small {
+.video-wrapper.video-small .video-player {
+    width: 120px;
+    height: 90px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.video-wrapper.video-small .avatar-circle {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -1172,6 +1304,22 @@ watch(
     width: 60px;
     height: 60px;
     font-size: 20px;
+}
+
+/* Скрытое видео */
+.video-wrapper.video-hidden {
+    display: none;
+}
+
+/* Общие стили для video элементов */
+.video-player {
+    border-radius: 10px;
+    background-color: #000;
+    object-fit: cover;
+}
+
+/* Общие стили для аватаров */
+.avatar-circle {
     background-color: var(--primary-color);
     color: white;
     display: flex;
@@ -1180,26 +1328,6 @@ watch(
     font-weight: bold;
     border-radius: 50%;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.video-player {
-    border-radius: 10px;
-    background-color: #000;
-    object-fit: cover;
-}
-
-.video-player.main {
-    width: 100%;
-    height: 300px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.video-player.small {
-    width: 120px;
-    height: 90px;
-    border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .call-status {
