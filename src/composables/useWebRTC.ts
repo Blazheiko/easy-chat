@@ -372,8 +372,10 @@ export const useWebRTC = () => {
     }
 
     // Завершение звонка
-    const endCall = () => {
+    const endCall = (reason?: string, skipEmitEvent = false) => {
         try {
+            const targetUserId = currentTargetUserId
+
             // Останавливаем локальные треки
             if (localStream) {
                 localStream.getTracks().forEach((track) => {
@@ -400,11 +402,24 @@ export const useWebRTC = () => {
             }
 
             remoteStream = null
-            currentTargetUserId = null // Очищаем ID пользователя
             pendingIceCandidates = [] // Очищаем буфер ICE candidates
+
+            // Эмитируем событие завершения звонка, если есть targetUserId и не пропускаем событие
+            if (targetUserId && !skipEmitEvent) {
+                console.log('Emitting webrtc_call_end event for targetUserId:', targetUserId)
+                eventBus.emit('webrtc_call_end', {
+                    targetUserId,
+                    reason: reason || 'call_ended',
+                })
+            } else if (skipEmitEvent) {
+                console.log('Skipping webrtc_call_end event emission (local cleanup only)')
+            }
 
             // Эмитируем событие об очистке стримов
             eventBus.emit('webrtc_streams_cleared', {})
+
+            // Очищаем ID пользователя после эмитирования события
+            currentTargetUserId = null
 
             console.log('Call ended successfully')
         } catch (error) {

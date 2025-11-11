@@ -69,6 +69,17 @@ const handleWebRTCCallOffer = (data: {
     })
 }
 
+const handleWebRTCCallEnd = (data: { targetUserId: string | number; reason?: string }) => {
+    console.log('WebRTC call end event:', data)
+    // Отправляем событие завершения звонка через WebSocket
+    baseApi.ws('main/webrtc_call_end', {
+        targetUserId: data.targetUserId,
+        reason: data.reason || 'call_ended',
+        callerId: userStore.user?.id,
+        callerName: userStore.user?.name,
+    })
+}
+
 // Вычисляем, нужно ли показывать кнопку переключения темы
 const showThemeToggle = computed(() => {
     // Скрываем кнопку на странице чата в мобильной версии
@@ -118,6 +129,7 @@ onMounted(async () => {
     eventBus.on('webrtc_ice_candidate', handleWebRTCIceCandidate)
     eventBus.on('webrtc_call_answer', handleWebRTCCallAnswer)
     eventBus.on('webrtc_call_offer', handleWebRTCCallOffer)
+    eventBus.on('webrtc_call_end', handleWebRTCCallEnd)
     eventBus.on('webrtc_start_call', (data) => handleStartCall(data.callType, data.targetUserId))
 })
 
@@ -129,6 +141,7 @@ onBeforeUnmount(() => {
     eventBus.off('webrtc_ice_candidate', handleWebRTCIceCandidate)
     eventBus.off('webrtc_call_answer', handleWebRTCCallAnswer)
     eventBus.off('webrtc_call_offer', handleWebRTCCallOffer)
+    eventBus.off('webrtc_call_end', handleWebRTCCallEnd)
     eventBus.off('webrtc_start_call')
 })
 
@@ -235,6 +248,29 @@ const eventHandler = {
             candidate: payload.candidate,
         })
     },
+    webrtc_call_end: (event: WebsocketMessage) => {
+        console.log('webrtc_call_end received from WebSocket', event.payload)
+        const payload = event.payload as {
+            callerId: string | number
+            reason?: string
+        }
+
+        // Игнорируем свои собственные события завершения звонка
+        if (payload.callerId === userStore.user?.id) {
+            console.log('Ignoring own webrtc_call_end event')
+            return
+        }
+
+        // Используем отдельное событие для полученных извне событий завершения
+        // чтобы избежать циклической отправки
+        eventBus.emit('webrtc_call_end_received', {
+            targetUserId: payload.callerId,
+            reason: payload.reason || 'call_ended',
+        })
+
+        // НЕ очищаем состояние здесь - это должен делать VideoCallModal
+        // после корректного завершения звонка
+    },
 }
 const onBroadcast = async (data: WebsocketMessage) => {
     console.log('onBroadcast')
@@ -297,12 +333,13 @@ const handleAcceptCall = () => {
 
 const handleDeclineCall = () => {
     console.log('Call declined:', stateStore.incomingCall)
-    // Отправляем WebSocket сообщение об отклонении звонка
+    // Отправляем WebSocket сообщение об отклонении звонка через унифицированное событие
     if (stateStore.incomingCall.callerId) {
-        baseApi.ws('main/decline_call', {
-            callerId: stateStore.incomingCall.callerId,
-            callerName: stateStore.incomingCall.callerName,
-            callType: stateStore.incomingCall.callType,
+        baseApi.ws('main/webrtc_call_end', {
+            targetUserId: stateStore.incomingCall.callerId,
+            reason: 'call_declined',
+            callerId: userStore.user?.id,
+            callerName: userStore.user?.name,
         })
     }
     stateStore.clearIncomingCall()
@@ -311,12 +348,13 @@ const handleDeclineCall = () => {
 const handleCancelConnection = () => {
     console.log('Connection cancelled:', stateStore.incomingCall)
 
-    // Отправляем WebSocket сообщение об отмене соединения
+    // Отправляем WebSocket сообщение об отмене соединения через унифицированное событие
     if (stateStore.incomingCall.callerId) {
-        baseApi.ws('main/cancel_call', {
-            callerId: stateStore.incomingCall.callerId,
-            callerName: stateStore.incomingCall.callerName,
-            callType: stateStore.incomingCall.callType,
+        baseApi.ws('main/webrtc_call_end', {
+            targetUserId: stateStore.incomingCall.callerId,
+            reason: 'connection_cancelled',
+            callerId: userStore.user?.id,
+            callerName: userStore.user?.name,
         })
     }
 
@@ -359,11 +397,14 @@ const handleStartCall = async (callType: 'video' | 'audio', targetUserId: string
 const handleEndOutgoingCall = () => {
     console.log('Ending outgoing call')
 
-    // Отправляем WebSocket сообщение о завершении звонка
+    // Отправляем WebSocket сообщение о завершении звонка через WebRTC событие
     if (stateStore.outgoingCall.targetUserId) {
-        baseApi.ws('main/end_call', {
+        // Используем унифицированное событие webrtc_call_end
+        baseApi.ws('main/webrtc_call_end', {
             targetUserId: stateStore.outgoingCall.targetUserId,
-            callType: stateStore.outgoingCall.callType,
+            reason: 'call_ended_by_caller',
+            callerId: userStore.user?.id,
+            callerName: userStore.user?.name,
         })
     }
 

@@ -227,6 +227,7 @@ onMounted(async () => {
     // Подписываемся на события WebRTC signaling
     eventBus.on('webrtc_answer_received', handleAnswerReceived)
     eventBus.on('webrtc_candidate_received', handleCandidateReceived)
+    eventBus.on('webrtc_call_end_received', handleCallEndReceived)
 
     console.log('VideoCallModal subscribed to all events')
 
@@ -281,6 +282,7 @@ onUnmounted(() => {
     eventBus.off('webrtc_connection_state_changed', handleConnectionStateChanged)
     eventBus.off('webrtc_answer_received', handleAnswerReceived)
     eventBus.off('webrtc_candidate_received', handleCandidateReceived)
+    eventBus.off('webrtc_call_end_received', handleCallEndReceived)
 
     stopRingtone()
     if (ringtoneAudio) {
@@ -483,6 +485,20 @@ const handleAnswerReceived = (payload: { answer: RTCSessionDescriptionInit }) =>
 const handleCandidateReceived = (payload: { candidate: RTCIceCandidateInit }) => {
     console.log('ICE candidate received from remote user:', payload.candidate)
     handleIceCandidate(payload.candidate)
+}
+
+// Обработчик завершения звонка от удаленного пользователя
+const handleCallEndReceived = (payload: { targetUserId: string | number; reason?: string }) => {
+    console.log('Call end received from remote user:', payload)
+
+    // Останавливаем звук
+    stopRingtone()
+
+    // Завершаем звонок локально (без отправки события обратно)
+    endCall(payload.reason, true) // skipEmitEvent = true
+
+    // Эмитируем событие завершения для закрытия модального окна
+    emit('call-ended')
 }
 
 // Отслеживаем состояние соединения для сброса флага принятия звонка

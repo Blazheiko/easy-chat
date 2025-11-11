@@ -30,6 +30,14 @@ export type Events = {
         isConnected: boolean
         error?: string | null
     }
+    webrtc_call_end: {
+        targetUserId: string | number
+        reason?: string
+    }
+    webrtc_call_end_received: {
+        targetUserId: string | number
+        reason?: string
+    }
 }
 
 const emitter = mitt<Events>()
