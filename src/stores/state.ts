@@ -6,6 +6,7 @@ export interface IncomingCall {
     callerId: string | number
     callerName: string
     callType: 'video' | 'audio'
+    offer?: RTCSessionDescriptionInit
 }
 
 export const useStateStore = defineStore('state', () => {
@@ -30,6 +31,7 @@ export const useStateStore = defineStore('state', () => {
         callerId: string | number | null
         callerName: string
         callType: 'video' | 'audio' | null
+        offer: RTCSessionDescriptionInit | null
         isConnecting: boolean
         isConnected: boolean
         error: string | null
@@ -38,6 +40,7 @@ export const useStateStore = defineStore('state', () => {
         callerId: null,
         callerName: '',
         callType: null,
+        offer: null,
         isConnecting: false,
         isConnected: false,
         error: null,
@@ -539,6 +542,7 @@ export const useStateStore = defineStore('state', () => {
         incomingCall.callerId = call.callerId
         incomingCall.callerName = call.callerName
         incomingCall.callType = call.callType
+        incomingCall.offer = call.offer || null
     }
 
     const clearIncomingCall = () => {
@@ -546,6 +550,7 @@ export const useStateStore = defineStore('state', () => {
         incomingCall.callerId = null
         incomingCall.callerName = ''
         incomingCall.callType = null
+        incomingCall.offer = null
         incomingCall.isConnecting = false
         incomingCall.isConnected = false
         incomingCall.error = null

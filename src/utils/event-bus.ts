@@ -8,8 +8,8 @@ export type Events = {
     toggle_notifications: { enabled: boolean }
     init_app: void
     unauthorized: void
-    webrtc_ice_candidate: { candidate: RTCIceCandidateInit }
-    webrtc_call_answer: { answer: RTCSessionDescriptionInit }
+    webrtc_ice_candidate: { candidate: RTCIceCandidateInit; targetUserId: string | number }
+    webrtc_call_answer: { answer: RTCSessionDescriptionInit; targetUserId: string | number }
     webrtc_call_offer: {
         targetUserId: string | number
         callType: 'video' | 'audio'
@@ -19,6 +19,9 @@ export type Events = {
         targetUserId: string | number
         callType: 'video' | 'audio'
     }
+    webrtc_local_stream_updated: { stream: MediaStream | null }
+    webrtc_remote_stream_updated: { stream: MediaStream | null }
+    webrtc_streams_cleared: Record<string, never>
 }
 
 const emitter = mitt<Events>()

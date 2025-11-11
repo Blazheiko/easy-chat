@@ -1,25 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { useWebRTC } from '@/composables/useWebRTC'
+import { useEventBus } from '@/utils/event-bus'
 
 interface Props {
     callerName: string
     callerId: string | number
     callType: 'video' | 'audio'
-    isConnecting?: boolean
-    isConnected?: boolean
-    error?: string | null
-    localStream?: MediaStream | null
-    remoteStream?: MediaStream | null
     isOutgoing?: boolean // Новый prop для определения типа звонка
-    callState?: {
-        isConnecting: boolean
-        isConnected: boolean
-        isLocalVideoEnabled: boolean
-        isLocalAudioEnabled: boolean
-        isRemoteVideoEnabled: boolean
-        isRemoteAudioEnabled: boolean
-        error: string | null
-    }
+    offer?: RTCSessionDescriptionInit // Для входящих звонков
 }
 
 const props = defineProps<Props>()
@@ -28,7 +17,27 @@ const emit = defineEmits<{
     'accept-call': []
     'decline-call': []
     'cancel-connection': []
+    'call-ended': []
 }>()
+
+// Используем event bus для подписки на события
+const eventBus = useEventBus()
+
+// Используем композабл WebRTC
+const {
+    callState,
+    getLocalStream,
+    getRemoteStream,
+    startCall,
+    acceptCall,
+    toggleLocalVideo,
+    toggleLocalAudio,
+    endCall,
+} = useWebRTC()
+
+// Нереактивные переменные для медиа потоков
+let localStream: MediaStream | null = null
+let remoteStream: MediaStream | null = null
 
 // Звук входящего звонка - НЕ реактивный для лучшей производительности
 let ringtoneAudio: HTMLAudioElement | null = null
@@ -39,6 +48,14 @@ const isAudioStopped = ref(false) // Флаг для предотвращени�
 // Refs для видео элементов
 const localVideoRef = ref<HTMLVideoElement | null>(null)
 const remoteVideoRef = ref<HTMLVideoElement | null>(null)
+const mainVideoRef = ref<HTMLVideoElement | null>(null)
+const smallVideoRef = ref<HTMLVideoElement | null>(null)
+
+// Флаг для переключения между большим и маленьким видео
+const showLocalVideoLarge = ref(false)
+
+// Флаг для блокировки кнопки Accept (предотвращение повторного нажатия)
+const isAccepting = ref(false)
 
 // Функция для попытки воспроизведения звука
 const tryPlayRingtone = async () => {
@@ -130,8 +147,41 @@ const stopRingtone = () => {
     }
 }
 
+// Функция для установки медиа потоков в video элементы через JS
+const attachMediaStreams = () => {
+    if (localVideoRef.value && localStream) {
+        localVideoRef.value.srcObject = localStream
+    }
+    if (remoteVideoRef.value && remoteStream) {
+        remoteVideoRef.value.srcObject = remoteStream
+    }
+    if (mainVideoRef.value && smallVideoRef.value) {
+        // Если соединение установлено, показываем remote большим
+        if (callState.value.isConnected) {
+            mainVideoRef.value.srcObject = remoteStream
+            smallVideoRef.value.srcObject = localStream
+            showLocalVideoLarge.value = false
+        } else if (props.isOutgoing) {
+            // Для исходящих звонков показываем свое видео большим до соединения
+            mainVideoRef.value.srcObject = localStream
+            smallVideoRef.value.srcObject = remoteStream
+            showLocalVideoLarge.value = true
+        } else {
+            // Для входящих звонков показываем remote большим
+            mainVideoRef.value.srcObject = remoteStream
+            smallVideoRef.value.srcObject = localStream
+            showLocalVideoLarge.value = false
+        }
+    }
+}
+
 onMounted(async () => {
     await nextTick()
+
+    // Подписываемся на события обновления медиа потоков
+    eventBus.on('webrtc_local_stream_updated', handleLocalStreamUpdated)
+    eventBus.on('webrtc_remote_stream_updated', handleRemoteStreamUpdated)
+    eventBus.on('webrtc_streams_cleared', handleStreamsCleared)
 
     // Создаем аудио элемент только для входящих звонков
     if (!props.isOutgoing) {
@@ -163,11 +213,25 @@ onMounted(async () => {
             console.log('Audio already ready - attempting to play immediately')
             tryPlayRingtone()
         }
+    } else {
+        // Для исходящих звонков начинаем звонок
+        console.log('Starting outgoing call...')
+        showLocalVideoLarge.value = true
+        await startCall(props.callType, props.callerId)
     }
 })
 
 onUnmounted(() => {
-    console.log('IncomingCallModal unmounted - cleaning up audio')
+    console.log('VideoCallModal unmounted - cleaning up')
+
+    // Сбрасываем флаг принятия звонка
+    isAccepting.value = false
+
+    // Отписываемся от событий
+    eventBus.off('webrtc_local_stream_updated', handleLocalStreamUpdated)
+    eventBus.off('webrtc_remote_stream_updated', handleRemoteStreamUpdated)
+    eventBus.off('webrtc_streams_cleared', handleStreamsCleared)
+
     stopRingtone()
     if (ringtoneAudio) {
         ringtoneAudio.removeEventListener('loadeddata', () => {})
@@ -175,22 +239,78 @@ onUnmounted(() => {
         ringtoneAudio.removeEventListener('canplaythrough', () => {})
         ringtoneAudio = null
     }
+    // Завершаем звонок и очищаем WebRTC ресурсы
+    endCall()
 })
 
-const handleAccept = () => {
-    console.log('handleAccept called - stopping ringtone and emitting accept-call')
+const handleAccept = async () => {
+    // Проверяем, не идет ли уже процесс принятия звонка
+    if (isAccepting.value) {
+        console.log('Call is already being accepted, ignoring duplicate click')
+        return
+    }
+
+    console.log('handleAccept called - stopping ringtone and accepting call')
+    console.log('isAccepting BEFORE:', isAccepting.value)
+
+    // Блокируем кнопку
+    isAccepting.value = true
+    console.log('isAccepting AFTER set to true:', isAccepting.value)
+
+    // Ждем, пока Vue обновит DOM
+    await nextTick()
+    console.log('DOM updated after setting isAccepting')
+
     stopRingtone()
-    emit('accept-call')
+
+    try {
+        // Принимаем входящий звонок с передачей targetUserId (callerId)
+        if (props.offer) {
+            console.log('Calling acceptCall...')
+            const success = await acceptCall(props.callType, props.offer, props.callerId)
+            console.log('acceptCall returned:', success)
+
+            if (success) {
+                console.log('Call accepted successfully, emitting accept-call event')
+                emit('accept-call')
+                // Не сбрасываем флаг сразу, чтобы предотвратить повторные нажатия
+                // Флаг будет сброшен при размонтировании компонента или изменении состояния
+            } else {
+                // Если не удалось принять звонок, разблокируем кнопку
+                console.log('Call acceptance failed, resetting isAccepting')
+                isAccepting.value = false
+            }
+        } else {
+            console.log('No offer provided, resetting isAccepting')
+            // isAccepting.value = false
+        }
+    } catch (error) {
+        console.error('Error accepting call:', error)
+        // Разблокируем кнопку при ошибке
+        // isAccepting.value = false
+        console.log('Error occurred, isAccepting reset to:', isAccepting.value)
+    }
 }
 
 const handleDecline = () => {
+    console.log('handleDecline called - declining call')
     stopRingtone()
+    endCall()
     emit('decline-call')
 }
 
 const handleCancelConnection = () => {
+    console.log('handleCancelConnection called - cancelling connection')
     stopRingtone()
+    endCall()
     emit('cancel-connection')
+}
+
+const handleEndCall = () => {
+    console.log('handleEndCall called - ending call')
+    stopRingtone()
+    endCall()
+    emit('call-ended')
 }
 
 // Функция для ручного запуска звука (если автовоспроизведение заблокировано)
@@ -204,19 +324,78 @@ const manualPlayRingtone = () => {
 
 // Отслеживаем изменения состояния соединения и останавливаем звук
 watch(
-    () => [props.isConnecting, props.isConnected, props.error],
-    ([isConnecting, isConnected, error]) => {
+    () => callState.value.isConnecting || callState.value.isConnected || callState.value.error,
+    (stateChanged) => {
         // Останавливаем звук при любом изменении состояния соединения
-        if (isConnecting || isConnected || error) {
+        if (stateChanged) {
             console.log('Stopping ringtone due to connection state change:', {
-                isConnecting,
-                isConnected,
-                error,
+                isConnecting: callState.value.isConnecting,
+                isConnected: callState.value.isConnected,
+                error: callState.value.error,
             })
             stopRingtone()
         }
     },
     { immediate: false },
+)
+
+// Обработчики событий для обновления медиа потоков
+const handleLocalStreamUpdated = () => {
+    console.log('Local stream updated from event bus')
+    localStream = getLocalStream()
+    nextTick(() => {
+        attachMediaStreams()
+    })
+}
+
+const handleRemoteStreamUpdated = () => {
+    console.log('Remote stream updated from event bus')
+    remoteStream = getRemoteStream()
+    nextTick(() => {
+        attachMediaStreams()
+    })
+}
+
+const handleStreamsCleared = () => {
+    console.log('Streams cleared from event bus')
+    localStream = null
+    remoteStream = null
+    nextTick(() => {
+        attachMediaStreams()
+    })
+}
+
+// Отслеживаем состояние соединения для переключения видео
+watch(
+    () => callState.value.isConnected,
+    (isConnected) => {
+        if (isConnected) {
+            console.log('Call connected - switching video layout')
+            // Сбрасываем флаг принятия звонка
+            isAccepting.value = false
+            console.log('isAccepting reset to false after connection established')
+
+            // Когда соединение установлено, показываем remote большим
+            showLocalVideoLarge.value = false
+            // Обновляем потоки из композабла
+            localStream = getLocalStream()
+            remoteStream = getRemoteStream()
+            nextTick(() => {
+                attachMediaStreams()
+            })
+        }
+    },
+)
+
+// Отслеживаем ошибки для сброса флага
+watch(
+    () => callState.value.error,
+    (error) => {
+        if (error) {
+            console.log('Call error detected, resetting isAccepting:', error)
+            isAccepting.value = false
+        }
+    },
 )
 </script>
 
@@ -255,13 +434,15 @@ watch(
                 </div>
                 <h2 class="caller-name">{{ callerName }}</h2>
                 <p class="call-type-label">
-                    <template v-if="props.isConnecting">
+                    <template v-if="callState.isConnecting">
                         Connecting {{ callType === 'video' ? 'video' : 'voice' }} call...
                     </template>
-                    <template v-else-if="props.isConnected">
+                    <template v-else-if="callState.isConnected">
                         {{ callType === 'video' ? 'Video' : 'Voice' }} call connected!
                     </template>
-                    <template v-else-if="props.error"> Call error: {{ props.error }} </template>
+                    <template v-else-if="callState.error">
+                        Call error: {{ callState.error }}
+                    </template>
                     <template v-else>
                         {{ props.isOutgoing ? 'Calling' : 'Incoming' }}
                         {{ callType === 'video' ? 'video' : 'voice' }} call...
@@ -272,9 +453,9 @@ watch(
                 <div
                     v-if="
                         !props.isOutgoing &&
-                        !props.isConnecting &&
-                        !props.isConnected &&
-                        !props.error
+                        !callState.isConnecting &&
+                        !callState.isConnected &&
+                        !callState.error
                     "
                 >
                     <div v-if="audioError && !isAudioPlaying" class="audio-status">
@@ -294,53 +475,74 @@ watch(
                 </div>
             </div>
 
-            <!-- Видео элементы для подключенного звонка -->
-            <div v-if="props.isConnected && callType === 'video'" class="video-container">
-                <div class="remote-video">
+            <!-- Видео элементы для видео звонка -->
+            <div v-if="callType === 'video'" class="video-container">
+                <!-- Главное видео (большое) -->
+                <div class="main-video">
                     <video
-                        ref="remoteVideoRef"
+                        ref="mainVideoRef"
                         autoplay
                         playsinline
-                        class="video-player remote"
-                        :srcObject="remoteStream"
+                        :muted="showLocalVideoLarge"
+                        class="video-player main"
                     ></video>
-                    <div class="avatar-circle large" v-if="!remoteStream">
-                        {{ callerName.substring(0, 2).toUpperCase() }}
+                    <div
+                        class="avatar-circle large"
+                        v-if="
+                            !showLocalVideoLarge
+                                ? !remoteStream
+                                : !localStream || !callState.isLocalVideoEnabled
+                        "
+                    >
+                        {{ !showLocalVideoLarge ? callerName.substring(0, 2).toUpperCase() : 'ME' }}
                     </div>
-                    <div class="call-status">{{ callerName }}</div>
+                    <div class="call-status">
+                        {{ !showLocalVideoLarge ? callerName : 'You' }}
+                    </div>
                 </div>
-                <div class="local-video">
+
+                <!-- Маленькое видео (picture-in-picture) -->
+                <div class="small-video" v-if="callState.isConnected || props.isOutgoing">
                     <video
-                        ref="localVideoRef"
+                        ref="smallVideoRef"
                         autoplay
                         playsinline
-                        muted
-                        class="video-player local"
-                        :srcObject="localStream"
+                        :muted="!showLocalVideoLarge"
+                        class="video-player small"
                     ></video>
-                    <div class="avatar-circle small" v-if="!localStream">ME</div>
+                    <div
+                        class="avatar-circle small"
+                        v-if="
+                            showLocalVideoLarge
+                                ? !remoteStream
+                                : !localStream || !callState.isLocalVideoEnabled
+                        "
+                    >
+                        {{ showLocalVideoLarge ? callerName.substring(0, 2).toUpperCase() : 'ME' }}
+                    </div>
                 </div>
             </div>
 
             <!-- Индикатор состояния соединения -->
-            <div v-if="props.isConnecting" class="connection-status connecting">
+            <div v-if="callState.isConnecting" class="connection-status connecting">
                 <div class="connection-loader"></div>
                 <p>Establishing connection...</p>
             </div>
 
-            <div v-else-if="props.isConnected" class="connection-status connected">
+            <div v-else-if="callState.isConnected" class="connection-status connected">
                 <div class="connection-success">✓</div>
                 <p>Call connected successfully!</p>
             </div>
 
-            <div v-else-if="props.error" class="connection-status error">
+            <div v-else-if="callState.error" class="connection-status error">
                 <div class="connection-error">⚠</div>
-                <p>{{ props.error }}</p>
+                <p>{{ callState.error }}</p>
             </div>
 
-            <div class="call-actions" v-if="!props.isConnected">
+            <!-- Кнопки управления звонком -->
+            <div class="call-actions">
                 <!-- Показываем кнопку отмены во время установки соединения -->
-                <template v-if="props.isConnecting">
+                <template v-if="callState.isConnecting">
                     <button
                         class="call-button cancel"
                         @click="handleCancelConnection"
@@ -356,8 +558,8 @@ watch(
                     </button>
                 </template>
 
-                <!-- Обычные кнопки принять/отклонить или завершить для исходящих -->
-                <template v-else>
+                <!-- Во время соединения или ошибки -->
+                <template v-else-if="!callState.isConnected">
                     <!-- Для исходящих звонков показываем только кнопку завершения -->
                     <template v-if="props.isOutgoing">
                         <button class="call-button decline" @click="handleDecline" title="End call">
@@ -391,17 +593,92 @@ watch(
                             class="call-button accept"
                             @click="handleAccept"
                             title="Accept call"
-                            :class="{ connecting: props.isConnecting }"
+                            :disabled="isAccepting"
+                            :class="{ accepting: isAccepting }"
                         >
-                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Спиннер при принятии звонка -->
+                            <div v-if="isAccepting" class="button-spinner"></div>
+
+                            <!-- Иконка телефона -->
+                            <svg
+                                v-if="!isAccepting"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
+                            >
                                 <path
                                     d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"
                                     fill="currentColor"
                                 />
                             </svg>
-                            <span>Accept</span>
+
+                            <span v-if="!isAccepting">Accept</span>
+                            <span v-else>Accepting...</span>
                         </button>
                     </template>
+                </template>
+
+                <!-- Когда соединение установлено - показываем кнопки управления -->
+                <template v-else>
+                    <!-- Кнопка переключения видео (только для видео звонков) -->
+                    <button
+                        v-if="callType === 'video'"
+                        class="call-button control"
+                        @click="toggleLocalVideo"
+                        :title="
+                            callState.isLocalVideoEnabled ? 'Turn off camera' : 'Turn on camera'
+                        "
+                        :class="{ disabled: !callState.isLocalVideoEnabled }"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                v-if="callState.isLocalVideoEnabled"
+                                d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"
+                                fill="currentColor"
+                            />
+                            <path
+                                v-else
+                                d="M21 6.5l-4 4V7c0-.55-.45-1-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.21 0 .39-.08.54-.18L19.73 21 21 19.73 3.27 2z"
+                                fill="currentColor"
+                            />
+                        </svg>
+                        <span>{{ callState.isLocalVideoEnabled ? 'Camera' : 'Camera Off' }}</span>
+                    </button>
+
+                    <!-- Кнопка переключения аудио -->
+                    <button
+                        class="call-button control"
+                        @click="toggleLocalAudio"
+                        :title="
+                            callState.isLocalAudioEnabled ? 'Mute microphone' : 'Unmute microphone'
+                        "
+                        :class="{ disabled: !callState.isLocalAudioEnabled }"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                v-if="callState.isLocalAudioEnabled"
+                                d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"
+                                fill="currentColor"
+                            />
+                            <path
+                                v-else
+                                d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V20h2v-2.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"
+                                fill="currentColor"
+                            />
+                        </svg>
+                        <span>{{ callState.isLocalAudioEnabled ? 'Mute' : 'Unmute' }}</span>
+                    </button>
+
+                    <!-- Кнопка завершения звонка -->
+                    <button class="call-button decline" @click="handleEndCall" title="End call">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"
+                                fill="currentColor"
+                            />
+                        </svg>
+                        <span>End Call</span>
+                    </button>
                 </template>
             </div>
         </div>
@@ -589,6 +866,42 @@ watch(
     box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
 }
 
+.call-button.accept.accepting {
+    background-color: #81c784 !important;
+    animation: acceptingPulse 1s ease-in-out infinite !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+}
+
+.call-button.accept.accepting:hover {
+    background-color: #81c784 !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Спиннер в кнопке Accept */
+.button-spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top: 3px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Анимация пульсации при принятии */
+@keyframes acceptingPulse {
+    0% {
+        opacity: 0.8;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0.8;
+    }
+}
+
 .call-button.decline {
     background-color: #f44336;
     color: white;
@@ -611,6 +924,25 @@ watch(
     background-color: #f57c00;
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
+}
+
+.call-button.control {
+    background-color: #2196f3;
+    color: white;
+}
+
+.call-button.control:hover {
+    background-color: #1976d2;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+}
+
+.call-button.control.disabled {
+    background-color: #9e9e9e;
+}
+
+.call-button.control.disabled:hover {
+    background-color: #757575;
 }
 
 .call-button:active {
@@ -793,7 +1125,7 @@ watch(
     margin-top: 20px;
 }
 
-.remote-video {
+.main-video {
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -802,7 +1134,7 @@ watch(
     position: relative;
 }
 
-.remote-video .avatar-circle.large {
+.main-video .avatar-circle.large {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -811,9 +1143,17 @@ watch(
     width: 120px;
     height: 120px;
     font-size: 40px;
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-.local-video {
+.small-video {
     position: absolute;
     bottom: 20px;
     right: 20px;
@@ -823,7 +1163,7 @@ watch(
     z-index: 2;
 }
 
-.local-video .avatar-circle.small {
+.small-video .avatar-circle.small {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -832,6 +1172,14 @@ watch(
     width: 60px;
     height: 60px;
     font-size: 20px;
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .video-player {
@@ -840,16 +1188,16 @@ watch(
     object-fit: cover;
 }
 
-.video-player.remote {
+.video-player.main {
     width: 100%;
     height: 300px;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.video-player.local {
-    width: 80px;
-    height: 60px;
+.video-player.small {
+    width: 120px;
+    height: 90px;
     border-radius: 8px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }

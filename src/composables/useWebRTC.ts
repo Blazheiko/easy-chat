@@ -20,8 +20,9 @@ export const useWebRTC = () => {
 
     // WebRTC состояние
     let peerConnection: RTCPeerConnection | null = null // Не реактивный - используется только внутри composable
-    const localStream = ref<MediaStream | null>(null) // Реактивный - используется в UI
-    const remoteStream = ref<MediaStream | null>(null) // Реактивный - используется в UI
+    let localStream: MediaStream | null = null // Не реактивный - управляется через JavaScript
+    let remoteStream: MediaStream | null = null // Не реактивный - управляется через JavaScript
+    let currentTargetUserId: string | number | null = null // ID пользователя для текущего звонка
     const callState = ref<CallState>({
         isConnecting: false,
         isConnected: false,
@@ -48,11 +49,12 @@ export const useWebRTC = () => {
 
             // Обработчики событий WebRTC
             peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
+                if (event.candidate && currentTargetUserId) {
                     console.log('ICE candidate:', event.candidate)
-                    // Отправляем ICE candidate через WebSocket
+                    // Отправляем ICE candidate через WebSocket с targetUserId
                     eventBus.emit('webrtc_ice_candidate', {
                         candidate: event.candidate,
+                        targetUserId: currentTargetUserId,
                     })
                 }
             }
@@ -91,7 +93,7 @@ export const useWebRTC = () => {
             peerConnection.ontrack = (event) => {
                 console.log('Remote track received:', event)
                 if (event.streams && event.streams[0]) {
-                    remoteStream.value = event.streams[0]
+                    remoteStream = event.streams[0]
 
                     // Проверяем типы треков
                     event.streams[0].getTracks().forEach((track) => {
@@ -101,6 +103,9 @@ export const useWebRTC = () => {
                             callState.value.isRemoteAudioEnabled = track.enabled
                         }
                     })
+
+                    // Эмитируем событие для обновления UI
+                    eventBus.emit('webrtc_remote_stream_updated', { stream: remoteStream })
                 }
             }
 
@@ -122,7 +127,7 @@ export const useWebRTC = () => {
         try {
             callState.value.error = null
             const stream = await navigator.mediaDevices.getUserMedia(constraints)
-            localStream.value = stream
+            localStream = stream
 
             // Обновляем состояние локальных медиа
             stream.getTracks().forEach((track) => {
@@ -132,6 +137,9 @@ export const useWebRTC = () => {
                     callState.value.isLocalAudioEnabled = track.enabled
                 }
             })
+
+            // Эмитируем событие для обновления UI
+            eventBus.emit('webrtc_local_stream_updated', { stream: localStream })
 
             return stream
         } catch (error) {
@@ -146,6 +154,9 @@ export const useWebRTC = () => {
         try {
             callState.value.isConnecting = true
             callState.value.error = null
+
+            // Сохраняем targetUserId для использования в ICE кандидатах
+            currentTargetUserId = targetUserId
 
             // Инициализируем peer connection
             const pc = initializePeerConnection()
@@ -186,10 +197,17 @@ export const useWebRTC = () => {
     }
 
     // Принятие входящего звонка
-    const acceptCall = async (callType: 'video' | 'audio', offer: RTCSessionDescriptionInit) => {
+    const acceptCall = async (
+        callType: 'video' | 'audio',
+        offer: RTCSessionDescriptionInit,
+        targetUserId: string | number,
+    ) => {
         try {
             callState.value.isConnecting = true
             callState.value.error = null
+
+            // Сохраняем targetUserId для использования в ICE кандидатах
+            currentTargetUserId = targetUserId
 
             // Инициализируем peer connection
             const pc = initializePeerConnection()
@@ -215,9 +233,10 @@ export const useWebRTC = () => {
             const answer = await pc.createAnswer()
             await pc.setLocalDescription(answer)
 
-            // Отправляем answer через WebSocket
+            // Отправляем answer через WebSocket с targetUserId
             eventBus.emit('webrtc_call_answer', {
                 answer: answer,
+                targetUserId: targetUserId,
             })
 
             console.log('Call accepted, answer sent')
@@ -261,8 +280,8 @@ export const useWebRTC = () => {
 
     // Переключение локального видео
     const toggleLocalVideo = () => {
-        if (localStream.value) {
-            const videoTrack = localStream.value.getVideoTracks()[0]
+        if (localStream) {
+            const videoTrack = localStream.getVideoTracks()[0]
             if (videoTrack) {
                 videoTrack.enabled = !videoTrack.enabled
                 callState.value.isLocalVideoEnabled = videoTrack.enabled
@@ -272,8 +291,8 @@ export const useWebRTC = () => {
 
     // Переключение локального аудио
     const toggleLocalAudio = () => {
-        if (localStream.value) {
-            const audioTrack = localStream.value.getAudioTracks()[0]
+        if (localStream) {
+            const audioTrack = localStream.getAudioTracks()[0]
             if (audioTrack) {
                 audioTrack.enabled = !audioTrack.enabled
                 callState.value.isLocalAudioEnabled = audioTrack.enabled
@@ -285,11 +304,11 @@ export const useWebRTC = () => {
     const endCall = () => {
         try {
             // Останавливаем локальные треки
-            if (localStream.value) {
-                localStream.value.getTracks().forEach((track) => {
+            if (localStream) {
+                localStream.getTracks().forEach((track) => {
                     track.stop()
                 })
-                localStream.value = null
+                localStream = null
             }
 
             // Закрываем peer connection
@@ -309,7 +328,11 @@ export const useWebRTC = () => {
                 error: null,
             }
 
-            remoteStream.value = null
+            remoteStream = null
+            currentTargetUserId = null // Очищаем ID пользователя
+
+            // Эмитируем событие об очистке стримов
+            eventBus.emit('webrtc_streams_cleared', {})
 
             console.log('Call ended successfully')
         } catch (error) {
@@ -322,11 +345,17 @@ export const useWebRTC = () => {
         endCall()
     })
 
+    // Геттеры для доступа к потокам
+    const getLocalStream = () => localStream
+    const getRemoteStream = () => remoteStream
+
     return {
         // Состояние
         callState,
-        localStream,
-        remoteStream,
+
+        // Геттеры для медиа потоков
+        getLocalStream,
+        getRemoteStream,
 
         // Методы
         startCall,
