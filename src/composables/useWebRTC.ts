@@ -17,11 +17,11 @@ export interface CallState {
 
 export const useWebRTC = () => {
     const eventBus = useEventBus()
-    
+
     // WebRTC состояние
-    const peerConnection = ref<RTCPeerConnection | null>(null)
-    const localStream = ref<MediaStream | null>(null)
-    const remoteStream = ref<MediaStream | null>(null)
+    let peerConnection: RTCPeerConnection | null = null // Не реактивный - используется только внутри composable
+    const localStream = ref<MediaStream | null>(null) // Реактивный - используется в UI
+    const remoteStream = ref<MediaStream | null>(null) // Реактивный - используется в UI
     const callState = ref<CallState>({
         isConnecting: false,
         isConnected: false,
@@ -29,7 +29,7 @@ export const useWebRTC = () => {
         isLocalAudioEnabled: false,
         isRemoteVideoEnabled: false,
         isRemoteAudioEnabled: false,
-        error: null
+        error: null,
     })
 
     // Конфигурация ICE серверов (можно вынести в настройки)
@@ -37,32 +37,35 @@ export const useWebRTC = () => {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' }
-        ]
+            { urls: 'stun:stun2.l.google.com:19302' },
+        ],
     }
 
     // Инициализация WebRTC соединения
     const initializePeerConnection = (config: WebRTCConfig = defaultConfig) => {
         try {
-            peerConnection.value = new RTCPeerConnection(config)
-            
+            peerConnection = new RTCPeerConnection(config)
+
             // Обработчики событий WebRTC
-            peerConnection.value.onicecandidate = (event) => {
+            peerConnection.onicecandidate = (event) => {
                 if (event.candidate) {
                     console.log('ICE candidate:', event.candidate)
                     // Отправляем ICE candidate через WebSocket
                     eventBus.emit('webrtc_ice_candidate', {
-                        candidate: event.candidate
+                        candidate: event.candidate,
                     })
                 }
             }
 
-            peerConnection.value.oniceconnectionstatechange = () => {
-                const state = peerConnection.value?.iceConnectionState
+            peerConnection.oniceconnectionstatechange = () => {
+                const state = peerConnection?.iceConnectionState
                 console.log('ICE connection state:', state)
-                
-                switch (state) {
-                    case 'connecting':
+
+                if (!state) return
+
+                switch (state as RTCIceConnectionState) {
+                    case 'checking':
+                    case 'new':
                         callState.value.isConnecting = true
                         callState.value.isConnected = false
                         callState.value.error = null
@@ -85,13 +88,13 @@ export const useWebRTC = () => {
                 }
             }
 
-            peerConnection.value.ontrack = (event) => {
+            peerConnection.ontrack = (event) => {
                 console.log('Remote track received:', event)
                 if (event.streams && event.streams[0]) {
                     remoteStream.value = event.streams[0]
-                    
+
                     // Проверяем типы треков
-                    event.streams[0].getTracks().forEach(track => {
+                    event.streams[0].getTracks().forEach((track) => {
                         if (track.kind === 'video') {
                             callState.value.isRemoteVideoEnabled = track.enabled
                         } else if (track.kind === 'audio') {
@@ -101,12 +104,12 @@ export const useWebRTC = () => {
                 }
             }
 
-            peerConnection.value.ondatachannel = (event) => {
+            peerConnection.ondatachannel = (event) => {
                 console.log('Data channel received:', event.channel)
                 // Можно добавить обработку data channel для дополнительных функций
             }
 
-            return peerConnection.value
+            return peerConnection
         } catch (error) {
             console.error('Failed to initialize peer connection:', error)
             callState.value.error = 'Failed to initialize connection'
@@ -120,9 +123,9 @@ export const useWebRTC = () => {
             callState.value.error = null
             const stream = await navigator.mediaDevices.getUserMedia(constraints)
             localStream.value = stream
-            
+
             // Обновляем состояние локальных медиа
-            stream.getTracks().forEach(track => {
+            stream.getTracks().forEach((track) => {
                 if (track.kind === 'video') {
                     callState.value.isLocalVideoEnabled = track.enabled
                 } else if (track.kind === 'audio') {
@@ -151,13 +154,13 @@ export const useWebRTC = () => {
             // Получаем пользовательские медиа
             const constraints: MediaStreamConstraints = {
                 audio: true,
-                video: callType === 'video'
+                video: callType === 'video',
             }
-            
+
             const stream = await getUserMedia(constraints)
-            
+
             // Добавляем локальные треки в peer connection
-            stream.getTracks().forEach(track => {
+            stream.getTracks().forEach((track) => {
                 pc.addTrack(track, stream)
             })
 
@@ -169,7 +172,7 @@ export const useWebRTC = () => {
             eventBus.emit('webrtc_call_offer', {
                 targetUserId,
                 callType,
-                offer: offer
+                offer: offer,
             })
 
             console.log('Call started, offer sent')
@@ -195,13 +198,13 @@ export const useWebRTC = () => {
             // Получаем пользовательские медиа
             const constraints: MediaStreamConstraints = {
                 audio: true,
-                video: callType === 'video'
+                video: callType === 'video',
             }
-            
+
             const stream = await getUserMedia(constraints)
-            
+
             // Добавляем локальные треки в peer connection
-            stream.getTracks().forEach(track => {
+            stream.getTracks().forEach((track) => {
                 pc.addTrack(track, stream)
             })
 
@@ -214,7 +217,7 @@ export const useWebRTC = () => {
 
             // Отправляем answer через WebSocket
             eventBus.emit('webrtc_call_answer', {
-                answer: answer
+                answer: answer,
             })
 
             console.log('Call accepted, answer sent')
@@ -230,11 +233,11 @@ export const useWebRTC = () => {
     // Обработка полученного answer
     const handleAnswer = async (answer: RTCSessionDescriptionInit) => {
         try {
-            if (!peerConnection.value) {
+            if (!peerConnection) {
                 throw new Error('Peer connection not initialized')
             }
 
-            await peerConnection.value.setRemoteDescription(answer)
+            await peerConnection.setRemoteDescription(answer)
             console.log('Answer processed successfully')
         } catch (error) {
             console.error('Failed to handle answer:', error)
@@ -245,11 +248,11 @@ export const useWebRTC = () => {
     // Обработка ICE candidate
     const handleIceCandidate = async (candidate: RTCIceCandidateInit) => {
         try {
-            if (!peerConnection.value) {
+            if (!peerConnection) {
                 throw new Error('Peer connection not initialized')
             }
 
-            await peerConnection.value.addIceCandidate(candidate)
+            await peerConnection.addIceCandidate(candidate)
             console.log('ICE candidate added successfully')
         } catch (error) {
             console.error('Failed to add ICE candidate:', error)
@@ -283,16 +286,16 @@ export const useWebRTC = () => {
         try {
             // Останавливаем локальные треки
             if (localStream.value) {
-                localStream.value.getTracks().forEach(track => {
+                localStream.value.getTracks().forEach((track) => {
                     track.stop()
                 })
                 localStream.value = null
             }
 
             // Закрываем peer connection
-            if (peerConnection.value) {
-                peerConnection.value.close()
-                peerConnection.value = null
+            if (peerConnection) {
+                peerConnection.close()
+                peerConnection = null
             }
 
             // Сбрасываем состояние
@@ -303,7 +306,7 @@ export const useWebRTC = () => {
                 isLocalAudioEnabled: false,
                 isRemoteVideoEnabled: false,
                 isRemoteAudioEnabled: false,
-                error: null
+                error: null,
             }
 
             remoteStream.value = null
@@ -324,7 +327,7 @@ export const useWebRTC = () => {
         callState,
         localStream,
         remoteStream,
-        
+
         // Методы
         startCall,
         acceptCall,
@@ -332,6 +335,6 @@ export const useWebRTC = () => {
         handleIceCandidate,
         toggleLocalVideo,
         toggleLocalAudio,
-        endCall
+        endCall,
     }
 }

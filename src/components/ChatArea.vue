@@ -7,15 +7,17 @@ import { useMessagesStore, type Message } from '@/stores/messages'
 import type { Contact } from '@/stores/contacts'
 import { messagesApi } from '@/utils/api'
 import { useUserStore } from '@/stores/user'
+import { useEventBus } from '@/utils/event-bus'
 
 const userStore = useUserStore()
+const eventBus = useEventBus()
 // Тип звонка
 
 // interface Props {
 //     selectedContact: Contact | null
 // }
 
-defineProps({
+const props = defineProps({
     selectedContact: {
         type: Object as PropType<Contact>,
         default: null,
@@ -38,7 +40,6 @@ const emit = defineEmits([
     'open-add-contact',
     'start-call',
 ])
-type CallType = 'video' | 'audio' | null
 
 const messagesStore = useMessagesStore()
 useRouter()
@@ -71,17 +72,7 @@ const editingMessage = ref({
     text: '',
 })
 
-// Добавляем состояние для управления модальным окном и типом звонка
-const isCallActive = ref(false)
-const activeCallType = ref<CallType>(null)
-const callDuration = ref(0)
-const callTimer = ref<number | null>(null)
-const isMuted = ref(false)
-
-// Ссылки на видеоэлементы
-const localVideoRef = ref<HTMLVideoElement | null>(null)
-const remoteVideoRef = ref<HTMLVideoElement | null>(null)
-const localStream = ref<MediaStream | null>(null)
+// WebRTC состояние теперь управляется через useWebRTC в App.vue
 
 // Функция прокрутки чата вниз
 const scrollToBottom = () => {
@@ -123,96 +114,41 @@ const simulateTyping = () => {
 
 // Функция для начала видеозвонка
 const startVideoCall = async () => {
-    activeCallType.value = 'video'
-    isCallActive.value = true
-    startCallTimer()
-
-    try {
-        // Запрашиваем доступ к камере
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: true,
-        })
-
-        localStream.value = stream
-
-        // После рендеринга компонентов подключаем видеопоток
-        setTimeout(() => {
-            if (localVideoRef.value) {
-                localVideoRef.value.srcObject = stream
-            }
-            emit('start-call')
-
-            // Имитация подключения собеседника (в реальном приложении здесь будет WebRTC логика)
-            if (remoteVideoRef.value) {
-                // В демонстрационных целях показываем ту же камеру для удаленного пользователя
-                remoteVideoRef.value.srcObject = stream
-            }
-        }, 100)
-    } catch (error) {
-        console.error('Ошибка при доступе к камере:', error)
+    if (!props.selectedContact) {
+        console.error('No contact selected for video call')
+        return
     }
+
+    console.log('Starting video call with:', props.selectedContact.id)
+
+    // Эмитируем событие для начала WebRTC видеозвонка
+    eventBus.emit('webrtc_start_call', {
+        targetUserId: props.selectedContact.id,
+        callType: 'video',
+    })
+
+    emit('start-call', 'video', props.selectedContact.id)
 }
 
 // Функция для начала аудиозвонка
 const startAudioCall = () => {
-    activeCallType.value = 'audio'
-    isCallActive.value = true
-    startCallTimer()
-}
-
-// Функция для завершения звонка
-const endCall = () => {
-    isCallActive.value = false
-    activeCallType.value = null
-    stopCallTimer()
-    callDuration.value = 0
-
-    // Останавливаем и очищаем видеопоток
-    if (localStream.value) {
-        localStream.value.getTracks().forEach((track) => track.stop())
-        localStream.value = null
+    if (!props.selectedContact) {
+        console.error('No contact selected for audio call')
+        return
     }
+
+    console.log('Starting audio call with:', props.selectedContact.id)
+
+    // Эмитируем событие для начала WebRTC аудиозвонка
+    eventBus.emit('webrtc_start_call', {
+        targetUserId: props.selectedContact.id,
+        callType: 'audio',
+    })
+
+    emit('start-call', 'audio', props.selectedContact.id)
 }
 
-// Запуск таймера звонка
-const startCallTimer = () => {
-    callDuration.value = 0
-    callTimer.value = window.setInterval(() => {
-        callDuration.value++
-    }, 1000)
-}
-
-// Остановка таймера звонка
-const stopCallTimer = () => {
-    if (callTimer.value) {
-        clearInterval(callTimer.value)
-        callTimer.value = null
-    }
-}
-
-// Форматирование времени звонка
-const formatCallDuration = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60)
-    const remainingSeconds = seconds % 60
-    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
-}
-
-// Функция включения/выключения микрофона
-const toggleMute = () => {
-    if (localStream.value) {
-        // Получаем все аудио треки из потока
-        const audioTracks = localStream.value.getAudioTracks()
-
-        // Меняем состояние всех аудио треков
-        audioTracks.forEach((track) => {
-            track.enabled = !track.enabled
-        })
-
-        // Обновляем состояние в интерфейсе
-        isMuted.value = !isMuted.value
-    }
-}
+// WebRTC функции теперь обрабатываются в App.vue через useWebRTC composable
 
 // Функции для работы с контекстным меню
 const showContextMenu = (event: MouseEvent, index: number, text: string) => {
@@ -454,14 +390,6 @@ onMounted(() => {
 
 // Очистка ресурсов при размонтировании компонента
 onUnmounted(() => {
-    // Останавливаем таймер
-    stopCallTimer()
-
-    // Останавливаем видеопоток
-    if (localStream.value) {
-        localStream.value.getTracks().forEach((track) => track.stop())
-    }
-
     // Удаляем обработчик клика
     document.removeEventListener('click', hideContextMenu)
 })
@@ -694,110 +622,7 @@ onUnmounted(() => {
             </button>
         </div>
 
-        <!-- Модальное окно для звонка -->
-        <div class="call-modal" v-if="isCallActive">
-            <div class="call-modal-content">
-                <div class="call-header">
-                    <h3>{{ activeCallType === 'video' ? 'Video Call' : 'Voice Call' }}</h3>
-                    <span class="call-duration">{{ formatCallDuration(callDuration) }}</span>
-                </div>
-
-                <div class="call-body">
-                    <div class="user-avatar" v-if="activeCallType === 'audio'">
-                        <div class="avatar-circle">
-                            {{ selectedContact?.name?.substring(0, 2).toUpperCase() || 'JS' }}
-                        </div>
-                        <div class="call-status">{{ selectedContact?.name || 'Unknown' }}</div>
-                    </div>
-
-                    <div class="video-container" v-if="activeCallType === 'video'">
-                        <div class="remote-video">
-                            <video
-                                ref="remoteVideoRef"
-                                autoplay
-                                playsinline
-                                class="video-player remote"
-                            ></video>
-                            <div class="avatar-circle large" v-if="!remoteVideoRef?.srcObject">
-                                {{ selectedContact?.name?.substring(0, 2).toUpperCase() || 'JS' }}
-                            </div>
-                            <div class="call-status">{{ selectedContact?.name || 'Unknown' }}</div>
-                        </div>
-                        <div class="local-video">
-                            <video
-                                ref="localVideoRef"
-                                autoplay
-                                playsinline
-                                muted
-                                class="video-player local"
-                            ></video>
-                            <div class="avatar-circle small" v-if="!localVideoRef?.srcObject">
-                                ME
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="call-actions">
-                    <button
-                        class="action-button mute"
-                        @click="toggleMute"
-                        :class="{ active: isMuted }"
-                    >
-                        <svg
-                            v-if="!isMuted"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                        >
-                            <path
-                                d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"
-                                fill="currentColor"
-                            />
-                            <path
-                                d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"
-                                fill="currentColor"
-                            />
-                        </svg>
-                        <svg
-                            v-else
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                        >
-                            <path
-                                d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"
-                                fill="currentColor"
-                            />
-                        </svg>
-                    </button>
-                    <button class="action-button end-call" @click="endCall">
-                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path
-                                d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"
-                                fill="currentColor"
-                            />
-                        </svg>
-                    </button>
-                    <button class="action-button speaker" v-if="activeCallType === 'audio'">
-                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path
-                                d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"
-                                fill="currentColor"
-                            />
-                        </svg>
-                    </button>
-                    <button class="action-button camera" v-if="activeCallType === 'video'">
-                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path
-                                d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"
-                                fill="currentColor"
-                            />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </div>
+        <!-- Модальное окно звонка теперь обрабатывается в IncomingCallModal в App.vue -->
 
         <!-- Контекстное меню -->
         <div

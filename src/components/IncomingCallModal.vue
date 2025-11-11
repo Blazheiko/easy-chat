@@ -8,6 +8,18 @@ interface Props {
     isConnecting?: boolean
     isConnected?: boolean
     error?: string | null
+    localStream?: MediaStream | null
+    remoteStream?: MediaStream | null
+    isOutgoing?: boolean // Новый prop для определения типа звонка
+    callState?: {
+        isConnecting: boolean
+        isConnected: boolean
+        isLocalVideoEnabled: boolean
+        isLocalAudioEnabled: boolean
+        isRemoteVideoEnabled: boolean
+        isRemoteAudioEnabled: boolean
+        error: string | null
+    }
 }
 
 const props = defineProps<Props>()
@@ -23,6 +35,10 @@ let ringtoneAudio: HTMLAudioElement | null = null
 const audioError = ref<string | null>(null)
 const isAudioPlaying = ref(false)
 const isAudioStopped = ref(false) // Флаг для предотвращения повторного запуска
+
+// Refs для видео элементов
+const localVideoRef = ref<HTMLVideoElement | null>(null)
+const remoteVideoRef = ref<HTMLVideoElement | null>(null)
 
 // Функция для попытки воспроизведения звука
 const tryPlayRingtone = async () => {
@@ -117,33 +133,36 @@ const stopRingtone = () => {
 onMounted(async () => {
     await nextTick()
 
-    console.log('IncomingCallModal mounted - creating audio element')
+    // Создаем аудио элемент только для входящих звонков
+    if (!props.isOutgoing) {
+        console.log('IncomingCallModal mounted - creating audio element')
 
-    // Создаем аудио элемент
-    ringtoneAudio = new Audio('/audio/pdjyznja.mp3')
-    ringtoneAudio.loop = true
-    ringtoneAudio.preload = 'auto'
+        // Создаем аудио элемент
+        ringtoneAudio = new Audio('/audio/pdjyznja.mp3')
+        ringtoneAudio.loop = true
+        ringtoneAudio.preload = 'auto'
 
-    // Добавляем обработчики событий
-    ringtoneAudio.addEventListener('loadeddata', () => {
-        console.log('Ringtone audio loaded successfully')
-    })
+        // Добавляем обработчики событий
+        ringtoneAudio.addEventListener('loadeddata', () => {
+            console.log('Ringtone audio loaded successfully')
+        })
 
-    ringtoneAudio.addEventListener('error', (e) => {
-        console.error('Audio loading error:', e)
-        audioError.value = 'Failed to load audio file'
-    })
+        ringtoneAudio.addEventListener('error', (e) => {
+            console.error('Audio loading error:', e)
+            audioError.value = 'Failed to load audio file'
+        })
 
-    ringtoneAudio.addEventListener('canplaythrough', () => {
-        console.log('Audio can play through - attempting to play')
-        // Пытаемся воспроизвести после загрузки
-        tryPlayRingtone()
-    })
+        ringtoneAudio.addEventListener('canplaythrough', () => {
+            console.log('Audio can play through - attempting to play')
+            // Пытаемся воспроизвести после загрузки
+            tryPlayRingtone()
+        })
 
-    // Если аудио уже готово к воспроизведению
-    if (ringtoneAudio.readyState >= 3) {
-        console.log('Audio already ready - attempting to play immediately')
-        tryPlayRingtone()
+        // Если аудио уже готово к воспроизведению
+        if (ringtoneAudio.readyState >= 3) {
+            console.log('Audio already ready - attempting to play immediately')
+            tryPlayRingtone()
+        }
     }
 })
 
@@ -244,12 +263,20 @@ watch(
                     </template>
                     <template v-else-if="props.error"> Call error: {{ props.error }} </template>
                     <template v-else>
-                        Incoming {{ callType === 'video' ? 'video' : 'voice' }} call...
+                        {{ props.isOutgoing ? 'Calling' : 'Incoming' }}
+                        {{ callType === 'video' ? 'video' : 'voice' }} call...
                     </template>
                 </p>
 
-                <!-- Показываем статус аудио и кнопку для ручного воспроизведения только если не подключаемся -->
-                <div v-if="!props.isConnecting && !props.isConnected && !props.error">
+                <!-- Показываем статус аудио только для входящих звонков -->
+                <div
+                    v-if="
+                        !props.isOutgoing &&
+                        !props.isConnecting &&
+                        !props.isConnected &&
+                        !props.error
+                    "
+                >
                     <div v-if="audioError && !isAudioPlaying" class="audio-status">
                         <p class="audio-error">{{ audioError }}</p>
                         <button
@@ -264,6 +291,34 @@ watch(
                     <div v-else-if="isAudioPlaying" class="audio-status">
                         <p class="audio-playing">🔊 Ringtone playing...</p>
                     </div>
+                </div>
+            </div>
+
+            <!-- Видео элементы для подключенного звонка -->
+            <div v-if="props.isConnected && callType === 'video'" class="video-container">
+                <div class="remote-video">
+                    <video
+                        ref="remoteVideoRef"
+                        autoplay
+                        playsinline
+                        class="video-player remote"
+                        :srcObject="remoteStream"
+                    ></video>
+                    <div class="avatar-circle large" v-if="!remoteStream">
+                        {{ callerName.substring(0, 2).toUpperCase() }}
+                    </div>
+                    <div class="call-status">{{ callerName }}</div>
+                </div>
+                <div class="local-video">
+                    <video
+                        ref="localVideoRef"
+                        autoplay
+                        playsinline
+                        muted
+                        class="video-player local"
+                        :srcObject="localStream"
+                    ></video>
+                    <div class="avatar-circle small" v-if="!localStream">ME</div>
                 </div>
             </div>
 
@@ -301,32 +356,52 @@ watch(
                     </button>
                 </template>
 
-                <!-- Обычные кнопки принять/отклонить -->
+                <!-- Обычные кнопки принять/отклонить или завершить для исходящих -->
                 <template v-else>
-                    <button class="call-button decline" @click="handleDecline" title="Decline call">
-                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path
-                                d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"
-                                fill="currentColor"
-                            />
-                        </svg>
-                        <span>Decline</span>
-                    </button>
+                    <!-- Для исходящих звонков показываем только кнопку завершения -->
+                    <template v-if="props.isOutgoing">
+                        <button class="call-button decline" @click="handleDecline" title="End call">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path
+                                    d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"
+                                    fill="currentColor"
+                                />
+                            </svg>
+                            <span>End Call</span>
+                        </button>
+                    </template>
 
-                    <button
-                        class="call-button accept"
-                        @click="handleAccept"
-                        title="Accept call"
-                        :class="{ connecting: props.isConnecting }"
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path
-                                d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"
-                                fill="currentColor"
-                            />
-                        </svg>
-                        <span>Accept</span>
-                    </button>
+                    <!-- Для входящих звонков показываем принять/отклонить -->
+                    <template v-else>
+                        <button
+                            class="call-button decline"
+                            @click="handleDecline"
+                            title="Decline call"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path
+                                    d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"
+                                    fill="currentColor"
+                                />
+                            </svg>
+                            <span>Decline</span>
+                        </button>
+
+                        <button
+                            class="call-button accept"
+                            @click="handleAccept"
+                            title="Accept call"
+                            :class="{ connecting: props.isConnecting }"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path
+                                    d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"
+                                    fill="currentColor"
+                                />
+                            </svg>
+                            <span>Accept</span>
+                        </button>
+                    </template>
                 </template>
             </div>
         </div>
@@ -705,6 +780,85 @@ watch(
         transform: scale(1);
         box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
     }
+}
+
+/* Стили для видео элементов */
+.video-container {
+    width: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0;
+    margin-top: 20px;
+}
+
+.remote-video {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+}
+
+.remote-video .avatar-circle.large {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+    width: 120px;
+    height: 120px;
+    font-size: 40px;
+}
+
+.local-video {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    padding: 5px;
+    z-index: 2;
+}
+
+.local-video .avatar-circle.small {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+    width: 60px;
+    height: 60px;
+    font-size: 20px;
+}
+
+.video-player {
+    border-radius: 10px;
+    background-color: #000;
+    object-fit: cover;
+}
+
+.video-player.remote {
+    width: 100%;
+    height: 300px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.video-player.local {
+    width: 80px;
+    height: 60px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.call-status {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-color);
+    margin-top: 10px;
 }
 
 @media (max-width: 768px) {

@@ -43,6 +43,25 @@ export const useStateStore = defineStore('state', () => {
         error: null,
     })
 
+    // Outgoing call state
+    const outgoingCall = reactive<{
+        isActive: boolean
+        targetUserId: string | number | null
+        targetName: string
+        callType: 'video' | 'audio' | null
+        isConnecting: boolean
+        isConnected: boolean
+        error: string | null
+    }>({
+        isActive: false,
+        targetUserId: null,
+        targetName: '',
+        callType: null,
+        isConnecting: false,
+        isConnected: false,
+        error: null,
+    })
+
     const handleResize = () => {
         windowWidth.value = window.innerWidth
     }
@@ -550,6 +569,43 @@ export const useStateStore = defineStore('state', () => {
         incomingCall.error = error
     }
 
+    // Outgoing call functions
+    const setOutgoingCall = (data: {
+        targetUserId: string | number
+        targetName: string
+        callType: 'video' | 'audio'
+    }) => {
+        outgoingCall.isActive = true
+        outgoingCall.targetUserId = data.targetUserId
+        outgoingCall.targetName = data.targetName
+        outgoingCall.callType = data.callType
+        outgoingCall.isConnecting = true
+        outgoingCall.isConnected = false
+        outgoingCall.error = null
+    }
+
+    const clearOutgoingCall = () => {
+        outgoingCall.isActive = false
+        outgoingCall.targetUserId = null
+        outgoingCall.targetName = ''
+        outgoingCall.callType = null
+        outgoingCall.isConnecting = false
+        outgoingCall.isConnected = false
+        outgoingCall.error = null
+    }
+
+    const setOutgoingCallConnected = () => {
+        outgoingCall.isConnecting = false
+        outgoingCall.isConnected = true
+        outgoingCall.error = null
+    }
+
+    const setOutgoingCallError = (error: string) => {
+        outgoingCall.isConnecting = false
+        outgoingCall.isConnected = false
+        outgoingCall.error = error
+    }
+
     return {
         darkMode,
         setDarkMode,
@@ -573,5 +629,11 @@ export const useStateStore = defineStore('state', () => {
         setCallConnecting,
         setCallConnected,
         setCallError,
+        // Outgoing call
+        outgoingCall,
+        setOutgoingCall,
+        clearOutgoingCall,
+        setOutgoingCallConnected,
+        setOutgoingCallError,
     }
 })

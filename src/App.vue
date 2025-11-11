@@ -27,7 +27,16 @@ const stateStore = useStateStore()
 const contactsStore = useContactsStore()
 const messagesStore = useMessagesStore()
 const eventBus = useEventBus()
-const { acceptCall, handleAnswer, handleIceCandidate, endCall } = useWebRTC()
+const {
+    acceptCall,
+    handleAnswer,
+    handleIceCandidate,
+    endCall,
+    startCall,
+    callState,
+    localStream,
+    remoteStream,
+} = useWebRTC()
 // const { initializeApp } = useAppInitialization()
 
 const windowWidth = stateStore.windowWidth
@@ -41,6 +50,19 @@ const handleWebRTCIceCandidate = (data: { candidate: RTCIceCandidateInit }) => {
 const handleWebRTCCallAnswer = (data: { answer: RTCSessionDescriptionInit }) => {
     // Отправляем answer через WebSocket
     baseApi.ws('main/webrtc_call_answer', data)
+}
+
+const handleWebRTCCallOffer = (data: {
+    targetUserId: string | number
+    callType: 'video' | 'audio'
+    offer: RTCSessionDescriptionInit
+}) => {
+    // Отправляем offer через WebSocket
+    baseApi.ws('main/webrtc_call_offer', {
+        targetUserId: data.targetUserId,
+        callType: data.callType,
+        offer: data.offer,
+    })
 }
 
 // Вычисляем, нужно ли показывать кнопку переключения темы
@@ -91,6 +113,8 @@ onMounted(async () => {
     // Отслеживаем изменения состояния WebRTC
     eventBus.on('webrtc_ice_candidate', handleWebRTCIceCandidate)
     eventBus.on('webrtc_call_answer', handleWebRTCCallAnswer)
+    eventBus.on('webrtc_call_offer', handleWebRTCCallOffer)
+    eventBus.on('webrtc_start_call', (data) => handleStartCall(data.callType, data.targetUserId))
 })
 
 // Удаляем слушатель при размонтировании компонента
@@ -100,6 +124,8 @@ onBeforeUnmount(() => {
     eventBus.off('unauthorized', onReauthorize)
     eventBus.off('webrtc_ice_candidate', handleWebRTCIceCandidate)
     eventBus.off('webrtc_call_answer', handleWebRTCCallAnswer)
+    eventBus.off('webrtc_call_offer', handleWebRTCCallOffer)
+    eventBus.off('webrtc_start_call')
 })
 
 const onReauthorize = async () => {
@@ -176,7 +202,7 @@ const eventHandler = {
             callerId: string | number
         }
 
-        // Если звонок уже принят и мы ожидаем offer
+        // Если звонок уже принят и мы ожидаем offer (входящий звонок)
         if (
             stateStore.incomingCall.isConnecting &&
             payload.offer &&
@@ -194,6 +220,27 @@ const eventHandler = {
             } catch (error) {
                 console.error('Error processing WebRTC offer:', error)
                 stateStore.setCallError('Error processing call offer')
+            }
+        }
+
+        // Если это исходящий звонок и получен offer от другой стороны
+        if (
+            stateStore.outgoingCall.isConnecting &&
+            payload.offer &&
+            stateStore.outgoingCall.callType
+        ) {
+            try {
+                // Принимаем offer для исходящего звонка
+                const success = await acceptCall(stateStore.outgoingCall.callType, payload.offer)
+                if (success) {
+                    stateStore.setOutgoingCallConnected()
+                    console.log('Outgoing WebRTC call established successfully')
+                } else {
+                    stateStore.setOutgoingCallError('Failed to establish WebRTC connection')
+                }
+            } catch (error) {
+                console.error('Error processing outgoing WebRTC offer:', error)
+                stateStore.setOutgoingCallError('Error processing call offer')
             }
         }
     },
@@ -277,15 +324,7 @@ const handleAcceptCall = async () => {
             callerName: stateStore.incomingCall.callerName,
         })
 
-        // Здесь должен быть получен offer от вызывающей стороны через WebSocket
-        // Пока что имитируем получение offer (в реальном приложении это будет приходить через WebSocket)
-        // const mockOffer: RTCSessionDescriptionInit = {
-        //     type: 'offer',
-        //     sdp: 'mock-sdp-data'
-        // }
-
-        // Инициализируем WebRTC соединение для принятия звонка
-        // В реальном приложении offer будет получен через WebSocket событие
+        // WebRTC соединение будет инициализировано при получении offer через WebSocket
         console.log('WebRTC call acceptance initiated, waiting for offer...')
     } catch (error) {
         console.error('Failed to accept call:', error)
@@ -328,6 +367,60 @@ const handleCancelConnection = () => {
     // Очищаем состояние звонка
     stateStore.clearIncomingCall()
 }
+
+// Функция для начала исходящего звонка
+const handleStartCall = async (callType: 'video' | 'audio', targetUserId: string | number) => {
+    console.log('Starting outgoing call:', { callType, targetUserId })
+
+    try {
+        // Находим контакт для получения имени
+        const contact = contactsStore.getContactById(String(targetUserId))
+        const targetName = contact?.name || 'Unknown'
+
+        // Устанавливаем состояние исходящего звонка
+        stateStore.setOutgoingCall({
+            targetUserId,
+            targetName,
+            callType,
+        })
+
+        // Отправляем WebSocket сообщение о начале звонка
+        baseApi.ws('main/start_call', {
+            targetUserId,
+            callType,
+            callerName: userStore.user?.name || 'Unknown',
+        })
+
+        // Инициируем WebRTC соединение
+        const success = await startCall(callType, targetUserId)
+        if (!success) {
+            console.error('Failed to start WebRTC call')
+            stateStore.setOutgoingCallError('Failed to start WebRTC call')
+        }
+    } catch (error) {
+        console.error('Failed to start call:', error)
+        stateStore.setOutgoingCallError('Failed to start call')
+    }
+}
+
+// Функция для завершения исходящего звонка
+const handleEndOutgoingCall = () => {
+    console.log('Ending outgoing call')
+
+    // Завершаем WebRTC соединение
+    endCall()
+
+    // Отправляем WebSocket сообщение о завершении звонка
+    if (stateStore.outgoingCall.targetUserId) {
+        baseApi.ws('main/end_call', {
+            targetUserId: stateStore.outgoingCall.targetUserId,
+            callType: stateStore.outgoingCall.callType,
+        })
+    }
+
+    // Очищаем состояние исходящего звонка
+    stateStore.clearOutgoingCall()
+}
 </script>
 
 <template>
@@ -360,9 +453,30 @@ const handleCancelConnection = () => {
             :is-connecting="stateStore.incomingCall.isConnecting"
             :is-connected="stateStore.incomingCall.isConnected"
             :error="stateStore.incomingCall.error"
+            :local-stream="localStream"
+            :remote-stream="remoteStream"
+            :call-state="callState"
             @accept-call="handleAcceptCall"
             @decline-call="handleDeclineCall"
             @cancel-connection="handleCancelConnection"
+        />
+
+        <!-- Глобальное модальное окно для исходящих звонков -->
+        <IncomingCallModal
+            v-if="stateStore.outgoingCall.isActive"
+            :caller-name="stateStore.outgoingCall.targetName"
+            :caller-id="stateStore.outgoingCall.targetUserId!"
+            :call-type="stateStore.outgoingCall.callType!"
+            :is-connecting="stateStore.outgoingCall.isConnecting"
+            :is-connected="stateStore.outgoingCall.isConnected"
+            :error="stateStore.outgoingCall.error"
+            :local-stream="localStream"
+            :remote-stream="remoteStream"
+            :call-state="callState"
+            :is-outgoing="true"
+            @accept-call="() => {}"
+            @decline-call="handleEndOutgoingCall"
+            @cancel-connection="handleEndOutgoingCall"
         />
     </div>
 </template>

@@ -10,10 +10,14 @@ export type Events = {
     unauthorized: void
     webrtc_ice_candidate: { candidate: RTCIceCandidateInit }
     webrtc_call_answer: { answer: RTCSessionDescriptionInit }
-    webrtc_call_offer: { 
+    webrtc_call_offer: {
         targetUserId: string | number
         callType: 'video' | 'audio'
-        offer: RTCSessionDescriptionInit 
+        offer: RTCSessionDescriptionInit
+    }
+    webrtc_start_call: {
+        targetUserId: string | number
+        callType: 'video' | 'audio'
     }
 }
 
