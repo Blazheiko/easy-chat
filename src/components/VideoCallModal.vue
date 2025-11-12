@@ -37,6 +37,14 @@ const {
     toggleLocalVideo,
     toggleLocalAudio,
     endCall,
+    // Медиа устройства
+    availableVideoDevices,
+    availableAudioDevices,
+    currentVideoDevice,
+    currentAudioDevice,
+    getMediaDevices,
+    switchVideoDevice,
+    switchAudioDevice,
 } = useWebRTC()
 
 // Нереактивные переменные для медиа потоков (MediaStream не должен быть реактивным!)
@@ -68,6 +76,12 @@ const isLocalVideoReady = ref(false)
 
 // Флаг для отслеживания готовности к началу звонка
 const isReadyToCall = ref(false)
+
+// Флаг для загрузки устройств
+const isLoadingDevices = ref(false)
+
+// Флаг для полноэкранного режима
+const isFullscreen = ref(false)
 
 // Computed для отображения маленького видео - только когда соединение установлено И есть оба потока
 const shouldShowSmallVideo = computed(() => {
@@ -280,6 +294,78 @@ const updateVideoLayout = () => {
     }
 }
 
+// Функция для загрузки списка доступных устройств
+const loadMediaDevices = async () => {
+    try {
+        isLoadingDevices.value = true
+        console.log('Loading media devices...')
+
+        // Сначала запрашиваем разрешения для получения меток устройств
+        const tempStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true,
+        })
+
+        // Останавливаем временный поток
+        tempStream.getTracks().forEach((track) => track.stop())
+
+        // Теперь получаем список устройств с метками
+        await getMediaDevices()
+
+        console.log('Media devices loaded:', {
+            video: availableVideoDevices.value.length,
+            audio: availableAudioDevices.value.length,
+        })
+    } catch (error) {
+        console.error('Failed to load media devices:', error)
+    } finally {
+        isLoadingDevices.value = false
+    }
+}
+
+// Функция для переключения видео устройства
+const handleVideoDeviceChange = async (deviceId: string) => {
+    if (deviceId && deviceId !== currentVideoDevice.value) {
+        console.log('Switching video device to:', deviceId)
+        const success = await switchVideoDevice(deviceId)
+        if (!success) {
+            console.error('Failed to switch video device')
+        }
+    }
+}
+
+// Функция для переключения аудио устройства
+const handleAudioDeviceChange = async (deviceId: string) => {
+    if (deviceId && deviceId !== currentAudioDevice.value) {
+        console.log('Switching audio device to:', deviceId)
+        const success = await switchAudioDevice(deviceId)
+        if (!success) {
+            console.error('Failed to switch audio device')
+        }
+    }
+}
+
+// Автоматическая загрузка устройств при установке соединения
+const autoLoadDevices = async () => {
+    if (availableVideoDevices.value.length === 0 && availableAudioDevices.value.length === 0) {
+        await loadMediaDevices()
+    }
+}
+
+// Функция для переключения полноэкранного режима
+const toggleFullscreen = () => {
+    isFullscreen.value = !isFullscreen.value
+    console.log('Fullscreen toggled:', isFullscreen.value)
+}
+
+// Обработчик клавиши Escape для выхода из полноэкранного режима
+const handleKeydown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape' && isFullscreen.value) {
+        isFullscreen.value = false
+        console.log('Exited fullscreen via Escape key')
+    }
+}
+
 onMounted(async () => {
     await nextTick()
 
@@ -295,6 +381,9 @@ onMounted(async () => {
     eventBus.on('webrtc_answer_received', handleAnswerReceived)
     eventBus.on('webrtc_candidate_received', handleCandidateReceived)
     eventBus.on('webrtc_call_end_received', handleCallEndReceived)
+
+    // Добавляем обработчик клавиатуры
+    document.addEventListener('keydown', handleKeydown)
 
     console.log('VideoCallModal subscribed to all events')
 
@@ -333,6 +422,9 @@ onMounted(async () => {
         console.log('Preparing outgoing call - getting local stream first...')
         showLocalVideoLarge.value = true
 
+        // Загружаем список устройств для исходящих звонков
+        autoLoadDevices()
+
         // Запускаем процесс получения медиа потока
         try {
             await prepareCall(props.callType, props.callerId)
@@ -357,6 +449,9 @@ onUnmounted(() => {
     eventBus.off('webrtc_answer_received', handleAnswerReceived)
     eventBus.off('webrtc_candidate_received', handleCandidateReceived)
     eventBus.off('webrtc_call_end_received', handleCallEndReceived)
+
+    // Удаляем обработчик клавиатуры
+    document.removeEventListener('keydown', handleKeydown)
 
     stopRingtone()
     if (ringtoneAudio) {
@@ -596,11 +691,13 @@ const handleConnectionStateChanged = async (payload: {
 }) => {
     console.log('🔗 Connection state changed:', payload)
 
-    // Когда соединение установлено, обновляем макет видео
+    // Когда соединение установлено, обновляем макет видео и загружаем устройства
     if (payload.isConnected) {
-        console.log('🔗 Connection established, updating video layout')
+        console.log('🔗 Connection established, updating video layout and loading devices')
         await nextTick()
         updateVideoLayout()
+        // Автоматически загружаем список устройств
+        autoLoadDevices()
     }
 }
 
@@ -682,9 +779,9 @@ watch(isLocalVideoReady, async (isReady) => {
 </script>
 
 <template>
-    <div class="incoming-call-overlay">
-        <div class="incoming-call-modal">
-            <div class="call-icon-wrapper">
+    <div class="incoming-call-overlay" :class="{ 'fullscreen-mode': isFullscreen }">
+        <div class="incoming-call-modal" :class="{ 'fullscreen-modal': isFullscreen }">
+            <!-- <div class="call-icon-wrapper">
                 <div class="call-icon-ring"></div>
                 <div class="call-icon">
                     <svg
@@ -708,12 +805,12 @@ watch(isLocalVideoReady, async (isReady) => {
                         />
                     </svg>
                 </div>
-            </div>
+            </div> -->
 
             <div class="call-info">
-                <div class="caller-avatar">
+                <!-- <div class="caller-avatar">
                     {{ callerName ? callerName.substring(0, 2).toUpperCase() : 'U' }}
-                </div>
+                </div> -->
                 <h2 class="caller-name">{{ callerName || 'Unknown' }}</h2>
                 <p class="call-type-label">
                     <template v-if="callState.isConnecting">
@@ -730,6 +827,67 @@ watch(isLocalVideoReady, async (isReady) => {
                         {{ callType === 'video' ? 'video' : 'voice' }} call...
                     </template>
                 </p>
+
+                <!-- Селекторы устройств для обычного режима (внутри call-info) -->
+                <div
+                    v-if="(props.isOutgoing || callState.isConnected) && !isFullscreen"
+                    class="device-selectors-inline"
+                >
+                    <div v-if="isLoadingDevices" class="loading-devices-inline">
+                        <div class="device-loader-small"></div>
+                        <span>Loading devices...</span>
+                    </div>
+
+                    <div v-else class="device-selectors-compact">
+                        <!-- Селектор камеры (только для видео звонков) -->
+                        <div v-if="callType === 'video'" class="device-selector-compact">
+                            <select
+                                id="video-device-select-normal"
+                                :value="currentVideoDevice"
+                                @change="
+                                    handleVideoDeviceChange(
+                                        ($event.target as HTMLSelectElement).value,
+                                    )
+                                "
+                                :disabled="availableVideoDevices.length === 0"
+                                class="device-select-compact"
+                            >
+                                <option value="" disabled>📹 Select camera</option>
+                                <option
+                                    v-for="device in availableVideoDevices"
+                                    :key="device.deviceId"
+                                    :value="device.deviceId"
+                                >
+                                    {{ device.label }}
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Селектор микрофона -->
+                        <div class="device-selector-compact">
+                            <select
+                                id="audio-device-select-normal"
+                                :value="currentAudioDevice"
+                                @change="
+                                    handleAudioDeviceChange(
+                                        ($event.target as HTMLSelectElement).value,
+                                    )
+                                "
+                                :disabled="availableAudioDevices.length === 0"
+                                class="device-select-compact"
+                            >
+                                <option value="" disabled>🎤 Select microphone</option>
+                                <option
+                                    v-for="device in availableAudioDevices"
+                                    :key="device.deviceId"
+                                    :value="device.deviceId"
+                                >
+                                    {{ device.label }}
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Показываем статус аудио только для входящих звонков -->
                 <div
@@ -753,6 +911,63 @@ watch(isLocalVideoReady, async (isReady) => {
 
                     <div v-else-if="isAudioPlaying" class="audio-status">
                         <p class="audio-playing">🔊 Ringtone playing...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Селекторы устройств для полноэкранного режима (вне call-info, в правом верхнем углу) -->
+            <div
+                v-if="(props.isOutgoing || callState.isConnected) && isFullscreen"
+                class="device-selectors-fullscreen"
+            >
+                <div v-if="isLoadingDevices" class="loading-devices-inline">
+                    <div class="device-loader-small"></div>
+                    <span>Loading devices...</span>
+                </div>
+
+                <div v-else class="device-selectors-compact">
+                    <!-- Селектор камеры (только для видео звонков) -->
+                    <div v-if="callType === 'video'" class="device-selector-compact">
+                        <select
+                            id="video-device-select-fullscreen"
+                            :value="currentVideoDevice"
+                            @change="
+                                handleVideoDeviceChange(($event.target as HTMLSelectElement).value)
+                            "
+                            :disabled="availableVideoDevices.length === 0"
+                            class="device-select-compact"
+                        >
+                            <option value="" disabled>📹 Select camera</option>
+                            <option
+                                v-for="device in availableVideoDevices"
+                                :key="device.deviceId"
+                                :value="device.deviceId"
+                            >
+                                {{ device.label }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Селектор микрофона -->
+                    <div class="device-selector-compact">
+                        <select
+                            id="audio-device-select-fullscreen"
+                            :value="currentAudioDevice"
+                            @change="
+                                handleAudioDeviceChange(($event.target as HTMLSelectElement).value)
+                            "
+                            :disabled="availableAudioDevices.length === 0"
+                            class="device-select-compact"
+                        >
+                            <option value="" disabled>🎤 Select microphone</option>
+                            <option
+                                v-for="device in availableAudioDevices"
+                                :key="device.deviceId"
+                                :value="device.deviceId"
+                            >
+                                {{ device.label }}
+                            </option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -900,6 +1115,28 @@ watch(isLocalVideoReady, async (isReady) => {
 
                 <!-- Когда соединение установлено - показываем кнопки управления -->
                 <template v-else>
+                    <!-- Кнопка полноэкранного режима (только для видео звонков с удаленным потоком) -->
+                    <button
+                        v-if="callType === 'video' && hasRemoteStream"
+                        class="call-button control"
+                        @click="toggleFullscreen"
+                        :title="isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                v-if="!isFullscreen"
+                                d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"
+                                fill="currentColor"
+                            />
+                            <path
+                                v-else
+                                d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"
+                                fill="currentColor"
+                            />
+                        </svg>
+                        <span>{{ isFullscreen ? 'Exit' : 'Fullscreen' }}</span>
+                    </button>
+
                     <!-- Кнопка переключения видео (только для видео звонков) -->
                     <button
                         v-if="callType === 'video'"
@@ -979,20 +1216,25 @@ watch(isLocalVideoReady, async (isReady) => {
     align-items: center;
     animation: fadeIn 0.3s ease;
     backdrop-filter: blur(8px);
+    padding: 20px;
+    box-sizing: border-box;
 }
 
 .incoming-call-modal {
     background-color: var(--background-color);
     border-radius: 24px;
-    padding: 40px 32px;
-    max-width: 400px;
+    padding: 24px 20px;
+    max-width: 450px;
     width: 90%;
+    height: calc(100vh - 40px);
+    max-height: calc(100vh - 40px);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 32px;
+    gap: 20px;
     animation: slideUp 0.4s ease;
+    overflow-y: auto;
 }
 
 .call-icon-wrapper {
@@ -1004,17 +1246,17 @@ watch(isLocalVideoReady, async (isReady) => {
 
 .call-icon-ring {
     position: absolute;
-    width: 120px;
-    height: 120px;
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
-    border: 3px solid var(--primary-color);
+    border: 2px solid var(--primary-color);
     animation: pulse 2s infinite;
     opacity: 0.6;
 }
 
 .call-icon {
-    width: 80px;
-    height: 80px;
+    width: 60px;
+    height: 60px;
     background-color: var(--primary-color);
     border-radius: 50%;
     display: flex;
@@ -1025,8 +1267,8 @@ watch(isLocalVideoReady, async (isReady) => {
 }
 
 .call-icon svg {
-    width: 40px;
-    height: 40px;
+    width: 28px;
+    height: 28px;
 }
 
 .call-info {
@@ -1038,28 +1280,28 @@ watch(isLocalVideoReady, async (isReady) => {
 }
 
 .caller-avatar {
-    width: 80px;
-    height: 80px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
     background-color: var(--primary-color);
     color: white;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 28px;
+    font-size: 20px;
     font-weight: bold;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .caller-name {
-    font-size: 24px;
+    font-size: 20px;
     font-weight: 600;
     color: var(--text-color);
     margin: 0;
 }
 
 .call-type-label {
-    font-size: 16px;
+    font-size: 14px;
     color: #6c757d;
     margin: 0;
 }
@@ -1115,23 +1357,23 @@ watch(isLocalVideoReady, async (isReady) => {
 
 .call-button {
     flex: 1;
-    max-width: 140px;
+    max-width: 120px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    padding: 16px;
+    gap: 6px;
+    padding: 12px 8px;
     border: none;
-    border-radius: 16px;
+    border-radius: 12px;
     cursor: pointer;
     transition: all 0.3s ease;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
 }
 
 .call-button svg {
-    width: 32px;
-    height: 32px;
+    width: 24px;
+    height: 24px;
 }
 
 .call-button.accept {
@@ -1403,6 +1645,8 @@ watch(isLocalVideoReady, async (isReady) => {
     align-items: center;
     padding: 0;
     margin-top: 20px;
+    flex: 1;
+    min-height: 0;
 }
 
 .video-wrapper {
@@ -1422,9 +1666,11 @@ watch(isLocalVideoReady, async (isReady) => {
 
 .video-wrapper.video-large .video-player {
     width: 100%;
-    height: 300px;
+    height: 350px;
+    max-height: 50vh;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    object-fit: cover;
 }
 
 .video-wrapper.video-large .avatar-circle {
@@ -1433,9 +1679,9 @@ watch(isLocalVideoReady, async (isReady) => {
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 1;
-    width: 120px;
-    height: 120px;
-    font-size: 40px;
+    width: 140px;
+    height: 140px;
+    font-size: 48px;
 }
 
 /* Маленькое видео */
@@ -1479,6 +1725,251 @@ watch(isLocalVideoReady, async (isReady) => {
     object-fit: cover;
 }
 
+/* Полноэкранный режим */
+.fullscreen-mode {
+    background-color: #000;
+    backdrop-filter: none;
+    transition: all 0.3s ease;
+}
+
+.fullscreen-modal {
+    position: relative;
+    max-width: 100%;
+    width: 100%;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    padding: 0;
+    gap: 0;
+    transition: all 0.3s ease;
+    animation: fullscreenEnter 0.3s ease;
+}
+
+@keyframes fullscreenEnter {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.fullscreen-modal .call-info {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 10;
+    background-color: rgba(0, 0, 0, 0.1);
+    padding: 8px 12px;
+    border-radius: 12px;
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    gap: 6px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.fullscreen-modal .call-info .caller-name {
+    font-size: 16px;
+    color: white;
+    margin: 0;
+}
+
+.fullscreen-modal .call-info .call-type-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0;
+}
+
+/* Блок выбора устройств для полноэкранного режима - позиционируется в правом верхнем углу */
+.device-selectors-fullscreen {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 11;
+    background-color: rgba(0, 0, 0, 0.1);
+    padding: 8px 12px;
+    border-radius: 20px;
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    margin: 0;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    width: auto;
+    max-width: none;
+}
+
+.device-selectors-fullscreen .device-selectors-compact {
+    flex-direction: row;
+    gap: 8px;
+    align-items: center;
+}
+
+.fullscreen-modal .device-selectors-compact {
+    flex-direction: row;
+    gap: 8px;
+    align-items: center;
+}
+
+.fullscreen-modal .device-select-compact {
+    font-size: 10px;
+    padding: 4px 8px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    color: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    min-width: 120px;
+    max-width: 140px;
+}
+
+.fullscreen-modal .device-select-compact:focus {
+    border-color: rgba(33, 150, 243, 0.5);
+    box-shadow: 0 0 0 1px rgba(33, 150, 243, 0.2);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.fullscreen-modal .device-select-compact:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.fullscreen-modal .device-select-compact option {
+    background-color: rgba(0, 0, 0, 0.95);
+    color: white;
+}
+
+.fullscreen-modal .video-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    background-color: #000;
+}
+
+.fullscreen-modal .video-wrapper.video-large {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.fullscreen-modal .video-wrapper.video-large .video-player {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+    object-fit: cover;
+}
+
+.fullscreen-modal .video-wrapper.video-large .avatar-circle {
+    width: 200px;
+    height: 200px;
+    font-size: 64px;
+}
+
+.fullscreen-modal .video-wrapper.video-small {
+    position: absolute;
+    bottom: 140px;
+    right: 20px;
+    width: 240px;
+    height: 180px;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 16px;
+    padding: 8px;
+    z-index: 5;
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.fullscreen-modal .video-wrapper.video-small .video-player {
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    object-fit: cover;
+}
+
+.fullscreen-modal .video-wrapper.video-small .avatar-circle {
+    width: 80px;
+    height: 80px;
+    font-size: 28px;
+}
+
+.fullscreen-modal .video-wrapper.video-small .call-status {
+    position: absolute;
+    bottom: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    font-size: 12px;
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 4px 8px;
+    border-radius: 6px;
+    backdrop-filter: blur(10px);
+}
+
+/* Hover эффекты для полноэкранного режима */
+.fullscreen-modal .video-wrapper.video-small:hover {
+    transform: scale(1.02);
+    transition: transform 0.2s ease;
+}
+
+.fullscreen-modal .call-info:hover,
+.fullscreen-modal .device-selectors-inline:hover,
+.fullscreen-modal .call-actions:hover {
+    background-color: rgba(0, 0, 0, 0.2);
+    transition: background-color 0.2s ease;
+}
+
+.fullscreen-modal .call-button:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+}
+
+.fullscreen-modal .call-actions {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    background-color: rgba(0, 0, 0, 0.1);
+    padding: 16px 20px;
+    border-radius: 20px;
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    display: flex;
+    gap: 12px;
+}
+
+/* Скрываем статус соединения в полноэкранном режиме */
+.fullscreen-modal .connection-status.connected {
+    display: none;
+}
+
+.fullscreen-modal .connection-status {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    background-color: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 20px 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.fullscreen-modal .connection-status p {
+    color: white;
+    margin: 0;
+}
+
 /* Общие стили для аватаров */
 .avatar-circle {
     background-color: var(--primary-color);
@@ -1498,51 +1989,285 @@ watch(isLocalVideoReady, async (isReady) => {
     margin-top: 10px;
 }
 
+/* Стили для компактных селекторов устройств */
+.device-selectors-inline {
+    width: 100%;
+    margin: 8px 0;
+}
+
+.loading-devices-inline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-color);
+    opacity: 0.8;
+}
+
+.device-loader-small {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(33, 150, 243, 0.3);
+    border-top: 2px solid #2196f3;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.device-selectors-compact {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.device-selector-compact {
+    flex: 1;
+    min-width: 140px;
+    max-width: 200px;
+}
+
+.device-select-compact {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.device-select-compact:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+}
+
+.device-select-compact:hover:not(:disabled) {
+    border-color: var(--primary-color);
+}
+
+.device-select-compact:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.device-select-compact option {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    padding: 4px;
+}
+
+/* Анимация появления панели */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* Темная тема */
+.dark-theme .device-select-compact {
+    background-color: #2d3748;
+    border-color: #4a5568;
+    color: #e2e8f0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .device-select-compact:focus {
+    border-color: #3182ce;
+    box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.2);
+}
+
+.dark-theme .device-select-compact:hover:not(:disabled) {
+    border-color: #3182ce;
+}
+
+.dark-theme .device-select-compact:disabled {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.dark-theme .device-select-compact option {
+    background-color: #2d3748;
+    color: #e2e8f0;
+}
+
 @media (max-width: 768px) {
+    .incoming-call-overlay {
+        padding: 10px;
+    }
+
     .incoming-call-modal {
-        padding: 32px 24px;
-        gap: 24px;
+        padding: 20px 16px;
+        gap: 16px;
+        height: calc(100vh - 20px);
+        max-height: calc(100vh - 20px);
+        max-width: 100%;
+    }
+
+    .device-selectors-inline {
+        margin: 6px 0;
+    }
+
+    .device-selectors-compact {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .device-selector-compact {
+        min-width: auto;
+        max-width: none;
+    }
+
+    .device-select-compact {
+        font-size: 10px;
+        padding: 5px 6px;
+    }
+
+    .loading-devices-inline {
+        font-size: 10px;
+    }
+
+    .device-loader-small {
+        width: 12px;
+        height: 12px;
     }
 
     .caller-avatar {
-        width: 70px;
-        height: 70px;
-        font-size: 24px;
+        width: 50px;
+        height: 50px;
+        font-size: 18px;
     }
 
     .caller-name {
-        font-size: 20px;
+        font-size: 18px;
     }
 
     .call-type-label {
-        font-size: 14px;
+        font-size: 12px;
     }
 
     .call-icon {
+        width: 50px;
+        height: 50px;
+    }
+
+    .call-icon svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    .call-icon-ring {
         width: 70px;
         height: 70px;
     }
 
-    .call-icon svg {
-        width: 35px;
-        height: 35px;
-    }
-
-    .call-icon-ring {
-        width: 100px;
-        height: 100px;
-    }
-
     .call-button {
-        max-width: 120px;
-        padding: 14px;
-        gap: 6px;
-        font-size: 13px;
+        max-width: 100px;
+        padding: 10px 6px;
+        gap: 4px;
+        font-size: 11px;
     }
 
     .call-button svg {
-        width: 28px;
-        height: 28px;
+        width: 20px;
+        height: 20px;
+    }
+
+    .call-info {
+        gap: 8px;
+    }
+
+    .video-wrapper.video-large .video-player {
+        height: 250px;
+    }
+
+    .video-wrapper.video-large .avatar-circle {
+        width: 100px;
+        height: 100px;
+        font-size: 32px;
+    }
+
+    /* Полноэкранный режим на мобильных */
+    .fullscreen-modal .call-info {
+        top: 15px;
+        left: 15px;
+        padding: 6px 10px;
+        border-radius: 10px;
+    }
+
+    .fullscreen-modal .call-info .caller-name {
+        font-size: 13px;
+    }
+
+    .fullscreen-modal .call-info .call-type-label {
+        font-size: 9px;
+    }
+
+    .device-selectors-fullscreen {
+        top: 15px;
+        right: 15px;
+        padding: 6px 10px;
+        border-radius: 16px;
+    }
+
+    .fullscreen-modal .device-selectors-compact {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .fullscreen-modal .device-select-compact {
+        font-size: 9px;
+        padding: 3px 6px;
+        border-radius: 8px;
+        min-width: 100px;
+        max-width: 120px;
+    }
+
+    .fullscreen-modal .video-wrapper.video-small {
+        bottom: 110px;
+        right: 15px;
+        width: 140px;
+        height: 105px;
+        padding: 6px;
+        border-radius: 12px;
+    }
+
+    .fullscreen-modal .video-wrapper.video-small .video-player {
+        border-radius: 8px;
+    }
+
+    .fullscreen-modal .video-wrapper.video-small .avatar-circle {
+        width: 50px;
+        height: 50px;
+        font-size: 18px;
+    }
+
+    .fullscreen-modal .call-actions {
+        bottom: 15px;
+        padding: 12px 16px;
+        border-radius: 16px;
+        gap: 8px;
+    }
+
+    .fullscreen-modal .video-wrapper.video-large .avatar-circle {
+        width: 100px;
+        height: 100px;
+        font-size: 32px;
+    }
+
+    .fullscreen-modal .connection-status {
+        padding: 16px 20px;
+        border-radius: 12px;
     }
 }
 </style>

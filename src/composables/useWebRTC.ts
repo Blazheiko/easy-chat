@@ -5,6 +5,12 @@ export interface WebRTCConfig {
     iceServers: RTCIceServer[]
 }
 
+export interface MediaDevice {
+    deviceId: string
+    label: string
+    kind: MediaDeviceKind
+}
+
 export interface CallState {
     isConnecting: boolean
     isConnected: boolean
@@ -24,6 +30,8 @@ export const useWebRTC = () => {
     let remoteStream: MediaStream | null = null // Не реактивный - управляется через JavaScript
     let currentTargetUserId: string | number | null = null // ID пользователя для текущего звонка
     let pendingIceCandidates: RTCIceCandidateInit[] = [] // Буфер для ICE candidates до инициализации peer connection
+    let selectedVideoDeviceId: string | null = null // ID выбранной камеры
+    let selectedAudioDeviceId: string | null = null // ID выбранного микрофона
     const callState = ref<CallState>({
         isConnecting: false,
         isConnected: false,
@@ -33,6 +41,12 @@ export const useWebRTC = () => {
         isRemoteAudioEnabled: false,
         error: null,
     })
+
+    // Состояние для медиа устройств
+    const availableVideoDevices = ref<MediaDevice[]>([])
+    const availableAudioDevices = ref<MediaDevice[]>([])
+    const currentVideoDevice = ref<string | null>(null)
+    const currentAudioDevice = ref<string | null>(null)
 
     // Конфигурация ICE серверов (можно вынести в настройки)
     const defaultConfig: WebRTCConfig = {
@@ -149,6 +163,43 @@ export const useWebRTC = () => {
         }
     }
 
+    // Получение списка доступных медиа устройств
+    const getMediaDevices = async (): Promise<{
+        videoDevices: MediaDevice[]
+        audioDevices: MediaDevice[]
+    }> => {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices()
+
+            const videoDevices: MediaDevice[] = devices
+                .filter((device) => device.kind === 'videoinput')
+                .map((device) => ({
+                    deviceId: device.deviceId,
+                    label: device.label || `Camera ${device.deviceId.slice(0, 8)}`,
+                    kind: device.kind,
+                }))
+
+            const audioDevices: MediaDevice[] = devices
+                .filter((device) => device.kind === 'audioinput')
+                .map((device) => ({
+                    deviceId: device.deviceId,
+                    label: device.label || `Microphone ${device.deviceId.slice(0, 8)}`,
+                    kind: device.kind,
+                }))
+
+            availableVideoDevices.value = videoDevices
+            availableAudioDevices.value = audioDevices
+
+            console.log('📹 Available video devices:', videoDevices)
+            console.log('🎤 Available audio devices:', audioDevices)
+
+            return { videoDevices, audioDevices }
+        } catch (error) {
+            console.error('Failed to get media devices:', error)
+            return { videoDevices: [], audioDevices: [] }
+        }
+    }
+
     // Получение пользовательских медиа (камера/микрофон)
     const getUserMedia = async (constraints: MediaStreamConstraints) => {
         try {
@@ -194,10 +245,17 @@ export const useWebRTC = () => {
             const pc = initializePeerConnection()
             if (!pc) throw new Error('Failed to initialize peer connection')
 
-            // Получаем пользовательские медиа
+            // Получаем пользовательские медиа с учетом выбранных устройств
             const constraints: MediaStreamConstraints = {
-                audio: true,
-                video: callType === 'video',
+                audio: selectedAudioDeviceId
+                    ? { deviceId: { exact: selectedAudioDeviceId } }
+                    : true,
+                video:
+                    callType === 'video'
+                        ? selectedVideoDeviceId
+                            ? { deviceId: { exact: selectedVideoDeviceId } }
+                            : true
+                        : false,
             }
 
             const stream = await getUserMedia(constraints)
@@ -280,10 +338,17 @@ export const useWebRTC = () => {
             const pc = initializePeerConnection()
             if (!pc) throw new Error('Failed to initialize peer connection')
 
-            // Получаем пользовательские медиа
+            // Получаем пользовательские медиа с учетом выбранных устройств
             const constraints: MediaStreamConstraints = {
-                audio: true,
-                video: callType === 'video',
+                audio: selectedAudioDeviceId
+                    ? { deviceId: { exact: selectedAudioDeviceId } }
+                    : true,
+                video:
+                    callType === 'video'
+                        ? selectedVideoDeviceId
+                            ? { deviceId: { exact: selectedVideoDeviceId } }
+                            : true
+                        : false,
             }
 
             const stream = await getUserMedia(constraints)
@@ -423,6 +488,120 @@ export const useWebRTC = () => {
         }
     }
 
+    // Смена видео устройства
+    const switchVideoDevice = async (deviceId: string) => {
+        try {
+            if (!localStream) {
+                console.warn('No local stream available for video device switch')
+                return false
+            }
+
+            selectedVideoDeviceId = deviceId
+            currentVideoDevice.value = deviceId
+
+            // Получаем новый видео поток с выбранного устройства
+            const newStream = await navigator.mediaDevices.getUserMedia({
+                video: { deviceId: { exact: deviceId } },
+                audio: false, // Получаем только видео
+            })
+
+            const newVideoTrack = newStream.getVideoTracks()[0]
+            const oldVideoTrack = localStream.getVideoTracks()[0]
+
+            if (newVideoTrack && peerConnection) {
+                // Заменяем видео трек в peer connection
+                const sender = peerConnection
+                    .getSenders()
+                    .find((s) => s.track && s.track.kind === 'video')
+
+                if (sender) {
+                    await sender.replaceTrack(newVideoTrack)
+                }
+
+                // Останавливаем старый трек
+                if (oldVideoTrack) {
+                    oldVideoTrack.stop()
+                    localStream.removeTrack(oldVideoTrack)
+                }
+
+                // Добавляем новый трек в локальный поток
+                localStream.addTrack(newVideoTrack)
+
+                // Обновляем состояние
+                callState.value.isLocalVideoEnabled = newVideoTrack.enabled
+
+                // Эмитируем событие обновления локального потока
+                eventBus.emit('webrtc_local_stream_updated', { stream: localStream })
+
+                console.log('📹 Video device switched successfully to:', deviceId)
+                return true
+            }
+
+            return false
+        } catch (error) {
+            console.error('Failed to switch video device:', error)
+            callState.value.error = 'Failed to switch camera'
+            return false
+        }
+    }
+
+    // Смена аудио устройства
+    const switchAudioDevice = async (deviceId: string) => {
+        try {
+            if (!localStream) {
+                console.warn('No local stream available for audio device switch')
+                return false
+            }
+
+            selectedAudioDeviceId = deviceId
+            currentAudioDevice.value = deviceId
+
+            // Получаем новый аудио поток с выбранного устройства
+            const newStream = await navigator.mediaDevices.getUserMedia({
+                audio: { deviceId: { exact: deviceId } },
+                video: false, // Получаем только аудио
+            })
+
+            const newAudioTrack = newStream.getAudioTracks()[0]
+            const oldAudioTrack = localStream.getAudioTracks()[0]
+
+            if (newAudioTrack && peerConnection) {
+                // Заменяем аудио трек в peer connection
+                const sender = peerConnection
+                    .getSenders()
+                    .find((s) => s.track && s.track.kind === 'audio')
+
+                if (sender) {
+                    await sender.replaceTrack(newAudioTrack)
+                }
+
+                // Останавливаем старый трек
+                if (oldAudioTrack) {
+                    oldAudioTrack.stop()
+                    localStream.removeTrack(oldAudioTrack)
+                }
+
+                // Добавляем новый трек в локальный поток
+                localStream.addTrack(newAudioTrack)
+
+                // Обновляем состояние
+                callState.value.isLocalAudioEnabled = newAudioTrack.enabled
+
+                // Эмитируем событие обновления локального потока
+                eventBus.emit('webrtc_local_stream_updated', { stream: localStream })
+
+                console.log('🎤 Audio device switched successfully to:', deviceId)
+                return true
+            }
+
+            return false
+        } catch (error) {
+            console.error('Failed to switch audio device:', error)
+            callState.value.error = 'Failed to switch microphone'
+            return false
+        }
+    }
+
     // Переключение локального видео
     const toggleLocalVideo = () => {
         if (localStream) {
@@ -523,6 +702,15 @@ export const useWebRTC = () => {
         // Геттеры для медиа потоков
         getLocalStream,
         getRemoteStream,
+
+        // Медиа устройства
+        availableVideoDevices,
+        availableAudioDevices,
+        currentVideoDevice,
+        currentAudioDevice,
+        getMediaDevices,
+        switchVideoDevice,
+        switchAudioDevice,
 
         // Методы
         prepareCall,
