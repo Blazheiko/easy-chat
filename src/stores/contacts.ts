@@ -25,12 +25,18 @@ export interface Contact {
 
 export const useContactsStore = defineStore('contacts', () => {
     const contacts = ref<Contact[]>([])
+    const selectedContact = ref<Contact | null>(null)
 
     function setActiveContact(activeContact: Contact) {
         console.log('setActiveContact', activeContact.contactId)
         contacts.value.forEach((contact) => {
-            contact.isActive = (contact.contactId === activeContact.contactId)
+            contact.isActive = false
         })
+        selectedContact.value =
+            contacts.value.find((contact) => contact.contactId === activeContact.contactId) || null
+        if (selectedContact.value) {
+            selectedContact.value.isActive = true
+        }
     }
 
     function incrementUnreadCount(contactId: number) {
@@ -50,7 +56,6 @@ export const useContactsStore = defineStore('contacts', () => {
     }
 
     function updateContact(updatedContact: Partial<Contact>) {
-
         contacts.value = contacts.value.map((contact) => {
             if (contact.contactId === updatedContact.contactId) {
                 return {
@@ -63,18 +68,17 @@ export const useContactsStore = defineStore('contacts', () => {
     }
 
     function updateContactById(contactId: string, updatedContact: Partial<Contact>) {
-
-      console.log('updateContactById', contactId)
-      contacts.value = contacts.value.map((contact) => {
-          if (String(contactId) === String(contact.contactId)) {
-              return {
-                  ...contact,
-                  ...updatedContact,
-              }
-          }
-          return contact
-      })
-  }
+        console.log('updateContactById', contactId)
+        contacts.value = contacts.value.map((contact) => {
+            if (String(contactId) === String(contact.contactId)) {
+                return {
+                    ...contact,
+                    ...updatedContact,
+                }
+            }
+            return contact
+        })
+    }
 
     function deleteContact(id: number) {
         contacts.value = contacts.value.filter((contact) => contact.id !== id)
@@ -98,6 +102,7 @@ export const useContactsStore = defineStore('contacts', () => {
 
     return {
         contacts,
+        selectedContact,
         setActiveContact,
         setContactList,
         updateContact,

@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import type { PropType } from 'vue'
 // Menu moved to AppHeader; keep only chat controls locally
 import { useMessagesStore, type Message } from '@/stores/messages'
-import type { Contact } from '@/stores/contacts'
+import { useContactsStore } from '@/stores/contacts'
 import { messagesApi } from '@/utils/api'
 import { useUserStore } from '@/stores/user'
 import { useEventBus } from '@/utils/event-bus'
 
 const userStore = useUserStore()
+const contactsStore = useContactsStore()
 const eventBus = useEventBus()
 // Тип звонка
 
@@ -17,11 +17,7 @@ const eventBus = useEventBus()
 //     selectedContact: Contact | null
 // }
 
-const props = defineProps({
-    selectedContact: {
-        type: Object as PropType<Contact>,
-        default: null,
-    },
+defineProps({
     isTyping: {
         type: Boolean,
         default: false,
@@ -44,6 +40,9 @@ const messagesStore = useMessagesStore()
 useRouter()
 const newMessage = ref('')
 const messageContainerRef = ref(null)
+
+// Используем selectedContact напрямую из стора контактов
+const selectedContact = computed(() => contactsStore.selectedContact)
 
 // Функция для проверки, является ли пользователь владельцем сообщения
 const isMessageOwner = (message: Message): boolean => {
@@ -113,32 +112,32 @@ const simulateTyping = () => {
 
 // Функция для начала видеозвонка
 const startVideoCall = async () => {
-    if (!props.selectedContact) {
+    if (!selectedContact.value) {
         console.error('No contact selected for video call')
         return
     }
 
-    console.log('Starting video call with:', props.selectedContact.id)
+    console.log('Starting video call with:', selectedContact.value.id)
 
     // Эмитируем событие для начала WebRTC видеозвонка
     eventBus.emit('webrtc_start_call', {
-        targetUserId: props.selectedContact.id,
+        targetUserId: selectedContact.value.id,
         callType: 'video',
     })
 }
 
 // Функция для начала аудиозвонка
 const startAudioCall = () => {
-    if (!props.selectedContact) {
+    if (!selectedContact.value) {
         console.error('No contact selected for audio call')
         return
     }
 
-    console.log('Starting audio call with:', props.selectedContact.id)
+    console.log('Starting audio call with:', selectedContact.value.id)
 
     // Эмитируем событие для начала WebRTC аудиозвонка
     eventBus.emit('webrtc_start_call', {
-        targetUserId: props.selectedContact.id,
+        targetUserId: selectedContact.value.id,
         callType: 'audio',
     })
 }
@@ -401,7 +400,20 @@ onUnmounted(() => {
                     />
                 </svg>
             </button>
-            <h2>{{ selectedContact ? selectedContact.name : 'Not selected' }}</h2>
+            <div class="contact-info">
+                <h2>
+                    {{ selectedContact ? selectedContact.name : 'Not selected' }}
+                </h2>
+                <div
+                    v-if="selectedContact"
+                    class="online-indicator"
+                    :class="{
+                        online: selectedContact.isOnline,
+                        offline: !selectedContact.isOnline,
+                    }"
+                    :title="selectedContact.isOnline ? 'Online' : 'Offline'"
+                ></div>
+            </div>
 
             <div class="header-buttons"></div>
         </div>
@@ -557,7 +569,9 @@ onUnmounted(() => {
                 class="video-call-button"
                 title="Start video call"
                 @click="startVideoCall"
-                :disabled="!selectedContact"
+                  :disabled="
+                    !selectedContact?.isOnline
+                "
             >
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -575,7 +589,7 @@ onUnmounted(() => {
                 class="voice-call-button"
                 title="Start voice call"
                 @click="startAudioCall"
-                :disabled="!selectedContact"
+                :disabled="!selectedContact?.isOnline"
             >
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -594,7 +608,9 @@ onUnmounted(() => {
                 type="text"
                 class="message-input"
                 :placeholder="
-                    selectedContact ? 'Type a message...' : 'Select a contact to send a message'
+                    selectedContact
+                        ? 'Type a message...'
+                        : 'Select a contact to send a message'
                 "
                 @keyup.enter="sendMessage"
                 @keypress="simulateTyping"
@@ -699,15 +715,42 @@ onUnmounted(() => {
     box-shadow: var(--box-shadow);
 }
 
-.chat-header h2 {
+.contact-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
     padding-left: 40px;
+    min-width: 0;
+}
+
+.chat-header h2 {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    flex: 1;
     font-weight: 600;
     font-size: 18px;
     color: white;
+    margin: 0;
+    min-width: 0;
+}
+
+.online-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 2px solid white;
+    transition: all 0.3s ease;
+}
+
+.online-indicator.online {
+    background-color: #4caf50;
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.4);
+}
+
+.online-indicator.offline {
+    background-color: #9e9e9e;
 }
 
 .header-buttons {
@@ -1132,9 +1175,18 @@ onUnmounted(() => {
         padding: 14px 16px;
     }
 
-    .chat-header h2 {
+    .contact-info {
         padding-left: 10px;
+        gap: 8px;
+    }
+
+    .chat-header h2 {
         font-size: 16px;
+    }
+
+    .online-indicator {
+        width: 10px;
+        height: 10px;
     }
 
     .message {

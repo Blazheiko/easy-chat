@@ -203,7 +203,7 @@ const initChatData = async () => {
         }))
 
         contactsStore.setContactList(contactList)
-        if (!selectedContact.value && windowWidth.value > 600) {
+        if (!contactsStore.selectedContact && windowWidth.value > 600) {
             const currentContactId = localStorage.getItem('current_contact_id')
             if (currentContactId) {
                 const contact = contactList.find((c) => c.contactId === parseInt(currentContactId))
@@ -285,7 +285,7 @@ const formatChatMesssage = (message: ApiMessage): Message => ({
 
 const sendMessage = async (newMessage: string) => {
     console.log('sendMessage', newMessage)
-    if (newMessage && selectedContact.value && userStore.user) {
+    if (newMessage && contactsStore.selectedContact && userStore.user) {
         // Запрашиваем разрешение на уведомления при отправке сообщения
         try {
             await stateStore.ensureNotificationPermission()
@@ -293,8 +293,8 @@ const sendMessage = async (newMessage: string) => {
             console.warn('Не удалось получить разрешение на уведомления:', error)
         }
 
-        console.log('selectedContact', selectedContact.value)
-        const contactId = selectedContact.value.contactId
+        console.log('selectedContact', contactsStore.selectedContact)
+        const contactId = contactsStore.selectedContact.contactId
         const { error, data } = await baseApi.http('POST', '/api/chat/send-chat-messages', {
             contactId,
             content: newMessage,
@@ -334,16 +334,16 @@ const isToday = (date: Date) => {
     )
 }
 
-const selectedContact = ref<Contact | null>(null)
+// Используем selectedContact из стора контактов
+// const selectedContact = ref<Contact | null>(null) - удалено, используем из стора
 
 const selectContact = async (contact: Contact) => {
     console.log('selectContact', contact)
-    selectedContact.value = contact
     contactsStore.setActiveContact(contact)
-    localStorage.setItem('current_contact_id', selectedContact.value.contactId.toString())
+    localStorage.setItem('current_contact_id', contact.contactId.toString())
     messagesStore.resetMessages()
     const { error, data } = await baseApi.http<MessagesResponse>('POST', '/api/chat/get-messages', {
-        contactId: selectedContact.value.contactId,
+        contactId: contact.contactId,
         userId: userStore.user?.id,
     })
     if (error) {
@@ -415,7 +415,10 @@ onMounted(() => {
             contactsStore.updateContactById(String(message.senderId), {
                 lastMessage: message.content,
             })
-            if (selectedContact.value && message.senderId === selectedContact.value.contactId) {
+            if (
+                contactsStore.selectedContact &&
+                message.senderId === contactsStore.selectedContact.contactId
+            ) {
                 console.log('new_message')
                 messagesStore.addMessage({
                     id: message.id,
@@ -454,13 +457,22 @@ onMounted(() => {
     })
 
     eventBus.on('user_online', (payload: WebsocketPayload) => {
-        if (selectedContact.value && payload.userId === selectedContact.value.contactId) {
-            selectedContact.value.isOnline = payload.isOnline as boolean
+        if (
+            contactsStore.selectedContact &&
+            payload.userId === contactsStore.selectedContact.contactId
+        ) {
+            contactsStore.updateContact({
+                contactId: contactsStore.selectedContact.contactId,
+                isOnline: payload.isOnline as boolean,
+            })
         }
     })
 
     eventBus.on('event_typing', (payload: WebsocketPayload) => {
-        if (selectedContact.value && payload.userId === selectedContact.value.contactId) {
+        if (
+            contactsStore.selectedContact &&
+            payload.userId === contactsStore.selectedContact.contactId
+        ) {
             console.log('event_typing in chat', payload)
             isTyping.value = true
             if (typingTimeout) window.clearTimeout(typingTimeout)
@@ -480,10 +492,10 @@ onMounted(() => {
 
 const eventTyping = async () => {
     console.log('eventTyping')
-    if (selectedContact.value) {
+    if (contactsStore.selectedContact) {
         const res = await baseApi.ws('main/event_typing', {
             userId: userStore.user?.id,
-            contactId: selectedContact.value?.contactId,
+            contactId: contactsStore.selectedContact.contactId,
         })
         console.log('eventTyping res', res)
     }
@@ -549,7 +561,6 @@ onBeforeUnmount(() => {
                 <ChatArea
                     v-else
                     ref="chatAreaRef"
-                    :selected-contact="selectedContact as Contact"
                     :is-typing="isTyping"
                     :notifications-enabled="notificationsEnabled"
                     @toggle-contacts="toggleContacts"

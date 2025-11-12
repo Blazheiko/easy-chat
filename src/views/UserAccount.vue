@@ -254,7 +254,7 @@ watch(
                     <h2>{{ user.name || 'User' }}</h2>
                     <p>{{ user.email || 'email@example.com' }}</p>
                     <p class="user-status">{{ user.status || 'Online' }}</p>
-                    <p class="join-date">Member since: {{ user.createdAt }}</p>
+                    <p class="join-date" v-if="user?.createdAt">Member since: {{ new Date(user.createdAt as string).toLocaleDateString() }}</p>
                 </div>
             </div>
 
