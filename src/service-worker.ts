@@ -10,12 +10,21 @@ const filesToCache = [
     '/',
     '/manifest.json',
     '/favicon.svg',
+    '/icons/badge-72.png',
     '/icons/icon_192x192.png',
     '/icons/icon_512x512.png',
     '/audio/notification.mp3',
     '/audio/notification_1.mp3',
     '/audio/click-button-140881.mp3',
+    '/audio/pdjyznja.mp3',
 ]
+
+// Helper function to check if a request URL has a cacheable scheme
+function isCacheableRequest(request: Request): boolean {
+    const url = new URL(request.url)
+    // Only cache http and https requests
+    return url.protocol === 'http:' || url.protocol === 'https:'
+}
 
 self.addEventListener('install', function (e: ExtendableEvent) {
     console.log('[ServiceWorker] Install')
@@ -51,6 +60,11 @@ self.addEventListener('activate', function (e: ExtendableEvent) {
 self.addEventListener('fetch', function (e: FetchEvent) {
     console.log('[ServiceWorker] Fetch', e.request.url)
 
+    // Skip requests with unsupported schemes (chrome-extension, data, blob, etc.)
+    if (!isCacheableRequest(e.request)) {
+        return
+    }
+
     // Стратегия кэширования: Cache First для статических ресурсов
     if (
         e.request.url.includes('/icons/') ||
@@ -65,7 +79,7 @@ self.addEventListener('fetch', function (e: FetchEvent) {
                 return (
                     response ||
                     fetch(e.request).then(function (fetchResponse) {
-                        if (fetchResponse.status === 200) {
+                        if (fetchResponse.status === 200 && isCacheableRequest(e.request)) {
                             const responseClone = fetchResponse.clone()
                             caches.open(cacheName).then(function (cache) {
                                 cache.put(e.request, responseClone)
@@ -96,7 +110,7 @@ self.addEventListener('fetch', function (e: FetchEvent) {
         e.respondWith(
             fetch(e.request)
                 .then(function (response) {
-                    if (response.status === 200) {
+                    if (response.status === 200 && isCacheableRequest(e.request)) {
                         const responseClone = response.clone()
                         caches.open(cacheName).then(function (cache) {
                             cache.put(e.request, responseClone)
@@ -119,7 +133,7 @@ self.addEventListener('fetch', function (e: FetchEvent) {
         e.respondWith(
             caches.match(e.request, { ignoreSearch: true }).then(function (response) {
                 const fetchPromise = fetch(e.request).then(function (networkResponse) {
-                    if (networkResponse.status === 200) {
+                    if (networkResponse.status === 200 && isCacheableRequest(e.request)) {
                         const responseClone = networkResponse.clone()
                         caches.open(cacheName).then(function (cache) {
                             cache.put(e.request, responseClone)

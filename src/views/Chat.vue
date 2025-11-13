@@ -399,7 +399,7 @@ let typingTimeout: number | null = null
 onMounted(() => {
     // Инициализация аудио-элементов
     notificationSound.value = new Audio('/audio/notification.mp3')
-    clickSound.value = new Audio('/audio/click.mp3')
+    clickSound.value = new Audio('/audio/click-button-140881.mp3')
 
     // Получение сохраненной настройки уведомлений из localStorage
     notificationsEnabled.value = localStorage.getItem('notifications_enabled') !== 'false'
