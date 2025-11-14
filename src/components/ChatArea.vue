@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 // Menu moved to AppHeader; keep only chat controls locally
 import { useMessagesStore, type Message } from '@/stores/messages'
 import { useContactsStore } from '@/stores/contacts'
@@ -40,9 +41,11 @@ const messagesStore = useMessagesStore()
 useRouter()
 const newMessage = ref('')
 const messageContainerRef = ref(null)
+const chatAreaRef = ref<HTMLElement | null>(null)
+const chatAreaHeight = ref<string>('100%')
 
-// Используем selectedContact напрямую из стора контактов
-const selectedContact = computed(() => contactsStore.selectedContact)
+// Используем storeToRefs для получения реактивного selectedContact из стора
+const { selectedContact } = storeToRefs(contactsStore)
 
 // Функция для проверки, является ли пользователь владельцем сообщения
 const isMessageOwner = (message: Message): boolean => {
@@ -71,6 +74,49 @@ const editingMessage = ref({
 })
 
 // WebRTC состояние теперь управляется через useWebRTC в App.vue
+
+// Функция для определения и установки высоты видимой области
+const updateChatAreaHeight = () => {
+    if (typeof window === 'undefined') return
+
+    // Используем визуальный viewport API для более точного определения высоты на мобильных
+    const visualViewport = window.visualViewport
+    let visibleHeight: number
+
+    if (visualViewport) {
+        // visualViewport.height дает точную высоту видимой области без адресной строки
+        visibleHeight = visualViewport.height
+    } else {
+        // Fallback для браузеров без поддержки visualViewport
+        visibleHeight = window.innerHeight
+    }
+
+    // Используем полную видимую высоту
+    // safe-area-inset-bottom уже учтен в padding-bottom через CSS для input-area
+    const adjustedHeight = visibleHeight
+
+    // На мобильных устройствах всегда используем видимую область,
+    // чтобы избежать проблем, когда родитель выступает за пределы экрана
+    const isMobile = window.innerWidth <= 768
+    if (isMobile) {
+        // На мобильных всегда используем видимую область
+        chatAreaHeight.value = `${adjustedHeight}px`
+        return
+    }
+
+    // На десктопе проверяем родительский контейнер
+    if (chatAreaRef.value?.parentElement) {
+        const parentHeight = chatAreaRef.value.parentElement.clientHeight
+        if (parentHeight > 0 && parentHeight < adjustedHeight) {
+            // Родитель меньше видимой области - используем его высоту
+            chatAreaHeight.value = `${parentHeight}px`
+            return
+        }
+    }
+
+    // Используем высоту видимой области
+    chatAreaHeight.value = `${adjustedHeight}px`
+}
 
 // Функция прокрутки чата вниз
 const scrollToBottom = () => {
@@ -375,6 +421,20 @@ const cancelMessageEdit = () => {
 // Кнопка уведомлений перенесена в AppHeader
 
 onMounted(() => {
+    // Устанавливаем высоту компонента при монтировании
+    nextTick(() => {
+        updateChatAreaHeight()
+
+        // Обновляем высоту при изменении размера окна
+        window.addEventListener('resize', updateChatAreaHeight)
+
+        // Используем visualViewport API для более точного отслеживания на мобильных
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', updateChatAreaHeight)
+            window.visualViewport.addEventListener('scroll', updateChatAreaHeight)
+        }
+    })
+
     // Прокрутка к последнему сообщению при загрузке
     // setTimeout(scrollToBottom, 100)
 
@@ -384,13 +444,20 @@ onMounted(() => {
 
 // Очистка ресурсов при размонтировании компонента
 onUnmounted(() => {
+    // Удаляем обработчики изменения размера
+    window.removeEventListener('resize', updateChatAreaHeight)
+    if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', updateChatAreaHeight)
+        window.visualViewport.removeEventListener('scroll', updateChatAreaHeight)
+    }
+
     // Удаляем обработчик клика
     document.removeEventListener('click', hideContextMenu)
 })
 </script>
 
 <template>
-    <div class="chat-area">
+    <div class="chat-area" ref="chatAreaRef" :style="{ height: chatAreaHeight }">
         <div class="chat-header">
             <button class="toggle-contacts" @click="$emit('toggle-contacts')">
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -402,7 +469,7 @@ onUnmounted(() => {
             </button>
             <div class="contact-info">
                 <h2>
-                    {{ selectedContact ? selectedContact.name : 'Not selected' }}
+                    {{ selectedContact ? selectedContact.name : 'Not selected!' }}
                 </h2>
                 <div
                     v-if="selectedContact"
@@ -569,9 +636,7 @@ onUnmounted(() => {
                 class="video-call-button"
                 title="Start video call"
                 @click="startVideoCall"
-                  :disabled="
-                    !selectedContact?.isOnline
-                "
+                :disabled="!selectedContact?.isOnline"
             >
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -608,9 +673,7 @@ onUnmounted(() => {
                 type="text"
                 class="message-input"
                 :placeholder="
-                    selectedContact
-                        ? 'Type a message...'
-                        : 'Select a contact to send a message'
+                    selectedContact ? 'Type a message...' : 'Select a contact to send a message'
                 "
                 @keyup.enter="sendMessage"
                 @keypress="simulateTyping"
@@ -695,11 +758,13 @@ onUnmounted(() => {
 .chat-area {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    height: 100%;
     width: 100%;
     min-width: 0;
     overflow: hidden;
     background-color: var(--background-color);
+    position: relative;
+    /* Высота устанавливается программно через :style binding */
 }
 
 .chat-header {
@@ -1026,6 +1091,7 @@ onUnmounted(() => {
 
 .input-area {
     padding: 16px 20px;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
     background-color: white;
     border-top: 1px solid rgba(0, 0, 0, 0.04);
     display: flex;
@@ -1034,6 +1100,8 @@ onUnmounted(() => {
     flex-shrink: 0;
     align-items: center;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.03);
+    position: relative;
+    z-index: 10;
 }
 
 .dark-theme .input-area {
@@ -1165,10 +1233,20 @@ onUnmounted(() => {
     opacity: 0.8;
 }
 
+@media (max-width: 1024px) {
+    .chat-area {
+        height: 100%;
+        width: 100%;
+        min-height: 0;
+    }
+}
+
 @media (max-width: 768px) {
     .chat-area {
         height: 100%;
         width: 100%;
+        min-height: 0;
+        /* На мобильных используем фиксированную высоту через inline style */
     }
 
     .chat-header {
@@ -1197,6 +1275,15 @@ onUnmounted(() => {
 
     .input-area {
         padding: 12px;
+        padding-bottom: calc(12px + env(safe-area-inset-bottom));
+        /* Гарантируем, что input-area всегда виден */
+        position: relative;
+        z-index: 100;
+    }
+
+    /* Убеждаемся, что messages-container не перекрывает input-area */
+    .messages-container {
+        padding-bottom: 0;
     }
 
     .message-input {

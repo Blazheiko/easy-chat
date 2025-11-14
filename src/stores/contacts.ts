@@ -55,6 +55,28 @@ export const useContactsStore = defineStore('contacts', () => {
         })
     }
 
+    /**
+     * Синхронизирует selectedContact с обновленным контактом из массива contacts
+     * @param contactId - ID контакта для проверки и обновления
+     */
+    function syncSelectedContact(contactId: number | string) {
+        if (!selectedContact.value) {
+            return
+        }
+
+        const selectedContactId = String(selectedContact.value.contactId)
+        const targetContactId = String(contactId)
+
+        if (selectedContactId === targetContactId) {
+            const updated = contacts.value.find(
+                (contact) => String(contact.contactId) === targetContactId,
+            )
+            if (updated) {
+                selectedContact.value = updated
+            }
+        }
+    }
+
     function updateContact(updatedContact: Partial<Contact>) {
         contacts.value = contacts.value.map((contact) => {
             if (contact.contactId === updatedContact.contactId) {
@@ -65,6 +87,10 @@ export const useContactsStore = defineStore('contacts', () => {
             }
             return contact
         })
+        // Обновляем selectedContact, если обновляемый контакт является выбранным
+        if (updatedContact.contactId) {
+            syncSelectedContact(updatedContact.contactId)
+        }
     }
 
     function updateContactById(contactId: string, updatedContact: Partial<Contact>) {
@@ -78,14 +104,33 @@ export const useContactsStore = defineStore('contacts', () => {
             }
             return contact
         })
+        // Обновляем selectedContact, если обновляемый контакт является выбранным
+        syncSelectedContact(contactId)
     }
 
     function deleteContact(id: number) {
+        const deletedContact = contacts.value.find((contact) => contact.id === id)
         contacts.value = contacts.value.filter((contact) => contact.id !== id)
+        // Очищаем selectedContact, если удаляемый контакт был выбран
+        if (selectedContact.value && deletedContact && selectedContact.value.id === id) {
+            selectedContact.value = null
+        }
     }
 
     function setContactList(contactList: Contact[]) {
+        const previousSelectedContactId = selectedContact.value?.contactId
         contacts.value = contactList
+        // Восстанавливаем selectedContact, если он был выбран ранее
+        if (previousSelectedContactId) {
+            const found = contactList.find(
+                (contact) => contact.contactId === previousSelectedContactId,
+            )
+            if (found) {
+                selectedContact.value = found
+            } else {
+                selectedContact.value = null
+            }
+        }
     }
 
     function addContact(contact: Contact) {
@@ -94,6 +139,7 @@ export const useContactsStore = defineStore('contacts', () => {
 
     function resetContacts() {
         contacts.value = []
+        selectedContact.value = null
     }
 
     function getContactById(contactId: string): Contact | undefined {
