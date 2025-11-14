@@ -16,6 +16,7 @@ export const useStateStore = defineStore('state', () => {
     // const isOffline = ref(false)
     // const isMenuOpen = ref(false)
     const windowWidth = ref(window.innerWidth)
+    const isMobile = ref(window.innerWidth <= 768)
     const isPWAMode = ref(false)
 
     // Push notifications state
@@ -67,6 +68,7 @@ export const useStateStore = defineStore('state', () => {
 
     const handleResize = () => {
         windowWidth.value = window.innerWidth
+        isMobile.value = window.innerWidth <= 768
     }
 
     // Функция для определения режима PWA
@@ -615,6 +617,7 @@ export const useStateStore = defineStore('state', () => {
         darkMode,
         setDarkMode,
         windowWidth,
+        isMobile,
         isPWAMode,
         checkPWAMode,
         // Push notifications

@@ -37,7 +37,7 @@ const closeAuthModals = () => {
 // Автоматический показ модального окна в PWA режиме
 const checkPWAAndShowModal = () => {
     if (stateStore.isPWAMode) {
-      isLoginModalVisible.value = true
+        isLoginModalVisible.value = true
     }
 }
 
@@ -75,7 +75,8 @@ onMounted(() => {
 
 <template>
     <div class="login-page">
-        <div class="auth-container">
+        <!-- Desktop version -->
+        <div v-if="!stateStore.isMobile" class="auth-container auth-container-desktop">
             <div class="logo" :class="{ 'typing-complete': typingComplete }">
                 {{ logoText }}<span class="cursor"></span>
             </div>
@@ -152,11 +153,23 @@ onMounted(() => {
                 </button>
             </div>
 
-            <!-- Показываем подсказку в PWA режиме -->
-            <!-- <div v-if="stateStore.isPWAMode" class="pwa-login-hint">
-                <p>Welcome to the PWA version!</p>
-                <p class="hint-text">The login form will appear automatically</p>
-            </div> -->
+            <div class="manifesto-link-container">
+                <router-link to="/manifesto" class="manifesto-link">Read our Manifesto</router-link>
+            </div>
+        </div>
+
+        <!-- Mobile version - minimalistic -->
+        <div v-else class="auth-container auth-container-mobile">
+              <div class="welcome-message">
+                <h1>Welcome to Easy Task Manager</h1>
+                <p>Manage your tasks and projects with ease</p>
+            </div>
+            <div class="auth-buttons">
+                <button class="auth-button" @click="showLoginModal">Sign In</button>
+                <button class="auth-button register" @click="showRegisterModal">
+                    Create Account
+                </button>
+            </div>
 
             <div class="manifesto-link-container">
                 <router-link to="/manifesto" class="manifesto-link">Read our Manifesto</router-link>
@@ -194,17 +207,31 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     align-items: center;
-    max-width: 600px;
     width: 100%;
-    padding: 40px;
     background-color: white;
     border-radius: 20px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
 }
 
+.auth-container-desktop {
+    max-width: 600px;
+    padding: 40px;
+}
+
+.auth-container-mobile {
+    max-width: 100%;
+    padding: 24px 20px;
+    border-radius: 16px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+}
+
 .dark-theme .auth-container {
     background-color: #1e1e1e;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .auth-container-mobile {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
 .logo {
@@ -339,9 +366,17 @@ onMounted(() => {
 .auth-buttons {
     display: flex;
     gap: 16px;
-    margin-top: 32px;
     width: 100%;
     max-width: 400px;
+}
+
+.auth-container-desktop .auth-buttons {
+    margin-top: 32px;
+}
+
+.auth-container-mobile .auth-buttons {
+    margin-top: 0;
+    flex-direction: column;
 }
 
 .auth-button {
@@ -387,8 +422,15 @@ onMounted(() => {
 }
 
 .manifesto-link-container {
-    margin-top: 24px;
     text-align: center;
+}
+
+.auth-container-desktop .manifesto-link-container {
+    margin-top: 24px;
+}
+
+.auth-container-mobile .manifesto-link-container {
+    margin-top: 20px;
 }
 
 .manifesto-link {
@@ -448,64 +490,10 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
-    .auth-container {
-        padding: 30px 20px;
-        border-radius: 16px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-    }
-
-    .logo {
-        font-size: 36px;
-        margin-bottom: 20px;
-    }
-
-    .welcome-message h1 {
-        font-size: 22px;
-    }
-
-    .welcome-message p {
-        font-size: 14px;
-    }
-
-    .feature-item {
-        padding: 12px;
-        margin-bottom: 15px;
-    }
-
-    .feature-icon {
-        width: 36px;
-        height: 36px;
-    }
-
-    .feature-text h3 {
-        font-size: 15px;
-    }
-
-    .feature-text p {
-        font-size: 13px;
-    }
-
-    .auth-buttons {
-        flex-direction: column;
-    }
-
-    .auth-button {
+    .auth-container-mobile .auth-button {
         width: 100%;
-        padding: 12px 0;
-        font-size: 15px;
-    }
-
-    .pwa-login-hint {
-        margin: 20px 0;
-        padding: 16px;
-    }
-
-    .pwa-login-hint p {
-        font-size: 15px;
-    }
-
-    .pwa-login-hint .hint-text {
-        font-size: 13px;
+        padding: 14px 0;
+        font-size: 16px;
     }
 }
 </style>
