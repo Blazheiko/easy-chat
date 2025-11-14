@@ -10,6 +10,9 @@ const eventBus = useEventBus()
 // Состояние меню
 const isMenuOpen = ref(false)
 
+// Loading state for logout
+const isLoggingOut = ref(false)
+
 // PWA установка
 interface BeforeInstallPromptEvent extends Event {
     prompt(): Promise<void>
@@ -84,13 +87,22 @@ const goToProjects = () => {
 
 // Выход из аккаунта
 const logout = async () => {
-    const { error, data } = await baseApi.http('POST', '/api/auth/logout')
-    if (error) {
-        console.error(error)
-    } else {
-        console.log(data)
-        eventBus.emit('unauthorized')
-        router.push('/')
+    isLoggingOut.value = true
+    
+    try {
+        const { error, data } = await baseApi.http('POST', '/api/auth/logout')
+        if (error) {
+            console.error(error)
+        } else {
+            console.log(data)
+            eventBus.emit('unauthorized')
+            router.push('/')
+        }
+    } catch (error) {
+        console.error('Logout error:', error)
+    } finally {
+        isLoggingOut.value = false
+        closeMenu()
     }
 }
 </script>
@@ -162,7 +174,7 @@ const logout = async () => {
                 </svg>
                 My Projects
             </button>
-            <button class="menu-item" @click="logout">
+            <button class="menu-item" @click="logout" :disabled="isLoggingOut">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
@@ -174,7 +186,8 @@ const logout = async () => {
                         d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"
                     />
                 </svg>
-                Logout
+                <span v-if="isLoggingOut">Logging out...</span>
+                <span v-else>Logout</span>
             </button>
         </div>
     </div>
@@ -254,13 +267,16 @@ const logout = async () => {
     background: none;
     border: none;
     cursor: pointer;
-    transition: all 0.25s ease;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     color: #212529;
     border-radius: 8px;
     margin: 4px 8px;
     width: calc(100% - 16px);
     font-weight: 500;
     font-size: 14px;
+    position: relative;
+    overflow: hidden;
+    transform: translateY(0) scale(1);
 }
 
 .dark-theme .menu-item {
@@ -286,7 +302,8 @@ const logout = async () => {
 
 .menu-item:hover {
     background-color: #f8f9fa;
-    transform: translateY(-1px);
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .dark-theme .menu-item:hover {
@@ -294,7 +311,50 @@ const logout = async () => {
 }
 
 .menu-item:active {
-    transform: translateY(0);
+    transform: translateY(1px) scale(0.98);
+    transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.menu-item::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s ease, height 0.3s ease;
+}
+
+.dark-theme .menu-item::before {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.menu-item:active::before {
+    width: 200px;
+    height: 200px;
+}
+
+.menu-item:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.menu-item:disabled:hover {
+    background-color: transparent;
+    transform: none;
+}
+
+.dark-theme .menu-item:disabled:hover {
+    background-color: transparent;
+}
+
+.menu-item:disabled::before {
+    display: none;
 }
 
 @media (max-width: 768px) {

@@ -111,6 +111,9 @@ const userStore = useUserStore()
 const contactsStore = useContactsStore()
 const isContactsVisible = ref(true)
 const isLoading = ref(false)
+
+// Loading state for sending messages
+const isSendingMessage = ref(false)
 const isOffline = ref(false)
 const isMenuOpen = ref(false)
 const route = useRoute()
@@ -286,41 +289,49 @@ const formatChatMesssage = (message: ApiMessage): Message => ({
 const sendMessage = async (newMessage: string) => {
     console.log('sendMessage', newMessage)
     if (newMessage && contactsStore.selectedContact && userStore.user) {
-        // Запрашиваем разрешение на уведомления при отправке сообщения
+        isSendingMessage.value = true
+
         try {
-            await stateStore.ensureNotificationPermission()
-        } catch (error) {
-            console.warn('Не удалось получить разрешение на уведомления:', error)
-        }
-
-        console.log('selectedContact', contactsStore.selectedContact)
-        const contactId = contactsStore.selectedContact.contactId
-        const { error, data } = await baseApi.http('POST', '/api/chat/send-chat-messages', {
-            contactId,
-            content: newMessage,
-            userId: userStore.user?.id,
-        })
-        if (error) {
-            console.error(error)
-        } else if (data && data.message) {
-            const message = formatChatMesssage(data.message as ApiMessage)
-            if (messagesStore.messages.length > 0) {
-                const lastMessage = messagesStore.messages[messagesStore.messages.length - 1]
-                const date = isToday(new Date(lastMessage.createdAt))
-                    ? 'Today'
-                    : formatMessageDate(String(lastMessage.createdAt))
-                if (date === message.date) {
-                    message.date = ''
-                }
+            // Запрашиваем разрешение на уведомления при отправке сообщения
+            try {
+                await stateStore.ensureNotificationPermission()
+            } catch (error) {
+                console.warn('Не удалось получить разрешение на уведомления:', error)
             }
-            messagesStore.addMessage(message)
 
-            contactsStore.updateContact({
-                contactId: contactId,
-                lastMessage: message.text,
-                lastMessageTime: formatMessageDate(String(message.createdAt)),
-                updatedAt: new Date().toISOString(),
+            console.log('selectedContact', contactsStore.selectedContact)
+            const contactId = contactsStore.selectedContact.contactId
+            const { error, data } = await baseApi.http('POST', '/api/chat/send-chat-messages', {
+                contactId,
+                content: newMessage,
+                userId: userStore.user?.id,
             })
+            if (error) {
+                console.error(error)
+            } else if (data && data.message) {
+                const message = formatChatMesssage(data.message as ApiMessage)
+                if (messagesStore.messages.length > 0) {
+                    const lastMessage = messagesStore.messages[messagesStore.messages.length - 1]
+                    const date = isToday(new Date(lastMessage.createdAt))
+                        ? 'Today'
+                        : formatMessageDate(String(lastMessage.createdAt))
+                    if (date === message.date) {
+                        message.date = ''
+                    }
+                }
+                messagesStore.addMessage(message)
+
+                contactsStore.updateContact({
+                    contactId: contactId,
+                    lastMessage: message.text,
+                    lastMessageTime: formatMessageDate(String(message.createdAt)),
+                    updatedAt: new Date().toISOString(),
+                })
+            }
+        } catch (error) {
+            console.error('Error sending message:', error)
+        } finally {
+            isSendingMessage.value = false
         }
     }
 }
@@ -563,6 +574,7 @@ onBeforeUnmount(() => {
                     ref="chatAreaRef"
                     :is-typing="isTyping"
                     :notifications-enabled="notificationsEnabled"
+                    :is-sending-message="isSendingMessage"
                     @toggle-contacts="toggleContacts"
                     @open-add-contact="openAddContactFromChatArea"
                     @go-to-account="goToAccount"

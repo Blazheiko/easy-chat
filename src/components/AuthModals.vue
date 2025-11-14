@@ -42,6 +42,10 @@ const confirmPasswordError = ref('')
 const loginError = ref('')
 const registerError = ref('')
 
+// Loading states for buttons
+const isLoginLoading = ref(false)
+const isRegisterLoading = ref(false)
+
 const closeLoginModal = () => {
     emit('close')
 }
@@ -71,6 +75,8 @@ const handleLogin = async () => {
 
     if (!isValid) return
 
+    isLoginLoading.value = true
+
     try {
         const { data, error } = await baseApi.http('POST', '/api/auth/login', {
             email: email.value,
@@ -93,6 +99,8 @@ const handleLogin = async () => {
     } catch (error: unknown) {
         console.error(error)
         loginError.value = 'Server error. Please try again later.'
+    } finally {
+        isLoginLoading.value = false
     }
 }
 
@@ -147,30 +155,39 @@ const handleRegister = async () => {
 
     if (!isValid) return
 
-    const { data, error } = await baseApi.http('POST', '/api/auth/register', {
-        name: name.value,
-        email: email.value,
-        password: password.value,
-        token: props.token,
-    })
+    isRegisterLoading.value = true
 
-    if (error) {
-        if (error.code === 422) {
-            console.log(data)
-            registerError.value = error.message
+    try {
+        const { data, error } = await baseApi.http('POST', '/api/auth/register', {
+            name: name.value,
+            email: email.value,
+            password: password.value,
+            token: props.token,
+        })
+
+        if (error) {
+            if (error.code === 422) {
+                console.log(data)
+                registerError.value = error.message
+            } else {
+                registerError.value = error.message || 'Server error. Please try again later.'
+            }
+        } else if (data && data.status === 'success' && data.user) {
+            userStore.setUser(data.user as User)
+            emit('close')
+            emit('auth-success')
+            router.push({ name: 'Chat' })
+            eventBus.emit('init_app')
+        } else if (data && data.status === 'error') {
+            registerError.value = (data?.message as string) || 'Registration error'
         } else {
-            registerError.value = error.message || 'Server error. Please try again later.'
+            registerError.value = 'Server error. Please try again later.'
         }
-    } else if (data && data.status === 'success' && data.user) {
-        userStore.setUser(data.user as User)
-        emit('close')
-        emit('auth-success')
-        router.push({ name: 'Chat' })
-        eventBus.emit('init_app')
-    } else if (data && data.status === 'error') {
-        registerError.value = (data?.message as string) || 'Registration error'
-    } else {
+    } catch (error: unknown) {
+        console.error(error)
         registerError.value = 'Server error. Please try again later.'
+    } finally {
+        isRegisterLoading.value = false
     }
 }
 </script>
@@ -259,7 +276,10 @@ const handleRegister = async () => {
                     <a href="#" class="forgot-password">Forgot password?</a>
                 </div>
 
-                <button class="auth-button" @click="handleLogin">Sign In</button>
+                <button class="auth-button" @click="handleLogin" :disabled="isLoginLoading">
+                    <span v-if="isLoginLoading">Signing In...</span>
+                    <span v-else>Sign In</span>
+                </button>
                 <p class="auth-switch">
                     Don't have an account?
                     <a href="#" @click.prevent="switchToRegister">Register</a>
@@ -409,7 +429,10 @@ const handleRegister = async () => {
                         You must agree with the Manifesto to create an account
                     </p>
                 </div>
-                <button class="auth-button" @click="handleRegister">Create Account</button>
+                <button class="auth-button" @click="handleRegister" :disabled="isRegisterLoading">
+                    <span v-if="isRegisterLoading">Creating Account...</span>
+                    <span v-else>Create Account</span>
+                </button>
                 <p class="auth-switch">
                     Already have an account? <a href="#" @click.prevent="switchToLogin">Sign In</a>
                 </p>
@@ -818,19 +841,59 @@ const handleRegister = async () => {
     cursor: pointer;
     font-size: 16px;
     font-weight: 500;
-    transition: all 0.2s ease;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+    transform: translateY(0);
 }
 
 .auth-button:hover {
     background-color: var(--accent-color);
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
 .auth-button:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    transform: translateY(1px) scale(0.98);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.auth-button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition:
+        width 0.3s ease,
+        height 0.3s ease;
+}
+
+.auth-button:active::before {
+    width: 300px;
+    height: 300px;
+}
+
+.auth-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.auth-button:disabled:hover {
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.auth-button:disabled::before {
+    display: none;
 }
 
 .auth-switch {

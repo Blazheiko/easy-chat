@@ -25,6 +25,9 @@ const newContact = ref({
 })
 const shareLink = ref('')
 const copySuccess = ref(false)
+
+// Loading state for share link generation
+const isGeneratingLink = ref(false)
 const emit = defineEmits([
     'toggle-contacts',
     'toggle-news',
@@ -175,15 +178,23 @@ const deleteContact = () => {
 // }
 
 const generateShareLink = async () => {
-    // Генерируем уникальный идентификатор для ссылки
-    const { error, data } = await baseApi.http('POST', '/api/chat/invitations', {
-        name: newContact.value.name,
-        userId: userStore.user?.id,
-    })
-    if (error) {
+    isGeneratingLink.value = true
+
+    try {
+        // Генерируем уникальный идентификатор для ссылки
+        const { error, data } = await baseApi.http('POST', '/api/chat/invitations', {
+            name: newContact.value.name,
+            userId: userStore.user?.id,
+        })
+        if (error) {
+            console.error('Failed to generate share link: ', error)
+        } else if (data && data.status === 'success' && data.token) {
+            shareLink.value = `${window.location.origin}/join-chat/${data.token}`
+        }
+    } catch (error) {
         console.error('Failed to generate share link: ', error)
-    } else if (data && data.status === 'success' && data.token) {
-        shareLink.value = `${window.location.origin}/join-chat/${data.token}`
+    } finally {
+        isGeneratingLink.value = false
     }
 }
 
@@ -798,8 +809,13 @@ const toggleTask = () => {
                         <button class="cancel-button" @click="showAddContactModal = false">
                             Cancel
                         </button>
-                        <button class="save-button" @click="generateShareLink">
-                            Generate Link
+                        <button
+                            class="save-button"
+                            @click="generateShareLink"
+                            :disabled="isGeneratingLink"
+                        >
+                            <span v-if="isGeneratingLink">Generating...</span>
+                            <span v-else>Generate Link</span>
                         </button>
                     </div>
                 </div>
@@ -1675,7 +1691,10 @@ const toggleTask = () => {
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    transform: translateY(0) scale(1);
 }
 
 .cancel-button {
@@ -1695,6 +1714,8 @@ const toggleTask = () => {
 
 .cancel-button:hover {
     background-color: #dee2e6;
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .dark-theme .cancel-button:hover {
@@ -1703,6 +1724,60 @@ const toggleTask = () => {
 
 .save-button:hover {
     background-color: var(--accent-color);
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
+}
+
+.cancel-button:active,
+.save-button:active {
+    transform: translateY(1px) scale(0.98);
+    transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cancel-button:active {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.save-button:active {
+    box-shadow: 0 2px 6px rgba(26, 115, 232, 0.4);
+}
+
+.cancel-button::before,
+.save-button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition:
+        width 0.3s ease,
+        height 0.3s ease;
+}
+
+.cancel-button:active::before,
+.save-button:active::before {
+    width: 150px;
+    height: 150px;
+}
+
+.save-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.save-button:disabled:hover {
+    transform: none;
+    box-shadow: none;
+    background-color: var(--primary-color);
+}
+
+.save-button:disabled::before {
+    display: none;
 }
 
 .modal-header {

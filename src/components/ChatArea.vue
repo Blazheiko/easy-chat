@@ -18,7 +18,7 @@ const eventBus = useEventBus()
 //     selectedContact: Contact | null
 // }
 
-defineProps({
+const props = defineProps({
     isTyping: {
         type: Boolean,
         default: false,
@@ -26,6 +26,10 @@ defineProps({
     notificationsEnabled: {
         type: Boolean,
         default: true,
+    },
+    isSendingMessage: {
+        type: Boolean,
+        default: false,
     },
 })
 
@@ -682,7 +686,7 @@ onUnmounted(() => {
             <button
                 class="send-button"
                 @click="sendMessage"
-                :disabled="!newMessage.trim() || !selectedContact"
+                :disabled="!newMessage.trim() || !selectedContact || props.isSendingMessage"
             >
                 <svg
                     width="24"
@@ -1189,21 +1193,45 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     flex-shrink: 0;
     box-shadow: 0 2px 5px rgba(26, 115, 232, 0.2);
+    position: relative;
+    overflow: hidden;
+    transform: translateY(0) scale(1);
 }
 
 .send-button:hover {
     background-color: var(--accent-color);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(26, 115, 232, 0.3);
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 6px 16px rgba(26, 115, 232, 0.4);
 }
 
 .send-button:active {
     background-color: var(--accent-color);
-    transform: translateY(0);
-    box-shadow: 0 2px 5px rgba(26, 115, 232, 0.2);
+    transform: translateY(1px) scale(0.95);
+    box-shadow: 0 2px 8px rgba(26, 115, 232, 0.5);
+    transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.send-button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition:
+        width 0.3s ease,
+        height 0.3s ease;
+}
+
+.send-button:active::before {
+    width: 80px;
+    height: 80px;
 }
 
 .send-button:disabled {
@@ -1212,6 +1240,10 @@ onUnmounted(() => {
     cursor: not-allowed;
     transform: none;
     box-shadow: none;
+}
+
+.send-button:disabled::before {
+    display: none;
 }
 
 .toggle-contacts {

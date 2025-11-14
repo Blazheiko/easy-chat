@@ -16,6 +16,10 @@ const parentTaskOptions = computed(() =>
 const showCreateForm = ref(false)
 const isLoading = ref(false)
 const error = ref<string | null>(null)
+
+// Loading states for different operations
+const isCreatingTask = ref(false)
+const isDeletingTask = ref<Record<string, boolean>>({})
 const editingTaskId = ref<string | null>(null)
 const editingTaskElement = ref<HTMLElement | null>(null)
 
@@ -102,7 +106,7 @@ const getParentTaskTitle = (parentTaskId: string | null): string | null => {
 const createTask = async () => {
     if (!canCreate.value) return
 
-    isLoading.value = true
+    isCreatingTask.value = true
     error.value = null
 
     try {
@@ -169,7 +173,7 @@ const createTask = async () => {
         error.value = editingTaskId.value ? 'Failed to update task' : 'Failed to create task'
         console.error('Failed to save task', e)
     } finally {
-        isLoading.value = false
+        isCreatingTask.value = false
     }
 }
 
@@ -244,7 +248,7 @@ const editTask = (taskId: string): void => {
 const deleteTask = async (taskId: string) => {
     if (!confirm('Are you sure you want to delete this task?')) return
 
-    isLoading.value = true
+    isDeletingTask.value[taskId] = true
     error.value = null
 
     try {
@@ -254,7 +258,7 @@ const deleteTask = async (taskId: string) => {
         error.value = 'Failed to delete task'
         console.error('Failed to delete task', e)
     } finally {
-        isLoading.value = false
+        delete isDeletingTask.value[taskId]
     }
 }
 
@@ -512,10 +516,11 @@ onMounted(() => {
                 <div class="form-actions">
                     <button
                         @click="createTask"
-                        :disabled="!canCreate || isLoading"
+                        :disabled="!canCreate || isCreatingTask"
                         class="btn-primary"
                     >
-                        {{ submitButtonText }}
+                        <span v-if="isCreatingTask">{{ editingTaskId ? 'Updating...' : 'Creating...' }}</span>
+                        <span v-else>{{ submitButtonText }}</span>
                     </button>
                     <button @click="cancelForm" class="btn-secondary">Cancel</button>
                 </div>
@@ -651,7 +656,7 @@ onMounted(() => {
                     <div class="task-actions">
                         <button
                             @click="editTask(task.id)"
-                            :disabled="isLoading"
+                            :disabled="isCreatingTask"
                             class="edit-button"
                             title="Edit task"
                         >
@@ -664,7 +669,7 @@ onMounted(() => {
                         </button>
                         <button
                             @click="deleteTask(task.id)"
-                            :disabled="isLoading"
+                            :disabled="isDeletingTask[task.id]"
                             class="delete-button"
                             title="Delete task"
                         >
@@ -1062,10 +1067,11 @@ onMounted(() => {
     cursor: pointer;
     font-size: 14px;
     font-weight: 600;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
     position: relative;
     overflow: hidden;
+    transform: translateY(0) scale(1);
 }
 
 .btn-primary::before {
@@ -1080,7 +1086,7 @@ onMounted(() => {
 }
 
 .btn-primary:hover {
-    transform: translateY(-2px);
+    transform: translateY(-2px) scale(1.02);
     box-shadow: 0 8px 20px rgba(76, 175, 80, 0.4);
 }
 
@@ -1089,7 +1095,27 @@ onMounted(() => {
 }
 
 .btn-primary:active {
-    transform: translateY(-1px);
+    transform: translateY(1px) scale(0.98);
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.5);
+    transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-primary::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s ease, height 0.3s ease;
+}
+
+.btn-primary:active::after {
+    width: 200px;
+    height: 200px;
 }
 
 .btn-primary:disabled {
@@ -1099,7 +1125,8 @@ onMounted(() => {
     box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
 }
 
-.btn-primary:disabled::before {
+.btn-primary:disabled::before,
+.btn-primary:disabled::after {
     display: none;
 }
 
@@ -1545,11 +1572,14 @@ onMounted(() => {
     cursor: pointer;
     padding: 12px;
     border-radius: 12px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
     justify-content: center;
     backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+    transform: translateY(0) scale(1);
 }
 
 .delete-button:hover {
@@ -1560,7 +1590,27 @@ onMounted(() => {
 }
 
 .delete-button:active {
-    transform: translateY(0) scale(1);
+    transform: translateY(1px) scale(0.95);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+    transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.delete-button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(239, 68, 68, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s ease, height 0.3s ease;
+}
+
+.delete-button:active::before {
+    width: 100px;
+    height: 100px;
 }
 
 .delete-button svg {
@@ -1580,11 +1630,14 @@ onMounted(() => {
     cursor: pointer;
     padding: 12px;
     border-radius: 12px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
     justify-content: center;
     backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+    transform: translateY(0) scale(1);
 }
 
 .edit-button:hover {
@@ -1595,7 +1648,27 @@ onMounted(() => {
 }
 
 .edit-button:active {
-    transform: translateY(0) scale(1);
+    transform: translateY(1px) scale(0.95);
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4);
+    transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.edit-button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(76, 175, 80, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s ease, height 0.3s ease;
+}
+
+.edit-button:active::before {
+    width: 100px;
+    height: 100px;
 }
 
 .edit-button svg {
@@ -1625,6 +1698,11 @@ onMounted(() => {
 .edit-button:disabled svg,
 .delete-button:disabled svg {
     transform: none;
+}
+
+.edit-button:disabled::before,
+.delete-button:disabled::before {
+    display: none;
 }
 
 @media (max-width: 768px) {
