@@ -96,8 +96,16 @@ const updateChatAreaHeight = () => {
         visibleHeight = window.innerHeight
     }
 
-    // Используем полную видимую высоту
-    // safe-area-inset-bottom уже учтен в padding-bottom через CSS для input-area
+    // Определяем, является ли это Safari на iOS для дополнительных проверок
+    const isIOSSafari =
+        /iPad|iPhone|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent)
+
+    // Логируем информацию для отладки на iOS Safari
+    if (isIOSSafari && visualViewport) {
+        console.log('iOS Safari detected, viewport height:', visualViewport.height)
+    }
+
+    // Используем полную видимую высоту с учетом safe area
     const adjustedHeight = visibleHeight
 
     // На мобильных устройствах всегда используем видимую область,
@@ -1119,7 +1127,7 @@ onUnmounted(() => {
 
 .input-area {
     padding: 16px 20px;
-    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 20px));
     background-color: white;
     border-top: 1px solid rgba(0, 0, 0, 0.04);
     display: flex;
@@ -1130,6 +1138,8 @@ onUnmounted(() => {
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.03);
     position: relative;
     z-index: 10;
+    /* Дополнительная защита для Safari iOS */
+    min-height: calc(72px + env(safe-area-inset-bottom, 20px));
 }
 
 .dark-theme .input-area {
@@ -1331,10 +1341,12 @@ onUnmounted(() => {
 
     .input-area {
         padding: 12px;
-        padding-bottom: calc(12px + env(safe-area-inset-bottom));
+        padding-bottom: calc(12px + env(safe-area-inset-bottom, 25px));
         /* Гарантируем, что input-area всегда виден */
         position: relative;
         z-index: 100;
+        /* Дополнительная защита для Safari iOS на мобильных */
+        min-height: calc(62px + env(safe-area-inset-bottom, 25px));
     }
 
     /* Убеждаемся, что messages-container не перекрывает input-area */
@@ -2070,6 +2082,34 @@ onUnmounted(() => {
 @media (max-width: 768px) {
     .mobile-only {
         display: inline-flex;
+    }
+}
+
+/* Специальные правила для Safari на iOS */
+@supports (-webkit-touch-callout: none) {
+    /* Это правило применяется только в Safari на iOS */
+    .input-area {
+        padding-bottom: calc(16px + env(safe-area-inset-bottom, 30px));
+        min-height: calc(72px + env(safe-area-inset-bottom, 30px));
+    }
+
+    @media (max-width: 768px) {
+        .input-area {
+            padding-bottom: calc(12px + env(safe-area-inset-bottom, 30px));
+            min-height: calc(62px + env(safe-area-inset-bottom, 30px));
+            /* Дополнительная защита от перекрытия */
+            position: sticky;
+            bottom: 0;
+        }
+
+        /* Убеждаемся, что чат не перекрывается input-area */
+        .messages-container {
+            padding-bottom: calc(80px + env(safe-area-inset-bottom, 30px));
+        }
+
+        .messages {
+            padding-bottom: calc(20px + env(safe-area-inset-bottom, 10px));
+        }
     }
 }
 </style>
