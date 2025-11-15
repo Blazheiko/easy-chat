@@ -26,6 +26,7 @@ export interface Message {
 
 export const useMessagesStore = defineStore('messages', () => {
     const messages = ref<Message[]>([])
+    const isLoading = ref(false)
 
     function addMessage(message: Message) {
         messages.value.push(message)
@@ -55,12 +56,18 @@ export const useMessagesStore = defineStore('messages', () => {
         messages.value = []
     }
 
+    function setLoading(loading: boolean) {
+        isLoading.value = loading
+    }
+
     return {
         messages,
+        isLoading,
         addMessage,
         deleteMessage,
         updateMessage,
         resetMessages,
         setMessages,
+        setLoading,
     }
 })

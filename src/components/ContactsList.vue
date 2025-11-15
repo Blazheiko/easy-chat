@@ -5,6 +5,7 @@ import { useContactsStore } from '@/stores/contacts'
 import { useUserStore } from '@/stores/user'
 import type { Contact } from '@/stores/contacts'
 import baseApi from '@/utils/base-api'
+import LoaderOverlay from './LoaderOverlay.vue'
 // import { TransitionGroup } from 'vue'
 
 const contactsStore = useContactsStore()
@@ -662,7 +663,10 @@ const toggleTask = () => {
         </div> -->
 
         <div class="contacts-list-container">
-            <TransitionGroup name="contact-list" tag="div">
+            <!-- Loader overlay -->
+            <LoaderOverlay :show="contactsStore.isLoading" />
+
+            <TransitionGroup name="contact-list" tag="div" v-if="!contactsStore.isLoading">
                 <div
                     v-for="contact in filteredContacts"
                     :key="contact.id"
@@ -691,7 +695,17 @@ const toggleTask = () => {
                 </div>
             </TransitionGroup>
 
-            <div v-if="filteredContacts.length === 0" class="no-results">
+            <div
+                v-if="filteredContacts.length === 0 && !contactsStore.isLoading && !searchQuery"
+                class="no-results"
+            >
+                No contacts yet. Add your first contact!
+            </div>
+
+            <div
+                v-if="filteredContacts.length === 0 && !contactsStore.isLoading && searchQuery"
+                class="no-results"
+            >
                 No contacts found for "{{ searchQuery }}"
             </div>
         </div>
@@ -1083,6 +1097,18 @@ const toggleTask = () => {
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+}
+
+/* Переопределяем стили лоадера для контейнера контактов */
+.contacts-list-container .loader-overlay {
+    position: absolute;
+    background-color: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(4px);
+    border-radius: 0;
+}
+
+.dark-theme .contacts-list-container .loader-overlay {
+    background-color: rgba(30, 30, 30, 0.9);
 }
 
 .contacts-list-container::-webkit-scrollbar {

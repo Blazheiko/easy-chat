@@ -26,6 +26,7 @@ export interface Contact {
 export const useContactsStore = defineStore('contacts', () => {
     const contacts = ref<Contact[]>([])
     const selectedContact = ref<Contact | null>(null)
+    const isLoading = ref(false)
 
     function setActiveContact(activeContact: Contact) {
         console.log('setActiveContact', activeContact.contactId)
@@ -133,6 +134,10 @@ export const useContactsStore = defineStore('contacts', () => {
         }
     }
 
+    function setLoading(loading: boolean) {
+        isLoading.value = loading
+    }
+
     function addContact(contact: Contact) {
         contacts.value.unshift(contact)
     }
@@ -149,8 +154,10 @@ export const useContactsStore = defineStore('contacts', () => {
     return {
         contacts,
         selectedContact,
+        isLoading,
         setActiveContact,
         setContactList,
+        setLoading,
         updateContact,
         deleteContact,
         addContact,

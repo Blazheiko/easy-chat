@@ -179,40 +179,45 @@ const handleConnectionRetry = () => {
 }
 
 const initChatData = async () => {
-    const { error, data } = await baseApi.http<ApiInitialResponse>(
-        'POST',
-        '/api/chat/get-contact-list',
-        {
-            userId: userStore.user?.id,
-        },
-    )
-    if (error) {
-        console.error('Failed to get contact list: ', error)
-    } else if (data?.status === 'ok' && data.contactList?.length > 0) {
-        console.log('Contact list: ', data.contactList)
+    contactsStore.setLoading(true)
+    try {
+        const { error, data } = await baseApi.http<ApiInitialResponse>(
+            'POST',
+            '/api/chat/get-contact-list',
+            {
+                userId: userStore.user?.id,
+            },
+        )
+        if (error) {
+            console.error('Failed to get contact list: ', error)
+        } else if (data?.status === 'ok' && data.contactList?.length > 0) {
+            console.log('Contact list: ', data.contactList)
 
-        const onlineContacts = data.onlineUsers
+            const onlineContacts = data.onlineUsers
 
-        const contactList = data.contactList.map((contact: ContactResponse) => ({
-            id: contact.id,
-            contactId: contact.contactId,
-            name: contact.rename || contact.contact.name,
-            unreadCount: contact.unreadCount,
-            isActive: false,
-            isOnline: onlineContacts.includes(contact.contactId),
-            lastMessage: contact.lastMessage ? contact.lastMessage.content : '',
-            lastMessageTime: formatMessageDate(contact.updatedAt),
-            updatedAt: contact.updatedAt,
-        }))
+            const contactList = data.contactList.map((contact: ContactResponse) => ({
+                id: contact.id,
+                contactId: contact.contactId,
+                name: contact.rename || contact.contact.name,
+                unreadCount: contact.unreadCount,
+                isActive: false,
+                isOnline: onlineContacts.includes(contact.contactId),
+                lastMessage: contact.lastMessage ? contact.lastMessage.content : '',
+                lastMessageTime: formatMessageDate(contact.updatedAt),
+                updatedAt: contact.updatedAt,
+            }))
 
-        contactsStore.setContactList(contactList)
-        if (!contactsStore.selectedContact && windowWidth.value > 600) {
-            const currentContactId = localStorage.getItem('current_contact_id')
-            if (currentContactId) {
-                const contact = contactList.find((c) => c.contactId === parseInt(currentContactId))
-                if (contact) selectContact(contact)
+            contactsStore.setContactList(contactList)
+            if (!contactsStore.selectedContact && windowWidth.value > 600) {
+                const currentContactId = localStorage.getItem('current_contact_id')
+                if (currentContactId) {
+                    const contact = contactList.find((c) => c.contactId === parseInt(currentContactId))
+                    if (contact) selectContact(contact)
+                }
             }
         }
+    } finally {
+        contactsStore.setLoading(false)
     }
 }
 
@@ -353,51 +358,57 @@ const selectContact = async (contact: Contact) => {
     contactsStore.setActiveContact(contact)
     localStorage.setItem('current_contact_id', contact.contactId.toString())
     messagesStore.resetMessages()
-    const { error, data } = await baseApi.http<MessagesResponse>('POST', '/api/chat/get-messages', {
-        contactId: contact.contactId,
-        userId: userStore.user?.id,
-    })
-    if (error) {
-        console.error(error)
-    } else if (data && data.messages && data.messages.length > 0 && data.contact) {
-        console.log(data)
-        const newMessages: Message[] = data.messages
-            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-            .map(formatChatMesssage)
-
-        // Обработка дат сообщений
-        let lastDate = ''
-        newMessages.forEach((message) => {
-            if (lastDate === message.date) {
-                message.date = ''
-            } else if (message.date) {
-                lastDate = message.date
-            }
+    messagesStore.setLoading(true)
+    
+    try {
+        const { error, data } = await baseApi.http<MessagesResponse>('POST', '/api/chat/get-messages', {
+            contactId: contact.contactId,
+            userId: userStore.user?.id,
         })
-        const onlineContacts = data.onlineUsers
-        console.log('onlineContacts', onlineContacts)
+        if (error) {
+            console.error(error)
+        } else if (data && data.messages && data.messages.length > 0 && data.contact) {
+            console.log(data)
+            const newMessages: Message[] = data.messages
+                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                .map(formatChatMesssage)
 
-        messagesStore.setMessages(newMessages)
-        const contact = data.contact
-        const lastMessage = newMessages.length > 0 ? newMessages[newMessages.length - 1].text : ''
-        contactsStore.updateContact({
-            id: contact.id,
-            contactId: contact.contact.id,
-            name: contact.rename || contact.contact.name,
-            unreadCount: contact.unreadCount,
-            isActive: true,
-            isOnline:
-                onlineContacts && onlineContacts.length > 0
-                    ? onlineContacts.includes(contact.contact.id)
-                    : false,
-            lastMessage: lastMessage,
-            lastMessageTime: formatMessageDate(contact.updatedAt),
-            updatedAt: contact.updatedAt,
-        } as Contact)
-        nextTick(() => {
-            isContactsVisible.value = false
-            scrollToBottom()
-        })
+            // Обработка дат сообщений
+            let lastDate = ''
+            newMessages.forEach((message) => {
+                if (lastDate === message.date) {
+                    message.date = ''
+                } else if (message.date) {
+                    lastDate = message.date
+                }
+            })
+            const onlineContacts = data.onlineUsers
+            console.log('onlineContacts', onlineContacts)
+
+            messagesStore.setMessages(newMessages)
+            const contact = data.contact
+            const lastMessage = newMessages.length > 0 ? newMessages[newMessages.length - 1].text : ''
+            contactsStore.updateContact({
+                id: contact.id,
+                contactId: contact.contact.id,
+                name: contact.rename || contact.contact.name,
+                unreadCount: contact.unreadCount,
+                isActive: true,
+                isOnline:
+                    onlineContacts && onlineContacts.length > 0
+                        ? onlineContacts.includes(contact.contact.id)
+                        : false,
+                lastMessage: lastMessage,
+                lastMessageTime: formatMessageDate(contact.updatedAt),
+                updatedAt: contact.updatedAt,
+            } as Contact)
+            nextTick(() => {
+                isContactsVisible.value = false
+                scrollToBottom()
+            })
+        }
+    } finally {
+        messagesStore.setLoading(false)
     }
 }
 

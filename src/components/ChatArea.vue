@@ -8,6 +8,7 @@ import { useContactsStore } from '@/stores/contacts'
 import { messagesApi } from '@/utils/api'
 import { useUserStore } from '@/stores/user'
 import { useEventBus } from '@/utils/event-bus'
+import LoaderOverlay from './LoaderOverlay.vue'
 
 const userStore = useUserStore()
 const contactsStore = useContactsStore()
@@ -490,7 +491,14 @@ onUnmounted(() => {
         </div>
 
         <div class="messages-container">
-            <div v-if="selectedContact" class="messages" ref="messageContainerRef">
+            <!-- Loader overlay for messages -->
+            <LoaderOverlay :show="messagesStore.isLoading" />
+
+            <div
+                v-if="selectedContact && !messagesStore.isLoading"
+                class="messages"
+                ref="messageContainerRef"
+            >
                 <template v-for="(message, index) in messagesStore.messages" :key="index">
                     <div v-if="message.date" class="date-divider">
                         <span>{{ message.date }}</span>
@@ -605,7 +613,10 @@ onUnmounted(() => {
                     </div>
                 </template>
             </div>
-            <div v-else class="no-contact-placeholder">
+            <div
+                v-else-if="!selectedContact && !messagesStore.isLoading"
+                class="no-contact-placeholder"
+            >
                 <div class="placeholder-content">
                     <div class="placeholder-title">Select a contact to start chatting</div>
                     <div class="placeholder-subtitle">
@@ -865,6 +876,19 @@ onUnmounted(() => {
     width: 100%;
     min-height: 0;
     background-color: var(--background-color);
+    position: relative;
+}
+
+/* Переопределяем стили лоадера для контейнера сообщений */
+.messages-container .loader-overlay {
+    position: absolute;
+    background-color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(6px);
+    border-radius: 0;
+}
+
+.dark-theme .messages-container .loader-overlay {
+    background-color: rgba(30, 30, 30, 0.95);
 }
 
 .messages {
