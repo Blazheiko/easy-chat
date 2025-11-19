@@ -130,7 +130,7 @@ onMounted(async () => {
     eventBus.on('webrtc_call_answer', handleWebRTCCallAnswer)
     eventBus.on('webrtc_call_offer', handleWebRTCCallOffer)
     eventBus.on('webrtc_call_end', handleWebRTCCallEnd)
-    eventBus.on('webrtc_start_call', (data) => handleStartCall(data.callType, data.targetUserId))
+    eventBus.on('webrtc_start_call', handleStartCall)
 })
 
 // Удаляем слушатель при размонтировании компонента
@@ -142,7 +142,7 @@ onBeforeUnmount(() => {
     eventBus.off('webrtc_call_answer', handleWebRTCCallAnswer)
     eventBus.off('webrtc_call_offer', handleWebRTCCallOffer)
     eventBus.off('webrtc_call_end', handleWebRTCCallEnd)
-    eventBus.off('webrtc_start_call')
+    eventBus.off('webrtc_start_call', handleStartCall)
 })
 
 const onReauthorize = async () => {
@@ -346,7 +346,8 @@ const handleCancelConnection = () => {
 }
 
 // Функция для начала исходящего звонка
-const handleStartCall = async (callType: 'video' | 'audio', targetUserId: string | number) => {
+const handleStartCall = async (data: { callType: 'video' | 'audio'; targetUserId: string | number }) => {
+    const {callType, targetUserId} = data
     console.log('Starting outgoing call:', { callType, targetUserId })
 
     try {

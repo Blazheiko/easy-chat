@@ -176,11 +176,11 @@ const startVideoCall = async () => {
         return
     }
 
-    console.log('Starting video call with:', selectedContact.value.id)
+    console.log('Starting video call with:', selectedContact.value.contactId)
 
     // Эмитируем событие для начала WebRTC видеозвонка
     eventBus.emit('webrtc_start_call', {
-        targetUserId: selectedContact.value.id,
+        targetUserId: selectedContact.value.contactId,
         callType: 'video',
     })
 }
