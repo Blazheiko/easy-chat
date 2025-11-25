@@ -150,10 +150,10 @@ const onReauthorize = async () => {
     websocketBase?.destroy()
     baseApi.setWebSocketClient(null)
     userStore.clearUser()
-    router.push('/')
-    // setTimeout(async () => {
-    //     await initializeApp()
-    // }, 1000)
+    // router.push('/')
+    setTimeout(async () => {
+        await initializeApp()
+    }, 1000)
 }
 
 // interface UserOnlineData {

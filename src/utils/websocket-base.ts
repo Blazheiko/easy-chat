@@ -269,6 +269,7 @@ class WebsocketBase {
             try {
                 if (this.wsConnection.timerPing) window.clearTimeout(this.wsConnection.timerPing)
                 this.wsConnection.ws.send(JSON.stringify(payload))
+                clearTimeout(this.wsConnection.timerPing)
                 this.wsConnection.timerPing = window.setTimeout(() => {
                     this.pingServer()
                 }, this.pingInterval)
