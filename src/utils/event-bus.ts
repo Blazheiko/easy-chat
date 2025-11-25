@@ -8,6 +8,7 @@ export type Events = {
     toggle_notifications: { enabled: boolean }
     init_app: void
     unauthorized: void
+    destroy_websocket_base: void
     webrtc_ice_candidate: { candidate: RTCIceCandidateInit; targetUserId: string | number }
     webrtc_call_answer: { answer: RTCSessionDescriptionInit; targetUserId: string | number }
     webrtc_call_offer: {

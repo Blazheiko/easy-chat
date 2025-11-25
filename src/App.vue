@@ -124,6 +124,7 @@ onMounted(async () => {
     isLoading.value = false
     eventBus.on('init_app', initializeApp)
     eventBus.on('unauthorized', onReauthorize)
+    eventBus.on('destroy_websocket_base', destroyWebsocketBase)
 
     // Отслеживаем изменения состояния WebRTC
     eventBus.on('webrtc_ice_candidate', handleWebRTCIceCandidate)
@@ -143,17 +144,24 @@ onBeforeUnmount(() => {
     eventBus.off('webrtc_call_offer', handleWebRTCCallOffer)
     eventBus.off('webrtc_call_end', handleWebRTCCallEnd)
     eventBus.off('webrtc_start_call', handleStartCall)
+    eventBus.off('destroy_websocket_base', destroyWebsocketBase)
 })
+
+const destroyWebsocketBase = () => {
+    console.log('destroyWebsocketBase')
+    websocketBase?.destroy()
+    baseApi.setWebSocketClient(null)
+    websocketBase = null
+}
 
 const onReauthorize = async () => {
     console.error('onReauthorize')
-    websocketBase?.destroy()
-    baseApi.setWebSocketClient(null)
+    destroyWebsocketBase();
     userStore.clearUser()
-    // router.push('/')
-    setTimeout(async () => {
-        await initializeApp()
-    }, 1000)
+    router.push('/')
+    // setTimeout(async () => {
+    //     await initializeApp()
+    // }, 1000)
 }
 
 // interface UserOnlineData {
@@ -283,7 +291,11 @@ const initializeApp = async () => {
             console.log('Data in initialization:')
 
             websocketBase = new WebsocketBase(data.wsUrl as string, {
-                callbacks: { onReauthorize, onBroadcast },
+                callbacks: {
+                  onReauthorize,
+                  onBroadcast,
+                  onConnectionClosed: destroyWebsocketBase
+                },
             })
             baseApi.setWebSocketClient(websocketBase)
         } else if (data && data.status === 'unauthorized' && route.name !== 'JoinChat') {

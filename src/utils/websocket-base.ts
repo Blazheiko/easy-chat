@@ -41,6 +41,7 @@ enum ConnectionStatus {
 interface WebsocketCallbacks {
     onReauthorize?: () => Promise<void>
     onBroadcast?: (message: WebsocketMessage) => void
+    onConnectionClosed?: () => void
 }
 
 // interface ServiceError {
@@ -55,6 +56,7 @@ interface WebsocketConfig {
     timeout?: number
     authToken?: string
     callbacks?: WebsocketCallbacks
+    timeoutApi?: number
 }
 
 class WebsocketBase {
@@ -72,6 +74,7 @@ class WebsocketBase {
     private messageQueue: SendPayload[] = []
     private isDestroyed: boolean = false
     private timerReconnect?: number
+    private timeoutApi: number
 
     constructor(url: string, options: WebsocketConfig = {}) {
         this.reconnectDelay = options.reconnectDelay || 5000
@@ -88,6 +91,7 @@ class WebsocketBase {
         }
         this.apiResolve = {}
         this.connectionEstablished = false
+        this.timeoutApi = options.timeoutApi || 10000
         this.initConnect(url)
     }
 
@@ -282,15 +286,16 @@ class WebsocketBase {
 
     async api(route: string, payload: Record<string, unknown> = {}): Promise<WebsocketMessage> {
         return new Promise((resolve, reject) => {
-            if (this.apiResolve[route]) reject()
-            const event = `api/${route}`
+            const event = `api/${route}:${Date.now()}` as string
+            if (this.apiResolve[event as keyof typeof this.apiResolve]) reject()
+
             this.send({ event, payload })
             this.apiResolve[event] = {
                 resolve,
                 reject,
                 timeout: window.setTimeout(() => {
                     reject()
-                }, 10000),
+                }, this.timeoutApi),
             }
         })
     }
@@ -304,6 +309,11 @@ class WebsocketBase {
                 this.connectionEstablished = true
                 console.log('connection_established', payload)
                 // return this.connectionEstablished
+            },
+            connection_closed: () => {
+                console.log('connection_closed')
+                this.callbacks?.onConnectionClosed?.()
+
             },
         }
 
@@ -334,6 +344,14 @@ class WebsocketBase {
             })
     }
 
+    private handleConnectionClosed(): void {
+        console.log('handleConnectionClosed')
+        this.destroy()
+        if (this.callbacks?.onConnectionClosed) {
+            this.callbacks.onConnectionClosed()
+        }
+    }
+
     private async handleReauthorize(): Promise<void> {
         try {
             this.destroy()
@@ -349,7 +367,7 @@ class WebsocketBase {
     private handleServiceError(data: WebsocketMessage): void {
         if (data.status === 4001) {
             console.warn('Token expired or invalid:', data.payload.message)
-            this.handleReauthorize()
+            this.handleConnectionClosed()
         }
     }
 
@@ -365,6 +383,7 @@ class WebsocketBase {
      * Закрывает соединение, очищает таймеры и освобождает ресурсы
      */
     destroy(): void {
+        console.log('destroy WebsocketBase')
         if (this.isDestroyed) {
             return
         }
@@ -405,6 +424,7 @@ class WebsocketBase {
             if (item.timeout) {
                 window.clearTimeout(item.timeout)
             }
+            item.reject()
         })
         this.apiResolve = {}
 
