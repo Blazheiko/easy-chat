@@ -9,12 +9,10 @@ import type { User } from '@/stores/user'
 import { useContactsStore } from '@/stores/contacts'
 import { useMessagesStore } from '@/stores/messages'
 import baseApi from '@/utils/base-api'
-import WebsocketBase from '@/utils/websocket-base'
-import type { WebsocketMessage } from '@/utils/websocket-base'
 import { useEventBus } from '@/utils/event-bus'
-import type { ApiMessage } from '@/views/Chat.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import VideoCallModal from '@/components/VideoCallModal.vue'
+import { useWebSocketConnection } from '@/composables/useWebSocketConnection'
 
 const router = useRouter()
 const route = useRoute()
@@ -25,6 +23,22 @@ const stateStore = useStateStore()
 const contactsStore = useContactsStore()
 const messagesStore = useMessagesStore()
 const eventBus = useEventBus()
+const { websocketClose, websocketOpen } = useWebSocketConnection()
+
+// Объявляем функции заранее
+const onReauthorize = async () => {
+    console.error('onReauthorize')
+    websocketClose()
+    userStore.clearUser()
+    router.push('/')
+}
+
+const destroyWebsocketBase = () => {
+    console.log('destroyWebsocketBase')
+    websocketClose()
+}
+
+
 
 const windowWidth = stateStore.windowWidth
 
@@ -147,23 +161,6 @@ onBeforeUnmount(() => {
     eventBus.off('destroy_websocket_base', destroyWebsocketBase)
 })
 
-const destroyWebsocketBase = () => {
-    console.log('destroyWebsocketBase')
-    websocketBase?.destroy()
-    baseApi.setWebSocketClient(null)
-    websocketBase = null
-}
-
-const onReauthorize = async () => {
-    console.error('onReauthorize')
-    destroyWebsocketBase();
-    userStore.clearUser()
-    router.push('/')
-    // setTimeout(async () => {
-    //     await initializeApp()
-    // }, 1000)
-}
-
 // interface UserOnlineData {
 //     userId: number
 //     isOnline: boolean
@@ -174,107 +171,9 @@ const onReauthorize = async () => {
 //     content: string
 // }
 
-const eventHandler = {
-    user_online: (event: WebsocketMessage) => {
-        console.log('user_online')
-        eventBus.emit('user_online', event.payload as { userId: number; isOnline: boolean })
-    },
-    new_message: (event: WebsocketMessage) => {
-        console.log('new_message')
-        eventBus.emit('new_message', event.payload as { message: ApiMessage })
-    },
-    event_typing: (event: WebsocketMessage) => {
-        console.log('event_typing')
-        eventBus.emit('event_typing', event.payload as { userId: number; contactId: number })
-    },
-    change_online: (event: WebsocketMessage) => {
-        console.log('change_online', event.payload)
-        contactsStore.updateContactById(String(event.payload.userId), {
-            isOnline: event.payload.status === 'online',
-        })
-        // eventBus.emit('change_online', event.payload as { userId: number; status: string })
-    },
-    // incoming_call удален - теперь используется только webrtc_call_offer
-    accept_call: (event: WebsocketMessage) => {
-        console.log('accept_call', event.payload)
-        stateStore.clearIncomingCall()
-    },
-    decline_call: (event: WebsocketMessage) => {
-        console.log('decline_call', event.payload)
-        stateStore.clearIncomingCall()
-    },
-    webrtc_call_offer: async (event: WebsocketMessage) => {
-        console.log('webrtc_call_offer', event.payload)
-        const payload = event.payload as {
-            offer: RTCSessionDescriptionInit
-            callType: 'video' | 'audio'
-            callerId: string | number
-            callerName: string
-        }
+// Обработка broadcast событий теперь происходит в useBroadcastHandler composable
 
-        // Сохраняем offer и показываем входящий звонок
-        // VideoCallModal обработает offer через useWebRTC
-        stateStore.setIncomingCall({
-            callerId: payload.callerId,
-            callerName: payload.callerName,
-            callType: payload.callType,
-            offer: payload.offer,
-        })
-    },
-    webrtc_call_answer: (event: WebsocketMessage) => {
-        console.log('webrtc_call_answer', event.payload)
-        const payload = event.payload as { answer: RTCSessionDescriptionInit }
-
-        // Передаем событие через event bus для обработки в useWebRTC
-        eventBus.emit('webrtc_answer_received', {
-            answer: payload.answer,
-        })
-    },
-    webrtc_ice_candidate: (event: WebsocketMessage) => {
-        console.log('webrtc_ice_candidate', event.payload)
-        const payload = event.payload as { candidate: RTCIceCandidateInit }
-
-        // Передаем событие через event bus для обработки в useWebRTC
-        eventBus.emit('webrtc_candidate_received', {
-            candidate: payload.candidate,
-        })
-    },
-    webrtc_call_end: (event: WebsocketMessage) => {
-        console.log('webrtc_call_end received from WebSocket', event.payload)
-        const payload = event.payload as {
-            callerId: string | number
-            reason?: string
-        }
-
-        // Игнорируем свои собственные события завершения звонка
-        if (payload.callerId === userStore.user?.id) {
-            console.log('Ignoring own webrtc_call_end event')
-            return
-        }
-
-        // Используем отдельное событие для полученных извне событий завершения
-        // чтобы избежать циклической отправки
-        eventBus.emit('webrtc_call_end_received', {
-            targetUserId: payload.callerId,
-            reason: payload.reason || 'call_ended',
-        })
-
-        // НЕ очищаем состояние здесь - это должен делать VideoCallModal
-        // после корректного завершения звонка
-    },
-}
-const onBroadcast = async (data: WebsocketMessage) => {
-    console.log('onBroadcast')
-    console.log(data)
-    const event = data.event.split(':')[1]
-    if (event in eventHandler) {
-        eventHandler[event as keyof typeof eventHandler](data)
-    } else {
-        console.error('Unknown event:', event)
-    }
-}
-
-let websocketBase: WebsocketBase | null = null
+// let websocketBase: WebsocketBase | null = null
 
 const initializeApp = async () => {
     try {
@@ -290,14 +189,17 @@ const initializeApp = async () => {
 
             console.log('Data in initialization:')
 
-            websocketBase = new WebsocketBase(data.wsUrl as string, {
-                callbacks: {
-                  onReauthorize,
-                  onBroadcast,
-                  onConnectionClosed: destroyWebsocketBase
-                },
-            })
-            baseApi.setWebSocketClient(websocketBase)
+            // websocketBase = new WebsocketBase(data.wsUrl as string, {
+            //     callbacks: {
+            //       onReauthorize,
+            //       onBroadcast,
+            //       onConnectionClosed: destroyWebsocketBase
+            //     },
+            // })
+            // initialize(data.wsUrl as string)
+            websocketOpen(data.wsUrl as string)
+
+            // baseApi.setWebSocketClient(websocketBase)
         } else if (data && data.status === 'unauthorized' && route.name !== 'JoinChat') {
             userStore.setUser(null as unknown as User)
             router.push({ name: 'Login' })
@@ -358,8 +260,11 @@ const handleCancelConnection = () => {
 }
 
 // Функция для начала исходящего звонка
-const handleStartCall = async (data: { callType: 'video' | 'audio'; targetUserId: string | number }) => {
-    const {callType, targetUserId} = data
+const handleStartCall = async (data: {
+    callType: 'video' | 'audio'
+    targetUserId: string | number
+}) => {
+    const { callType, targetUserId } = data
     console.log('Starting outgoing call:', { callType, targetUserId })
 
     try {

@@ -2,6 +2,7 @@ interface WebsocketConnection {
     ws: WebSocket | null
     closeInitiated?: boolean
     timerPing?: number
+    timerPongTimeout?: number
 }
 
 interface ApiResolveItem {
@@ -17,6 +18,7 @@ export interface WebsocketPayload {
 export interface WebsocketMessage {
     event: string
     status: number
+    timestamp: number
     payload: WebsocketPayload
 }
 
@@ -28,6 +30,7 @@ interface ApiError {
 
 interface SendPayload {
     event: string
+    timestamp: number
     payload: Record<string, unknown>
 }
 
@@ -57,6 +60,7 @@ interface WebsocketConfig {
     authToken?: string
     callbacks?: WebsocketCallbacks
     timeoutApi?: number
+    pongTimeout?: number
 }
 
 class WebsocketBase {
@@ -75,19 +79,24 @@ class WebsocketBase {
     private isDestroyed: boolean = false
     private timerReconnect?: number
     private timeoutApi: number
+    private pongTimeout: number
+    private url: string
 
     constructor(url: string, options: WebsocketConfig = {}) {
+        this.url = url
         this.reconnectDelay = options.reconnectDelay || 5000
         this.maxReconnectAttempts = options.maxReconnectAttempts || 500
         this.reconnectAttempts = 0
         this.pingInterval = options.pingInterval || 10000
         this.timeout = options.timeout || 20000
+        this.pongTimeout = options.pongTimeout || 5000
         this.authToken = options.authToken
         this.callbacks = options.callbacks
         this.wsConnection = {
             ws: null,
             closeInitiated: false,
             timerPing: undefined,
+            timerPongTimeout: undefined,
         }
         this.apiResolve = {}
         this.connectionEstablished = false
@@ -153,13 +162,13 @@ class WebsocketBase {
 
         this.wsConnection.ws.onerror = (err: Event): void => {
             console.error('WebSocket error:', err)
-            this.handleReconnect(url)
+            // Не переподключаемся сразу - ждем события onclose с кодом закрытия
         }
 
         this.wsConnection.ws.onclose = (event: CloseEvent): void => {
             if (!this.wsConnection.closeInitiated) {
                 console.warn(`Connection closed: ${event.code} - ${event.reason}`)
-                this.handleReconnect(url)
+                this.handleConnectionClose(event.code, event.reason)
             } else {
                 this.wsConnection.closeInitiated = false
             }
@@ -174,7 +183,109 @@ class WebsocketBase {
         )
     }
 
-    private handleReconnect(url: string): void {
+    /**
+     * Обработка закрытия соединения с учетом кода закрытия
+     */
+    private handleConnectionClose(code: number, reason: string): void {
+        console.log(`Handling connection close with code: ${code}, reason: ${reason}`)
+
+        if (code === 1000 || code === 1006) {
+            console.log('Connection closed normally')
+            this.handleReconnect()
+            return
+        }
+
+        // Код < 4100: нельзя переподключаться
+        if (code >= 4000 && code < 4100) {
+            console.error(`Connection closed with code ${code}. Reconnection is not allowed.`)
+            // Помечаем как уничтоженный, чтобы предотвратить дальнейшие попытки
+            this.isDestroyed = true
+            this.callbacks?.onConnectionClosed?.()
+            return
+        }
+
+        // Код 4100-4199: переподключаться с задержкой 1-30 сек
+        if (code >= 4100 && code < 4200) {
+            const delay = Math.floor(Math.random() * 29000) + 1000 // случайная задержка от 1 до 30 сек
+            console.warn(`Connection closed with code ${code}. Reconnecting in ${delay}ms`)
+            this.reconnectWithDelay(delay)
+            return
+        }
+
+        // Код >= 4200: переподключаться сразу
+        if (code >= 4200) {
+            console.warn(`Connection closed with code ${code}. Reconnecting immediately`)
+            this.handleReconnect()
+            return
+        }
+    }
+
+    /**
+     * Переподключение с заданной задержкой
+     */
+    private reconnectWithDelay(delay: number): void {
+        if (this.isDestroyed) {
+            return
+        }
+
+        if (this.timerReconnect) {
+            window.clearTimeout(this.timerReconnect)
+        }
+
+        this.timerReconnect = window.setTimeout(() => {
+            if (!this.isDestroyed) {
+                this.cleanupConnection()
+                this.initConnect(this.url)
+            }
+        }, delay)
+    }
+
+    /**
+     * Очистка соединения перед переподключением
+     */
+    private cleanupConnection(): void {
+        console.log('Cleaning up connection before reconnect')
+        this.wsConnection.closeInitiated = true
+
+        // Очищаем все таймеры
+        if (this.wsConnection.timerPing) {
+            window.clearTimeout(this.wsConnection.timerPing)
+            this.wsConnection.timerPing = undefined
+        }
+
+        if (this.wsConnection.timerPongTimeout) {
+            window.clearTimeout(this.wsConnection.timerPongTimeout)
+            this.wsConnection.timerPongTimeout = undefined
+        }
+
+        // Закрываем WebSocket если он существует
+        if (this.wsConnection.ws) {
+            const ws = this.wsConnection.ws
+
+            // Удаляем обработчики
+            ws.onclose = null
+            ws.onerror = null
+            ws.onmessage = null
+            ws.onopen = null
+
+            // Закрываем соединение если оно открыто
+            if (
+                ws.readyState === ConnectionStatus.OPEN ||
+                ws.readyState === ConnectionStatus.CONNECTING
+            ) {
+                try {
+                    ws.close(1000, 'Reconnecting')
+                } catch (error) {
+                    console.error('Error closing WebSocket during cleanup:', error)
+                }
+            }
+
+            // Обнуляем ссылку
+            this.wsConnection.ws = null
+        }
+    }
+
+    private handleReconnect(): void {
         if (this.isDestroyed) {
             return
         }
@@ -191,20 +302,13 @@ class WebsocketBase {
 
             this.timerReconnect = window.setTimeout(() => {
                 if (!this.isDestroyed) {
-                    this.wsConnection.closeInitiated = true
-                    if (this.wsConnection.ws) {
-                        this.wsConnection.ws.close()
-                        this.wsConnection.ws.onclose = null
-                        this.wsConnection.ws.onerror = null
-                        this.wsConnection.ws.onmessage = null
-                        this.wsConnection.ws.onopen = null
-                        this.wsConnection.ws = null
-                    }
-                    this.initConnect(url)
+                    this.cleanupConnection()
+                    this.initConnect(this.url)
                 }
             }, delay)
         } else {
             console.error('Max reconnection attempts reached')
+            this.callbacks?.onConnectionClosed?.()
         }
     }
 
@@ -218,20 +322,39 @@ class WebsocketBase {
     }
 
     /**
-     * Unsubscribe the stream
+     * Gracefully disconnect the WebSocket connection
+     * Unlike destroy(), this allows reconnection attempts
      */
     disconnect(): void {
-        if (!this.isConnected()) console.warn('No connection to close.')
-        else {
-            this.wsConnection.closeInitiated = true
-            if (this.wsConnection.ws) {
-                this.wsConnection.ws.close()
-            }
-            if (this.wsConnection.timerPing) {
-                window.clearInterval(this.wsConnection.timerPing)
-            }
-            console.log('Disconnected with Binance Websocket Server')
+        if (!this.isConnected()) {
+            console.warn('No connection to close.')
+            return
         }
+
+        console.log('Disconnecting WebSocket')
+        this.wsConnection.closeInitiated = true
+
+        // Очищаем таймеры пинга и понга
+        if (this.wsConnection.timerPing) {
+            window.clearTimeout(this.wsConnection.timerPing)
+            this.wsConnection.timerPing = undefined
+        }
+
+        if (this.wsConnection.timerPongTimeout) {
+            window.clearTimeout(this.wsConnection.timerPongTimeout)
+            this.wsConnection.timerPongTimeout = undefined
+        }
+
+        // Закрываем соединение с нормальным кодом
+        if (this.wsConnection.ws) {
+            try {
+                this.wsConnection.ws.close(1000, 'Client disconnecting')
+            } catch (error) {
+                console.error('Error during disconnect:', error)
+            }
+        }
+
+        console.log('WebSocket disconnected')
     }
 
     /**
@@ -247,7 +370,20 @@ class WebsocketBase {
             return
         }
         console.log('Ping server')
-        this.send({ event: 'service:ping', payload: {} })
+        this.send({ event: 'service:ping', payload: {}, timestamp: Date.now() })
+
+        // Устанавливаем таймаут для ожидания понга
+        if (this.wsConnection.timerPongTimeout) {
+            window.clearTimeout(this.wsConnection.timerPongTimeout)
+        }
+
+        this.wsConnection.timerPongTimeout = window.setTimeout(() => {
+            console.warn('Pong timeout - no response from server')
+            // Закрываем соединение с кодом 4200 для немедленного переподключения
+            if (this.wsConnection.ws) {
+                this.wsConnection.ws.close(4200, 'Pong timeout')
+            }
+        }, this.pongTimeout)
     }
 
     send(payload: SendPayload): void {
@@ -289,7 +425,7 @@ class WebsocketBase {
             const event = `api/${route}:${Date.now()}` as string
             if (this.apiResolve[event as keyof typeof this.apiResolve]) reject()
 
-            this.send({ event, payload })
+            this.send({ event, payload, timestamp: Date.now() })
             this.apiResolve[event] = {
                 resolve,
                 reject,
@@ -303,7 +439,13 @@ class WebsocketBase {
     private service(data: WebsocketMessage): void {
         const serviceHandlers: Record<string, (payload: WebsocketPayload) => void | boolean> = {
             pong: () => {
+                console.log('Pong received')
                 if (this.timerClose) window.clearTimeout(this.timerClose)
+                // Очищаем таймаут ожидания понга
+                if (this.wsConnection.timerPongTimeout) {
+                    window.clearTimeout(this.wsConnection.timerPongTimeout)
+                    this.wsConnection.timerPongTimeout = undefined
+                }
             },
             connection_established: (payload: WebsocketPayload) => {
                 this.connectionEstablished = true
@@ -313,7 +455,6 @@ class WebsocketBase {
             connection_closed: () => {
                 console.log('connection_closed')
                 this.callbacks?.onConnectionClosed?.()
-
             },
         }
 
@@ -388,27 +529,23 @@ class WebsocketBase {
             return
         }
 
+        // Помечаем как уничтоженный в самом начале, чтобы предотвратить любые операции
         this.isDestroyed = true
 
-        // Закрываем соединение
-        if (this.wsConnection.ws) {
-            this.wsConnection.closeInitiated = true
-            this.wsConnection.ws.close()
-            this.wsConnection.ws.onclose = null
-            this.wsConnection.ws.onerror = null
-            this.wsConnection.ws.onmessage = null
-            this.wsConnection.ws.onopen = null
-        }
-
+        // 1. Сначала очищаем ВСЕ таймеры, чтобы предотвратить переподключения и пинги
         if (this.timerReconnect) {
             window.clearTimeout(this.timerReconnect)
             this.timerReconnect = undefined
         }
 
-        // Очищаем таймеры
         if (this.wsConnection?.timerPing) {
-            window.clearInterval(this.wsConnection.timerPing)
+            window.clearTimeout(this.wsConnection.timerPing)
             this.wsConnection.timerPing = undefined
+        }
+
+        if (this.wsConnection?.timerPongTimeout) {
+            window.clearTimeout(this.wsConnection.timerPongTimeout)
+            this.wsConnection.timerPongTimeout = undefined
         }
 
         if (this.timerClose) {
@@ -416,25 +553,58 @@ class WebsocketBase {
             this.timerClose = undefined
         }
 
-        // Очищаем очередь сообщений
+        // 2. Закрываем WebSocket соединение
+        if (this.wsConnection.ws) {
+            const ws = this.wsConnection.ws
+
+            // Устанавливаем флаг, чтобы onclose не вызвал переподключение
+            this.wsConnection.closeInitiated = true
+
+            // Сначала удаляем все обработчики событий
+            ws.onclose = null
+            ws.onerror = null
+            ws.onmessage = null
+            ws.onopen = null
+
+            // Закрываем соединение с кодом нормального закрытия
+            // Проверяем состояние перед закрытием
+            if (
+                ws.readyState === ConnectionStatus.OPEN ||
+                ws.readyState === ConnectionStatus.CONNECTING
+            ) {
+                try {
+                    ws.close(1000, 'Client destroying connection')
+                } catch (error) {
+                    console.error('Error closing WebSocket:', error)
+                }
+            }
+
+            // Явно обнуляем ссылку
+            this.wsConnection.ws = null
+        }
+
+        // 3. Очищаем очередь сообщений
         this.messageQueue = []
 
-        // Очищаем обработчики API
+        // 4. Очищаем обработчики API с отклонением всех промисов
         Object.values(this.apiResolve).forEach((item) => {
             if (item.timeout) {
                 window.clearTimeout(item.timeout)
             }
-            item.reject()
+            item.reject({ message: 'WebSocket connection destroyed' })
         })
         this.apiResolve = {}
 
-        // Сбрасываем состояние
+        // 5. Сбрасываем состояние
         this.connectionEstablished = false
         this.wsConnection = {
             ws: null,
             closeInitiated: false,
             timerPing: undefined,
+            timerPongTimeout: undefined,
         }
+
+        console.log('WebsocketBase destroyed successfully')
     }
 }
 

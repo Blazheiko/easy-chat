@@ -1,5 +1,6 @@
-import WebsocketBase from './websocket-base'
+// import WebsocketBase from './websocket-base'
 import { useEventBus } from './event-bus'
+import { useWebSocketConnection } from '@/composables/useWebSocketConnection'
 
 interface HttpResponse {
     [key: string]: unknown
@@ -17,7 +18,7 @@ interface ApiMethods {
         body?: Record<string, unknown>,
     ) => Promise<ApiResponse<T>>
     ws: <T = HttpResponse>(route: string, body?: Record<string, unknown>) => Promise<T | null>
-    setWebSocketClient: (client: WebsocketBase | null) => void
+    // setWebSocketClient: (client: WebsocketBase | null) => void
 }
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | string
@@ -35,7 +36,8 @@ const normalizeUrl = (url: string): string => {
 }
 const BASE_URL = normalizeUrl(import.meta.env.VITE_BASE_URL || 'http://127.0.0.1:5174')
 
-let webSocketClient: WebsocketBase | null = null
+// let webSocketClient: WebsocketBase | null = null
+const { websocketApi } = useWebSocketConnection()
 const eventBus = useEventBus()
 
 const api: ApiMethods = {
@@ -105,20 +107,20 @@ const api: ApiMethods = {
         }
     },
 
-    setWebSocketClient: (client: WebsocketBase | null) => {
-        webSocketClient = client
-    },
+    // setWebSocketClient: (client: WebsocketBase | null) => {
+    //     webSocketClient = client
+    // },
 
     ws: async <T = HttpResponse>(
         route: string,
         body: Record<string, unknown> = {},
     ): Promise<T | null> => {
-        if (!webSocketClient) return null
+        if (!websocketApi) return null
 
         try {
             // console.log('webSocketClient')
             // console.log(webSocketClient)
-            const result = await webSocketClient.api(route, body)
+            const result = await websocketApi(route as string, body)
             console.log({ result })
             return result as unknown as T
         } catch (e) {
