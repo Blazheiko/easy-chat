@@ -2,7 +2,7 @@
 import { useWebSocket } from '@vueuse/core'
 import { ref, computed } from 'vue'
 import type { WebsocketMessage, WebsocketPayload } from '@/utils/websocket-base'
-import { useBroadcastHandler } from './useBroadcastHandler'
+import { useBroadcastHandler } from '@/composables/useBroadcastHandler'
 import { useEventBus } from '@/utils/event-bus'
 
 // Interfaces for API resolve
@@ -154,7 +154,7 @@ const { status, send, open, close, ws } = useWebSocket(
     {
         immediate: false, // Do not connect automatically
         autoReconnect: {
-            retries: 500,
+            retries: -1,
             delay: 5000,
             onFailed() {
                 console.error('WebSocket reconnection failed after maximum attempts')
