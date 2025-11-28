@@ -3,6 +3,7 @@ import { useRouter, useRoute } from 'vue-router'
 import MenuButton from '@/components/MenuButton.vue'
 import { computed, ref, onMounted } from 'vue'
 import { useEventBus } from '@/utils/event-bus'
+import { useWebSocketConnection } from '@/composables/useWebSocketConnection'
 
 // Props
 const props = defineProps({
@@ -24,6 +25,36 @@ const router = useRouter()
 const route = useRoute()
 const activeTab = computed(() => (route.meta.tab as string) || 'chat')
 const eventBus = useEventBus()
+
+// WebSocket connection status
+const { statusWebSocket } = useWebSocketConnection()
+
+// Computed properties for WebSocket status
+const websocketStatusText = computed(() => {
+    switch (statusWebSocket.value) {
+        case 'OPEN':
+            return 'Connected'
+        case 'CONNECTING':
+            return 'Connecting...'
+        case 'CLOSED':
+            return 'Disconnected'
+        default:
+            return 'Unknown'
+    }
+})
+
+const websocketStatusClass = computed(() => {
+    switch (statusWebSocket.value) {
+        case 'OPEN':
+            return 'status-connected'
+        case 'CONNECTING':
+            return 'status-connecting'
+        case 'CLOSED':
+            return 'status-disconnected'
+        default:
+            return 'status-unknown'
+    }
+})
 
 // Состояние звуковых уведомлений (глобальная кнопка в шапке)
 const notificationsEnabled = ref(true)
@@ -164,6 +195,17 @@ const goBack = () => {
                         />
                     </svg>
                 </button>
+
+                <!-- WebSocket Status Indicator -->
+                <div
+                    class="websocket-status"
+                    :class="websocketStatusClass"
+                    :title="`WebSocket Status: ${websocketStatusText}`"
+                >
+                    <div class="status-dot"></div>
+                    <span class="status-text">{{ websocketStatusText }}</span>
+                </div>
+
                 <MenuButton />
             </div>
         </div>
@@ -316,6 +358,65 @@ const goBack = () => {
     transform: translateY(-1px);
 }
 
+/* WebSocket Status Indicator */
+.websocket-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    margin-right: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.2s ease;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.status-text {
+    color: white;
+    font-size: 10px;
+    line-height: 1;
+}
+
+/* Status Colors */
+.status-connected .status-dot {
+    background-color: #4ade80; /* green-400 */
+    box-shadow: 0 0 6px rgba(74, 222, 128, 0.6);
+}
+
+.status-connecting .status-dot {
+    background-color: #fbbf24; /* amber-400 */
+    box-shadow: 0 0 6px rgba(251, 191, 36, 0.6);
+    animation: pulse 2s infinite;
+}
+
+.status-disconnected .status-dot {
+    background-color: #f87171; /* red-400 */
+    box-shadow: 0 0 6px rgba(248, 113, 113, 0.6);
+}
+
+.status-unknown .status-dot {
+    background-color: #9ca3af; /* gray-400 */
+}
+
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
 @media (max-width: 768px) {
     .app-header {
         padding: 4px 0;
@@ -340,6 +441,21 @@ const goBack = () => {
         height: 32px;
         padding: 6px;
         margin-right: 12px;
+    }
+
+    /* WebSocket status на мобильных - показываем только точку */
+    .websocket-status {
+        padding: 4px;
+        margin-right: 8px;
+    }
+
+    .websocket-status .status-text {
+        display: none;
+    }
+
+    .websocket-status .status-dot {
+        width: 10px;
+        height: 10px;
     }
 
     .app-header h1 {

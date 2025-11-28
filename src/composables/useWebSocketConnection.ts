@@ -149,7 +149,7 @@ const handleMessage = (messageData: string) => {
 // WEBSOCKET INSTANCE - Created once on module load
 // ============================================================================
 
-const { status, send, open, close, ws } = useWebSocket(
+const { status, send, close, ws } = useWebSocket(
     wsUrl, // Reactive reference to URL
     {
         immediate: false, // Do not connect automatically
@@ -237,7 +237,7 @@ const websocketApi = async (
 const websocketClose = () => {
     console.log('websocketClose')
     close()
-    wsUrl.value = ''
+    // wsUrl.value = ''
     isInitialized.value = false
     // Clear all pending API requests
     Object.values(apiResolve.value).forEach((item) => {
@@ -250,7 +250,7 @@ const websocketClose = () => {
 const websocketOpen = (url: string) => {
     wsUrl.value = url
     console.log('websocketOpen', url)
-    open()
+    // open()
 }
 
 // Connection state
@@ -275,7 +275,7 @@ export const useWebSocketConnection = () => {
     // Always return the same set of methods and state
     return {
         // State
-        status,
+        statusWebSocket: status,
         isConnected,
         isConnecting,
         isDisconnected,
