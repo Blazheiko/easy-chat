@@ -162,6 +162,7 @@ const { status, send, open, close, ws } = useWebSocket(
         },
         heartbeat: {
             message: 'ping',
+            responseMessage: 'pong',
             interval: 10000,
             pongTimeout: 5000,
         },

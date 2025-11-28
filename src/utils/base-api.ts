@@ -1,4 +1,4 @@
-// import WebsocketBase from './websocket-base'
+// WebsocketBase больше не используется - заменен на useWebSocketConnection
 import { useEventBus } from './event-bus'
 import { useWebSocketConnection } from '@/composables/useWebSocketConnection'
 
@@ -18,7 +18,6 @@ interface ApiMethods {
         body?: Record<string, unknown>,
     ) => Promise<ApiResponse<T>>
     ws: <T = HttpResponse>(route: string, body?: Record<string, unknown>) => Promise<T | null>
-    // setWebSocketClient: (client: WebsocketBase | null) => void
 }
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | string
@@ -29,14 +28,14 @@ interface RequestInit {
     body?: string
 }
 const normalizeUrl = (url: string): string => {
-  if (url.endsWith('/')) {
-      return url.slice(0, -1)
-  }
-  return url
+    if (url.endsWith('/')) {
+        return url.slice(0, -1)
+    }
+    return url
 }
 const BASE_URL = normalizeUrl(import.meta.env.VITE_BASE_URL || 'http://127.0.0.1:5174')
 
-// let webSocketClient: WebsocketBase | null = null
+// Старый WebSocketClient больше не используется - используем useWebSocketConnection
 const { websocketApi } = useWebSocketConnection()
 const eventBus = useEventBus()
 
@@ -107,9 +106,7 @@ const api: ApiMethods = {
         }
     },
 
-    // setWebSocketClient: (client: WebsocketBase | null) => {
-    //     webSocketClient = client
-    // },
+    // setWebSocketClient метод удален - используется useWebSocketConnection
 
     ws: async <T = HttpResponse>(
         route: string,
