@@ -70,8 +70,9 @@ const service = (data: WebsocketMessage): void => {
             console.log('connection_established', payload)
         },
         connection_closed: () => {
-            console.log('connection_closed')
-            websocketClose()
+            console.log('Server requested connection close')
+            // Don't call websocketClose() here - let server close with proper code
+            // onDisconnected will handle the close event with the correct code
         },
     }
 
@@ -99,6 +100,29 @@ const handleServiceError = (data: WebsocketMessage): void => {
         eventBus.emit('unauthorized')
         websocketClose()
     }
+}
+
+// Handle WebSocket close event
+const handleWebSocketClose = (event: CloseEvent): void => {
+    console.log(`WebSocket closed with code: ${event.code}, reason: ${event.reason}`)
+
+    // Code 4001: Unauthorized - redirect to login
+    if (event.code === 4001) {
+        console.warn('WebSocket closed due to authentication error (4001)')
+        eventBus.emit('unauthorized')
+        websocketClose()
+        return
+    }
+
+    // Codes 4000-4099: Cannot reconnect
+    if (event.code >= 4000 && event.code < 4100) {
+        console.error(`WebSocket closed with code ${event.code}. Reconnection is not allowed.`)
+        websocketClose()
+        return
+    }
+
+    // For other codes, let autoReconnect handle it
+    console.log('WebSocket will attempt to reconnect automatically')
 }
 
 // API response handling
@@ -173,6 +197,10 @@ const { status, send, close, ws } = useWebSocket(
         onDisconnected(_, event) {
             console.log('WebSocket disconnected', event)
             isInitialized.value = false
+            // Handle close event with proper code checking
+            if (event) {
+                handleWebSocketClose(event)
+            }
         },
         onError(_, event) {
             console.error('WebSocket error:', event)
@@ -219,7 +247,7 @@ const websocketApi = async (
         }
 
         sendMessage({
-            event: route as string,
+            event: event,
             timestamp,
             payload,
         })

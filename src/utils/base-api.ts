@@ -115,8 +115,9 @@ const api: ApiMethods = {
         if (!websocketApi) return null
 
         try {
-            // console.log('webSocketClient')
-            // console.log(webSocketClient)
+
+            // console.log('websocketApi ws route', route)
+            // console.log('websocketApi ws body', body)
             const result = await websocketApi(route as string, body)
             console.log({ result })
             return result as unknown as T
