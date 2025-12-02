@@ -15,7 +15,8 @@ export interface Message {
     text: string
     time: string
     isSent: boolean
-    status?: 'sent' | 'delivered' | 'read'
+    isRead: boolean
+    // status?: 'sent' | 'delivered' | 'read'
     date?: string
     // Идентификатор календарного события, если сообщение связано с календарём
     calendarId?: number
@@ -41,7 +42,7 @@ export const useMessagesStore = defineStore('messages', () => {
             messages.value[index] = {
                 ...messages.value[index],
                 text: newText,
-                status: 'sent',
+                // status: 'sent',
                 // Если есть данные с сервера, применяем их
                 ...serverData,
             }

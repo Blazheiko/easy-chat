@@ -9,6 +9,7 @@ import { messagesApi } from '@/utils/api'
 import { useUserStore } from '@/stores/user'
 import { useEventBus } from '@/utils/event-bus'
 import LoaderOverlay from './LoaderOverlay.vue'
+import MessageItem from './MessageItem.vue'
 
 const userStore = useUserStore()
 const contactsStore = useContactsStore()
@@ -357,15 +358,6 @@ const startMessageEdit = (index: number, text: string) => {
         index,
         text,
     }
-
-    // Автофокус на textarea при следующем тике
-    nextTick(() => {
-        const textarea = document.querySelector('.message-edit-input') as HTMLTextAreaElement
-        if (textarea) {
-            textarea.focus()
-            textarea.select()
-        }
-    })
 }
 
 const saveMessageEdit = async () => {
@@ -511,114 +503,18 @@ onUnmounted(() => {
                     <div v-if="message.date" class="date-divider">
                         <span>{{ message.date }}</span>
                     </div>
-                    <div
-                        :class="[
-                            'message',
-                            message.isSent ? 'sent' : 'received',
-                            { editable: isMessageOwner(message) },
-                            {
-                                'with-calendar': !!message.calendarId,
-                                'with-task': !!message.taskId,
-                            },
-                        ]"
-                        @contextmenu.prevent="
-                            isMessageOwner(message)
-                                ? showContextMenu($event, index, message.text)
-                                : null
-                        "
-                        @dblclick="
-                            isMessageOwner(message) ? startMessageEdit(index, message.text) : null
-                        "
-                    >
-                        <div v-if="editingMessage.index === index" class="message-edit-mode">
-                            <textarea
-                                v-model="editingMessage.text"
-                                class="message-edit-input"
-                                @keyup.enter.exact="saveMessageEdit"
-                                @keyup.esc="cancelMessageEdit"
-                                @keydown.enter.shift.exact.prevent="editingMessage.text += '\n'"
-                                ref="editTextarea"
-                            ></textarea>
-                            <div class="message-edit-actions">
-                                <button @click="saveMessageEdit" class="message-edit-button save">
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path
-                                            d="M9 16.17L4.83 12l-1.42 1.41L9 19L21 7l-1.41-1.41L9 16.17z"
-                                            fill="currentColor"
-                                        />
-                                    </svg>
-                                </button>
-                                <button
-                                    @click="cancelMessageEdit"
-                                    class="message-edit-button cancel"
-                                >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path
-                                            d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z"
-                                            fill="currentColor"
-                                        />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                        <template v-else>
-                            {{ message.text }}
-                            <div class="message-footer">
-                                <span>{{ message.time }}</span>
-                                <span
-                                    v-if="message.isSent"
-                                    class="message-status"
-                                    :class="message.status"
-                                >
-                                    <svg
-                                        v-if="message.status === 'read'"
-                                        viewBox="0 0 24 24"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path
-                                            d="M18 7L9.429 15.571L6 12.143"
-                                            stroke="currentColor"
-                                            fill="none"
-                                            stroke-width="2"
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                        />
-                                        <path
-                                            d="M18 7L9.429 15.571L6 12.143"
-                                            stroke="currentColor"
-                                            fill="none"
-                                            stroke-width="2"
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            transform="translate(4 0)"
-                                        />
-                                    </svg>
-                                    <svg
-                                        v-else-if="message.status === 'delivered'"
-                                        viewBox="0 0 24 24"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                    >
-                                        <path
-                                            d="M18 7L9.429 15.571L6 12.143"
-                                            stroke="currentColor"
-                                            fill="none"
-                                            stroke-width="2"
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                        />
-                                    </svg>
-                                </span>
-                            </div>
-                        </template>
-                    </div>
+                    <MessageItem
+                        :message="message"
+                        :index="index"
+                        :is-owner="isMessageOwner(message)"
+                        :is-editing="editingMessage.index === index"
+                        :edit-text="editingMessage.text"
+                        @start-edit="startMessageEdit"
+                        @save-edit="saveMessageEdit"
+                        @cancel-edit="cancelMessageEdit"
+                        @context-menu="showContextMenu"
+                        @update:edit-text="(text) => (editingMessage.text = text)"
+                    />
                 </template>
             </div>
             <div
@@ -968,100 +864,6 @@ onUnmounted(() => {
 
 .dark-theme .date-divider span {
     color: #adb5bd;
-}
-
-.message {
-    margin-bottom: 15px;
-    padding: 12px 16px;
-    border-radius: 18px;
-    max-width: 70%;
-    position: relative;
-    word-wrap: break-word;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    line-height: 1.5;
-    font-size: 15px;
-    cursor: context-menu;
-}
-
-/* Акцентный фон по кругу для календаря/задачи */
-.message.with-calendar {
-    box-shadow:
-        0 0 0 3px var(--calendar-color),
-        0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.message.with-task {
-    box-shadow:
-        0 0 0 3px var(--task-color),
-        0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.message.sent {
-    background-color: var(--primary-color);
-    color: white;
-    align-self: flex-end;
-    border-bottom-right-radius: 4px;
-}
-
-.dark-theme .message.sent {
-    background-color: #0d47a1;
-    color: white;
-}
-
-.message.received {
-    background-color: white;
-    align-self: flex-start;
-    border-bottom-left-radius: 4px;
-    color: var(--text-color);
-}
-
-.dark-theme .message.received {
-    background-color: #2a2a2a;
-    color: #e0e0e0;
-}
-
-.message-footer {
-    font-size: 12px;
-    margin-top: 5px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.message.received .message-footer {
-    justify-content: flex-start;
-    color: #adb5bd;
-}
-
-.message.sent .message-footer {
-    justify-content: flex-end;
-    color: rgba(255, 255, 255, 0.9);
-}
-
-.dark-theme .message.sent .message-footer {
-    color: rgba(255, 255, 255, 0.9);
-}
-
-.message-status {
-    display: inline-flex;
-    align-items: center;
-}
-
-.message-status svg {
-    width: 16px;
-    height: 16px;
-}
-
-.message.sent .message-status.delivered svg {
-    fill: rgba(255, 255, 255, 0.8);
-}
-
-.message.sent .message-status.read svg {
-    fill: #a3ffcd;
-}
-
-.dark-theme .message.sent .message-status.read svg {
-    fill: #a3ffcd;
 }
 
 .typing-indicator {
@@ -1832,123 +1634,6 @@ onUnmounted(() => {
 
 .dark-theme .edit-button.cancel:hover {
     background-color: #555;
-}
-
-.message-edit-mode {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.message-edit-input {
-    width: 100%;
-    min-height: 60px;
-    padding: 8px;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    font-size: 15px;
-    line-height: 1.5;
-    resize: none;
-    background-color: white;
-    color: var(--text-color);
-    font-family: inherit;
-}
-
-.dark-theme .message-edit-input {
-    background-color: #333;
-    border-color: #444;
-    color: #e0e0e0;
-}
-
-.message-edit-input:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.1);
-}
-
-.dark-theme .message-edit-input:focus {
-    box-shadow: 0 0 0 2px rgba(100, 181, 246, 0.2);
-}
-
-.message-edit-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-}
-
-.message-edit-button {
-    width: 32px;
-    height: 32px;
-    border: none;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.message-edit-button svg {
-    width: 20px;
-    height: 20px;
-}
-
-.message-edit-button.save {
-    background-color: var(--primary-color);
-    color: white;
-}
-
-.message-edit-button.save:hover {
-    background-color: var(--accent-color);
-    transform: translateY(-1px);
-}
-
-.message-edit-button.cancel {
-    background-color: #e9ecef;
-    color: #6c757d;
-}
-
-.dark-theme .message-edit-button.cancel {
-    background-color: #444;
-    color: #adb5bd;
-}
-
-.message-edit-button.cancel:hover {
-    background-color: #dee2e6;
-    transform: translateY(-1px);
-}
-
-.dark-theme .message-edit-button.cancel:hover {
-    background-color: #555;
-}
-
-.message {
-    cursor: default;
-}
-
-.message.editable {
-    cursor: context-menu;
-}
-
-.message.editable:hover {
-    opacity: 0.9;
-}
-
-.message.sent {
-    cursor: default;
-}
-
-.message.sent.editable {
-    cursor: context-menu;
-}
-
-.message.received {
-    cursor: default;
-}
-
-.message.received.editable {
-    cursor: context-menu;
 }
 
 .notification-button {

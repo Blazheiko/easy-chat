@@ -83,12 +83,17 @@ interface ContactResponse {
 }
 
 export interface ApiMessage {
-    id: number
+    id: string
     content: string
     createdAt: string
-    senderId: number
-    taskId?: number | null
-    calendarId?: number | null
+    senderId: string
+    receiverId: string
+    type: 'TEXT' | 'IMAGE' | 'VIDEO' | 'AUDIO'
+    src?: string | null
+    taskId?: string | null
+    calendarId?: string | null
+    isRead: boolean
+    updatedAt?: string | null
 }
 
 interface MessagesResponse {
@@ -212,7 +217,9 @@ const initChatData = async () => {
             if (!contactsStore.selectedContact && windowWidth.value > 600) {
                 const currentContactId = localStorage.getItem('current_contact_id')
                 if (currentContactId) {
-                    const contact = contactList.find((c) => c.contactId === parseInt(currentContactId))
+                    const contact = contactList.find(
+                        (c) => c.contactId === parseInt(currentContactId),
+                    )
                     if (contact) selectContact(contact)
                 }
             }
@@ -276,17 +283,17 @@ const logout = () => {
 }
 
 const formatChatMesssage = (message: ApiMessage): Message => ({
-    id: message.id,
+    id: Number(message.id),
     text: message.content,
     time: new Date(message.createdAt).toLocaleTimeString([], {
         hour: '2-digit',
         minute: '2-digit',
     }),
-    isSent: userStore.user?.id === message.senderId,
-    status: 'delivered',
+    isSent: String(userStore.user?.id) === message.senderId,
+    isRead: message.isRead,
     createdAt: message.createdAt,
-    taskId: message.taskId ?? undefined,
-    calendarId: message.calendarId ?? undefined,
+    taskId: message.taskId ? Number(message.taskId) : undefined,
+    calendarId: message.calendarId ? Number(message.calendarId) : undefined,
     date: isToday(new Date(message.createdAt))
         ? 'Today'
         : formatMessageDate(String(message.createdAt)),
@@ -362,10 +369,14 @@ const selectContact = async (contact: Contact) => {
     messagesStore.setLoading(true)
 
     try {
-        const { error, data } = await baseApi.http<MessagesResponse>('POST', '/api/chat/get-messages', {
-            contactId: contact.contactId,
-            userId: userStore.user?.id,
-        })
+        const { error, data } = await baseApi.http<MessagesResponse>(
+            'POST',
+            '/api/chat/get-messages',
+            {
+                contactId: contact.contactId,
+                userId: userStore.user?.id,
+            },
+        )
         if (error) {
             console.error(error)
         } else if (data && data.messages && data.messages.length > 0 && data.contact) {
@@ -388,7 +399,8 @@ const selectContact = async (contact: Contact) => {
 
             messagesStore.setMessages(newMessages)
             const contact = data.contact
-            const lastMessage = newMessages.length > 0 ? newMessages[newMessages.length - 1].text : ''
+            const lastMessage =
+                newMessages.length > 0 ? newMessages[newMessages.length - 1].text : ''
             contactsStore.updateContact({
                 id: contact.id,
                 contactId: contact.contact.id,
@@ -440,21 +452,21 @@ onMounted(() => {
             })
             if (
                 contactsStore.selectedContact &&
-                message.senderId === contactsStore.selectedContact.contactId
+                message.senderId === String(contactsStore.selectedContact.contactId)
             ) {
                 console.log('new_message')
                 messagesStore.addMessage({
-                    id: message.id,
+                    id: Number(message.id),
                     text: message.content,
                     time: new Date().toLocaleTimeString([], {
                         hour: '2-digit',
                         minute: '2-digit',
                     }),
                     isSent: false,
-                    status: 'delivered',
+                    isRead: true,
                     createdAt: new Date().toISOString(),
-                    taskId: message.taskId ?? undefined,
-                    calendarId: message.calendarId ?? undefined,
+                    taskId: message.taskId ? Number(message.taskId) : undefined,
+                    calendarId: message.calendarId ? Number(message.calendarId) : undefined,
                     date: isToday(new Date())
                         ? 'Today'
                         : formatMessageDate(new Date().toISOString()),
@@ -472,7 +484,7 @@ onMounted(() => {
                 console.log('new_message not for this contact')
                 // Воспроизводим звук при получении нового сообщения в неактивный чат
                 playNotificationSound()
-                contactsStore.incrementUnreadCount(message.senderId)
+                contactsStore.incrementUnreadCount(Number(message.senderId))
                 contactsStore.updateContactById(String(message.senderId), {
                     isOnline: true,
                     lastMessage: message.content,
