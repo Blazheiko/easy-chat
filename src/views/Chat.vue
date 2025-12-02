@@ -27,6 +27,7 @@ import type { Contact } from '@/stores/contacts'
 import { useEventBus } from '@/utils/event-bus'
 import type { WebsocketPayload } from '@/utils/websocket-base'
 import { useStateStore } from '@/stores/state'
+import api from '@/utils/base-api'
 const messagesStore = useMessagesStore()
 const eventBus = useEventBus()
 
@@ -359,7 +360,7 @@ const selectContact = async (contact: Contact) => {
     localStorage.setItem('current_contact_id', contact.contactId.toString())
     messagesStore.resetMessages()
     messagesStore.setLoading(true)
-    
+
     try {
         const { error, data } = await baseApi.http<MessagesResponse>('POST', '/api/chat/get-messages', {
             contactId: contact.contactId,
@@ -462,6 +463,10 @@ onMounted(() => {
                 playClickSound()
                 nextTick(() => {
                     scrollToBottom()
+                })
+                api.ws('main/read_message', {
+                    userId: userStore.user?.id,
+                    contactId: contactsStore.selectedContact.contactId,
                 })
             } else {
                 console.log('new_message not for this contact')
