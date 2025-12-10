@@ -4,6 +4,7 @@ import { ref, computed } from 'vue'
 import type { WebsocketMessage, WebsocketPayload } from '@/utils/websocket-base'
 import { useBroadcastHandler } from '@/composables/useBroadcastHandler'
 import { useEventBus } from '@/utils/event-bus'
+import baseApi from '@/utils/base-api'
 
 // Interfaces for API resolve
 interface ApiResolveItem {
@@ -97,9 +98,41 @@ const processBroadcast = (message: WebsocketMessage): void => {
 const handleServiceError = (data: WebsocketMessage): void => {
     if (data.status === 4001) {
         console.warn('Token expired or invalid:', data.payload.message)
+        unauthorized()
+    }
+}
+
+let isUpdatingWsToken = false
+
+const unauthorized = async () => {
+    console.warn('WebSocket closed due to authentication error (4001)')
+    if (isUpdatingWsToken) return
+    isUpdatingWsToken = true
+    const { data, error } = await baseApi.http('GET', '/api/update-ws-token')
+    isUpdatingWsToken = false
+    if (error) {
+        console.error('Error updating WebSocket token:', error)
+        if (error.code === 401) {
+            eventBus.emit('unauthorized')
+            websocketClose()
+        }else{
+            setTimeout(() => {
+                unauthorized()
+            }, 5000)
+        }
+
+    }else if (data && data.status === 'ok' && data.wsUrl) {
+        console.log('WebSocket token updated:', data.wsUrl)
+        websocketOpen(data.wsUrl as string)
+    }else if (data && data.status === 'unauthorized') {
         eventBus.emit('unauthorized')
         websocketClose()
+    }else{
+        setTimeout(() => {
+            unauthorized()
+        }, 5000)
     }
+
 }
 
 // Handle WebSocket close event
@@ -109,8 +142,7 @@ const handleWebSocketClose = (event: CloseEvent): void => {
     // Code 4001: Unauthorized - redirect to login
     if (event.code === 4001) {
         console.warn('WebSocket closed due to authentication error (4001)')
-        eventBus.emit('unauthorized')
-        websocketClose()
+        unauthorized()
         return
     }
 

@@ -205,7 +205,7 @@ const initChatData = async () => {
 
             const contactList = data.contactList.map((contact: ContactResponse) => ({
                 id: contact.id,
-                contactId: contact.contactId,
+                contactId: String(contact.contactId),
                 name: contact.rename || contact.contact.name,
                 unreadCount: contact.unreadCount,
                 isActive: false,
@@ -219,10 +219,10 @@ const initChatData = async () => {
 
             contactsStore.setContactList(contactList)
             if (!contactsStore.selectedContact && windowWidth.value > 600) {
-                const currentContactId = localStorage.getItem('current_contact_id')
+                const currentContactId = String(localStorage.getItem('current_contact_id'))
                 if (currentContactId) {
                     const contact = contactList.find(
-                        (c) => c.contactId === parseInt(currentContactId),
+                        (c) => c.contactId === String(currentContactId),
                     )
                     if (contact) selectContact(contact)
                 }
@@ -409,7 +409,7 @@ const selectContact = async (contact: Contact) => {
                 newMessages.length > 0 ? newMessages[newMessages.length - 1].text : ''
             contactsStore.updateContact({
                 id: contact.id,
-                contactId: contact.contact.id,
+                contactId: String(contact.contact.id),
                 name: contact.rename || contact.contact.name,
                 unreadCount: contact.unreadCount,
                 isActive: true,
@@ -490,7 +490,7 @@ onMounted(() => {
                 console.log('new_message not for this contact')
                 // Воспроизводим звук при получении нового сообщения в неактивный чат
                 playNotificationSound()
-                contactsStore.incrementUnreadCount(Number(message.senderId))
+                contactsStore.incrementUnreadCount(String(message.senderId))
                 contactsStore.updateContactById(String(message.senderId), {
                     isOnline: true,
                     lastMessage: message.content,

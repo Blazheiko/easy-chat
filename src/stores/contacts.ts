@@ -12,7 +12,7 @@ import { ref } from 'vue'
 
 export interface Contact {
     id: number
-    contactId: number
+    contactId: string
     name: string
     unreadCount?: number
     isActive?: boolean
@@ -42,15 +42,17 @@ export const useContactsStore = defineStore('contacts', () => {
         }
     }
 
-    function incrementUnreadCount(contactId: number) {
+    function incrementUnreadCount(contactId: string) {
+        console.log('incrementUnreadCount', contactId)
         contacts.value.forEach((contact) => {
-            if (contact.contactId === contactId) {
+            if (String(contact.contactId) === String(contactId)) {
+                console.log('if incrementUnreadCount', contact.unreadCount)
                 contact.unreadCount = (contact.unreadCount || 0) + 1
             }
         })
     }
 
-    function resetUnreadCount(contactId: number) {
+    function resetUnreadCount(contactId: string) {
         contacts.value.forEach((contact) => {
             if (contact.contactId === contactId) {
                 contact.unreadCount = 0
@@ -62,7 +64,7 @@ export const useContactsStore = defineStore('contacts', () => {
      * Синхронизирует selectedContact с обновленным контактом из массива contacts
      * @param contactId - ID контакта для проверки и обновления
      */
-    function syncSelectedContact(contactId: number | string) {
+    function syncSelectedContact(contactId: string) {
         if (!selectedContact.value) {
             return
         }
