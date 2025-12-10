@@ -73,9 +73,11 @@ interface ContactResponse {
         id: number
     }
     lastMessage?: {
+        id: number
         content: string
         createdAt: string
     }
+    lastMessageAt: string
     unreadCount: number
     status: string
     updatedAt: string
@@ -210,6 +212,8 @@ const initChatData = async () => {
                 isOnline: onlineContacts.includes(contact.contactId),
                 lastMessage: contact.lastMessage ? contact.lastMessage.content : '',
                 lastMessageTime: formatMessageDate(contact.updatedAt),
+                lastMessageId: contact.lastMessage ? String(contact.lastMessage.id) : undefined,
+                lastMessageAt: contact.lastMessageAt,
                 updatedAt: contact.updatedAt,
             }))
 
@@ -339,6 +343,8 @@ const sendMessage = async (newMessage: string) => {
                     lastMessage: message.text,
                     lastMessageTime: formatMessageDate(String(message.createdAt)),
                     updatedAt: new Date().toISOString(),
+                    lastMessageId: String(message.id) || undefined,
+                    lastMessageAt: String(message.createdAt),
                 })
             }
         } catch (error) {

@@ -1,127 +1,127 @@
-# Easy Chat - Функционал приложения
+# Easy Chat - Application Features
 
-## Общее описание
+## Overview
 
-Easy Chat - это современное веб-приложение для обмена сообщениями, построенное с использованием Vue 3, TypeScript и Pinia. Приложение поддерживает как светлую, так и темную тему, и адаптировано для мобильных устройств.
+Easy Chat is a modern messaging web app built with Vue 3, TypeScript, and Pinia. It supports both light and dark themes and is optimized for mobile devices.
 
-## Основные функции
+## Key Features
 
-### 1. Управление контактами
+### 1. Contact Management
 
-- **Список контактов**
+- **Contact list**
 
-    - Отображение списка всех контактов
-    - Сортировка контактов (активный контакт всегда сверху)
-    - Поиск контактов по имени
-    - Отображение статуса онлайн/оффлайн
-    - Отображение инициалов контакта в аватаре
-    - Количество непрочитанных сообщений
+    - Display all contacts
+    - Sort contacts (active contact always on top)
+    - Search contacts by name
+    - Show online/offline status
+    - Show contact initials in the avatar
+    - Unread message count
 
-- **Управление контактами**
-    - Редактирование имени контакта через контекстное меню
-    - Удаление контакта через контекстное меню
-    - Выбор активного контакта для чата
+- **Contact actions**
+    - Edit contact name via context menu
+    - Delete contact via context menu
+    - Select an active contact for chat
 
-### 2. Чат
+### 2. Chat
 
-- **Отправка сообщений**
+- **Sending messages**
 
-    - Отправка текстовых сообщений
-    - Поддержка многострочных сообщений (Shift + Enter)
-    - Индикация статуса отправки сообщения
-    - Автоматическая прокрутка к последнему сообщению
+    - Send text messages
+    - Support for multiline messages (Shift + Enter)
+    - Message send status indicator
+    - Auto-scroll to the latest message
 
-- **Управление сообщениями**
-    - Редактирование сообщений через контекстное меню
-    - Удаление сообщений через контекстное меню
-    - Отображение времени отправки сообщений
-    - Разделение сообщений по датам
+- **Message management**
+    - Edit messages via context menu
+    - Delete messages via context menu
+    - Show message timestamps
+    - Group messages by date
 
-### 3. Новости
+### 3. News
 
-- **Лента новостей**
-    - Отображение списка новостей
-    - Счетчик непрочитанных новостей
-    - Переключение между чатом и новостями
-    - Автоматическое обновление статуса прочтения
+- **News feed**
+    - Show news list
+    - Unread news counter
+    - Switch between chat and news
+    - Auto-update read status
 
-### 4. Интерфейс
+### 4. Interface
 
-- **Адаптивный дизайн**
+- **Responsive design**
 
-    - Поддержка мобильных устройств
-    - Адаптивная верстка для разных размеров экрана
-    - Скрытие/отображение списка контактов на мобильных устройствах
+    - Mobile device support
+    - Responsive layout for various screen sizes
+    - Hide/show contact list on mobile
 
-- **Темы оформления**
-    - Светлая тема
-    - Темная тема
-    - Автоматическое переключение темы
-    - Плавные анимации переходов
+- **Themes**
+    - Light theme
+    - Dark theme
+    - Automatic theme switching
+    - Smooth transition animations
 
-### 5. Управление состоянием
+### 5. State Management
 
-- **Хранение данных**
-    - Использование Pinia для управления состоянием
-    - Хранение контактов
-    - Хранение сообщений
-    - Хранение новостей
+- **Data storage**
+    - Pinia for state management
+    - Store contacts
+    - Store messages
+    - Store news
 
-### 6. Анимации и эффекты
+### 6. Animations and Effects
 
-- **Визуальные эффекты**
-    - Анимации при добавлении/удалении контактов
-    - Анимации при отправке сообщений
-    - Плавные переходы между состояниями
-    - Эффекты при наведении и кликах
+- **Visual effects**
+    - Animations when adding/removing contacts
+    - Animations when sending messages
+    - Smooth transitions between states
+    - Hover and click effects
 
-## Технические особенности
+## Technical Details
 
-### 1. Компоненты
+### 1. Components
 
-- `ContactsList.vue` - список контактов
-- `ChatArea.vue` - область чата
-- `Notes.vue` - заметкі
-- `MessageInput.vue` - поле ввода сообщений
+- `ContactsList.vue` - contacts list
+- `ChatArea.vue` - chat area
+- `Notes.vue` - notes
+- `MessageInput.vue` - message input
 
-### 2. Хранилище (Pinia)
+### 2. Store (Pinia)
 
-- `contacts.ts` - управление контактами
-- `messages.ts` - управление сообщениями
-- `news.ts` - управление новостями
+- `contacts.ts` - contacts management
+- `messages.ts` - messages management
+- `news.ts` - news management
 
-### 3. Типы данных
+### 3. Data Types
 
-- `Contact` - интерфейс контакта
-- `Message` - интерфейс сообщения
-- `News` - интерфейс новости
+- `Contact` - contact interface
+- `Message` - message interface
+- `News` - news interface
 
-### 4. Стилизация
+### 4. Styling
 
-- Использование CSS переменных для тем
-- Адаптивные стили с использованием медиа-запросов
-- Поддержка темной темы
-- Анимации и переходы
+- CSS variables for themes
+- Responsive styles with media queries
+- Dark theme support
+- Animations and transitions
 
-## Управление приложением
+## App Controls
 
-### 1. Горячие клавиши
+### 1. Hotkeys
 
-- `Enter` - отправка сообщения
-- `Shift + Enter` - новая строка в сообщении
-- `Esc` - отмена редактирования/закрытие меню
+- `Enter` - send message
+- `Shift + Enter` - new line in message
+- `Esc` - cancel editing/close menu
 
-### 2. Контекстные меню
+### 2. Context Menus
 
-- Правый клик на контакте:
-    - Редактировать
-    - Удалить
-- Правый клик на сообщении:
-    - Редактировать
-    - Удалить
+- Right-click on a contact:
+    - Edit
+    - Delete
+- Right-click on a message:
+    - Edit
+    - Delete
 
-### 3. Мобильная версия
+### 3. Mobile Version
 
-- Свайп для открытия/закрытия списка контактов
-- Адаптивное отображение элементов интерфейса
-- Оптимизированная навигация
+- Swipe to open/close the contact list
+- Responsive display of UI elements
+- Optimized navigation

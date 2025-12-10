@@ -1,8 +1,9 @@
 import mitt from 'mitt'
+import type { ApiMessage } from '@/views/Chat.vue'
 
 export type Events = {
     user_online: { userId: number; isOnline: boolean }
-    new_message: { message: { id: number; content: string; createdAt: string; senderId: number } }
+    new_message: { message: ApiMessage }
     event_typing: { userId: number; contactId: number }
     change_online: { userId: number; status: string }
     toggle_notifications: { enabled: boolean }

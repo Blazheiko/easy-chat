@@ -77,7 +77,7 @@ const toggleNotes = () => {
 const filteredContacts = computed(() => {
     let filtered = contactsStore.contacts
     filtered = filtered.sort(
-        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+        (a, b) => new Date(b.lastMessageAt || '').getTime() - new Date(a.lastMessageAt || '').getTime(),
     )
 
     // Применяем фильтр по поисковому запросу

@@ -20,6 +20,8 @@ export interface Contact {
     avatar?: string
     lastMessage?: string
     lastMessageTime?: string
+    lastMessageId?: string
+    lastMessageAt?: string
     updatedAt: string
 }
 
