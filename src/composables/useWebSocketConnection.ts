@@ -138,6 +138,7 @@ const unauthorized = async () => {
 // Handle WebSocket close event
 const handleWebSocketClose = (event: CloseEvent): void => {
     console.log(`WebSocket closed with code: ${event.code}, reason: ${event.reason}`)
+    resetApiResolve()
 
     // Code 4001: Unauthorized - redirect to login
     if (event.code === 4001) {
@@ -154,7 +155,11 @@ const handleWebSocketClose = (event: CloseEvent): void => {
     }
 
     // For other codes, let autoReconnect handle it
-    console.log('WebSocket will attempt to reconnect automatically')
+    console.log('WebSocket will attempt to reconnect ')
+
+    setTimeout(() => {
+        open()
+    }, 5000)
 }
 
 // API response handling
@@ -205,17 +210,17 @@ const handleMessage = (messageData: string) => {
 // WEBSOCKET INSTANCE - Created once on module load
 // ============================================================================
 
-const { status, send, close, ws } = useWebSocket(
+const { status, send, close, open, ws } = useWebSocket(
     wsUrl, // Reactive reference to URL
     {
         immediate: false, // Do not connect automatically
-        autoReconnect: {
-            retries: -1,
-            delay: 5000,
-            onFailed() {
-                console.error('WebSocket reconnection failed after maximum attempts')
-            },
-        },
+        // autoReconnect: {
+        //     retries: -1,
+        //     delay: 5000,
+        //     onFailed() {
+        //         console.error('WebSocket reconnection failed after maximum attempts')
+        //     },
+        // },
         heartbeat: {
             message: 'ping',
             responseMessage: 'pong',
@@ -300,6 +305,11 @@ const websocketClose = () => {
     // wsUrl.value = ''
     isInitialized.value = false
     // Clear all pending API requests
+    resetApiResolve()
+}
+
+const resetApiResolve = () => {
+    console.log('resetApiResolve')
     Object.values(apiResolve.value).forEach((item) => {
         window.clearTimeout(item.timeout)
         item.reject(new Error('WebSocket connection reset'))
