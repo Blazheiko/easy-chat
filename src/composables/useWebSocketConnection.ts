@@ -108,7 +108,7 @@ const unauthorized = async () => {
     console.warn('WebSocket closed due to authentication error (4001)')
     if (isUpdatingWsToken) return
     isUpdatingWsToken = true
-    const { data, error } = await baseApi.http('GET', '/api/update-ws-token')
+    const { data, error } = await baseApi.http('GET', '/api/main/update-ws-token')
     isUpdatingWsToken = false
     if (error) {
         console.error('Error updating WebSocket token:', error)
