@@ -98,41 +98,60 @@ const processBroadcast = (message: WebsocketMessage): void => {
 const handleServiceError = (data: WebsocketMessage): void => {
     if (data.status === 4001) {
         console.warn('Token expired or invalid:', data.payload.message)
-        unauthorized()
+        // Don't call unauthorized() here - let handleWebSocketClose handle it
+        // to avoid duplicate reconnection attempts when server closes connection with code 4001
     }
 }
 
 let isUpdatingWsToken = false
+let reconnectTimeout: number | null = null
+
+const clearReconnectTimeout = () => {
+    if (reconnectTimeout !== null) {
+        clearTimeout(reconnectTimeout)
+        reconnectTimeout = null
+    }
+}
 
 const unauthorized = async () => {
     console.warn('WebSocket closed due to authentication error (4001)')
-    if (isUpdatingWsToken) return
+    if (isUpdatingWsToken) {
+        console.log('Token update already in progress, skipping...')
+        return
+    }
+
+    // Clear any pending reconnect attempts
+    clearReconnectTimeout()
+
     isUpdatingWsToken = true
     const { data, error } = await baseApi.http('GET', '/api/main/update-ws-token')
     isUpdatingWsToken = false
+
     if (error) {
         console.error('Error updating WebSocket token:', error)
         if (error.code === 401) {
             eventBus.emit('unauthorized')
             websocketClose()
-        }else{
-            setTimeout(() => {
+        } else {
+            // Retry after 5 seconds
+            reconnectTimeout = window.setTimeout(() => {
+                reconnectTimeout = null
                 unauthorized()
             }, 5000)
         }
-
-    }else if (data && data.status === 'ok' && data.wsUrl) {
+    } else if (data && data.status === 'ok' && data.wsUrl) {
         console.log('WebSocket token updated:', data.wsUrl)
         websocketOpen(data.wsUrl as string)
-    }else if (data && data.status === 'unauthorized') {
+    } else if (data && data.status === 'unauthorized') {
         eventBus.emit('unauthorized')
         websocketClose()
-    }else{
-        setTimeout(() => {
+    } else {
+        // Retry after 5 seconds
+        reconnectTimeout = window.setTimeout(() => {
+            reconnectTimeout = null
             unauthorized()
         }, 5000)
     }
-
 }
 
 // Handle WebSocket close event
@@ -140,7 +159,10 @@ const handleWebSocketClose = (event: CloseEvent): void => {
     console.log(`WebSocket closed with code: ${event.code}, reason: ${event.reason}`)
     resetApiResolve()
 
-    // Code 4001: Unauthorized - redirect to login
+    // Clear any pending reconnect attempts to prevent multiple reconnection timers
+    clearReconnectTimeout()
+
+    // Code 4001: Unauthorized - need to refresh token
     if (event.code === 4001) {
         console.warn('WebSocket closed due to authentication error (4001)')
         unauthorized()
@@ -154,10 +176,11 @@ const handleWebSocketClose = (event: CloseEvent): void => {
         return
     }
 
-    // For other codes, let autoReconnect handle it
-    console.log('WebSocket will attempt to reconnect ')
-
-    setTimeout(() => {
+    // For other codes, attempt to reconnect after delay
+    console.log('WebSocket will attempt to reconnect in 5 seconds')
+    reconnectTimeout = window.setTimeout(() => {
+        reconnectTimeout = null
+        console.log('Attempting to reconnect...')
         open()
     }, 5000)
 }
@@ -301,9 +324,16 @@ const websocketApi = async (
 
 const websocketClose = () => {
     console.log('websocketClose')
+
+    // Clear any pending reconnect attempts
+    clearReconnectTimeout()
+
+    // Close the connection
     close()
-    // wsUrl.value = ''
+
+    // Reset state
     isInitialized.value = false
+
     // Clear all pending API requests
     resetApiResolve()
 }
@@ -318,9 +348,25 @@ const resetApiResolve = () => {
 }
 
 const websocketOpen = (url: string) => {
-    wsUrl.value = url
     console.log('websocketOpen', url)
-    // open()
+
+    // Clear any pending reconnect attempts
+    clearReconnectTimeout()
+
+    // Close existing connection if any
+    if (wsUrl.value !== url && (status.value === 'OPEN' || status.value === 'CONNECTING')) {
+        console.log('Closing existing connection before opening new one')
+        close()
+    }
+
+    // Update URL and open connection
+    wsUrl.value = url
+
+    // Wait a bit for the close to complete before opening new connection
+    // setTimeout(() => {
+    //     console.log('Opening new WebSocket connection')
+    //     open()
+    // }, 100)
 }
 
 // Connection state
