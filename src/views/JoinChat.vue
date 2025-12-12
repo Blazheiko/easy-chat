@@ -37,7 +37,7 @@ onBeforeUnmount(() => {
 
 const joinChat = async (token: string) => {
     console.log('joinChat')
-    const { data, error } = await baseApi.http('POST', '/api/chat/invitations/use', {
+    const { data, error } = await baseApi.http('POST', '/api/main/invitations/use', {
         token: token
     })
     if (error) {
