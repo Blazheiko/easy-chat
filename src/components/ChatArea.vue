@@ -10,6 +10,7 @@ import { useUserStore } from '@/stores/user'
 import { useEventBus } from '@/utils/event-bus'
 import LoaderOverlay from './LoaderOverlay.vue'
 import MessageItem from './MessageItem.vue'
+import VoiceInput from './VoiceInput.vue'
 
 const userStore = useUserStore()
 const contactsStore = useContactsStore()
@@ -423,6 +424,13 @@ const cancelMessageEdit = () => {
     editingMessage.value.text = ''
 }
 
+// Voice input handler
+const handleTextRecognized = (text: string) => {
+    newMessage.value = text
+    // Optionally, auto-send the message
+    // nextTick(() => sendMessage())
+}
+
 // Кнопка уведомлений перенесена в AppHeader
 
 onMounted(() => {
@@ -598,7 +606,14 @@ onUnmounted(() => {
                 @keypress="simulateTyping"
                 :disabled="!selectedContact"
             />
+
+            <!-- Show voice input button when message is empty, send button when there's text -->
+            <VoiceInput
+                v-if="!newMessage.trim() && selectedContact"
+                @text-recognized="handleTextRecognized"
+            />
             <button
+                v-else
                 class="send-button"
                 @click="sendMessage"
                 :disabled="!newMessage.trim() || !selectedContact || props.isSendingMessage"
