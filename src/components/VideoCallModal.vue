@@ -36,6 +36,7 @@ const {
     handleIceCandidate,
     toggleLocalVideo,
     toggleLocalAudio,
+    toggleScreenShare,
     endCall,
     // Медиа устройства
     availableVideoDevices,
@@ -231,7 +232,7 @@ const waitForVideoReady = (videoElement: HTMLVideoElement): Promise<void> => {
     })
 }
 
-// Функция для установки медиа потоков в video элементы - устанавливаем только один раз
+// Функция для установки медиа потоков в video элементы - обновляем при изменении треков
 const attachMediaStreams = async () => {
     console.log('attachMediaStreams called:', {
         hasLocalVideoRef: !!localVideoRef.value,
@@ -240,28 +241,51 @@ const attachMediaStreams = async () => {
         hasRemoteStream: !!remoteStream,
         isConnected: callState.value.isConnected,
         isOutgoing: props.isOutgoing,
+        isScreenSharing: callState.value.isScreenSharing,
     })
 
     try {
-        // Устанавливаем локальный поток только один раз
-        if (localStream && localVideoRef.value && !localVideoRef.value.srcObject) {
-            localVideoRef.value.srcObject = localStream
-            console.log('✅ Set local video stream')
+        // Устанавливаем локальный поток (всегда обновляем, чтобы поддерживать screen sharing)
+        if (localStream && localVideoRef.value) {
+            // Проверяем, изменились ли треки в потоке
+            const currentVideoElement = localVideoRef.value
+            const currentSrcObject = currentVideoElement.srcObject as MediaStream | null
+            const videoTracksChanged =
+                !currentSrcObject ||
+                currentSrcObject.getVideoTracks()[0]?.id !== localStream.getVideoTracks()[0]?.id
 
-            // Для видео звонков дожидаемся готовности видео
-            if (props.callType === 'video') {
-                try {
-                    await localVideoRef.value.play()
-                    await waitForVideoReady(localVideoRef.value)
+            const needsUpdate = !currentSrcObject || videoTracksChanged
+
+            console.log('🔍 Local stream check:', {
+                needsUpdate,
+                videoTracksChanged,
+                currentTrackId: currentSrcObject?.getVideoTracks()[0]?.id,
+                newTrackId: localStream.getVideoTracks()[0]?.id,
+            })
+
+            if (needsUpdate) {
+                currentVideoElement.srcObject = localStream
+                console.log('✅ Set/Updated local video stream', {
+                    isScreenSharing: callState.value.isScreenSharing,
+                })
+
+                // Для видео звонков дожидаемся готовности видео
+                if (props.callType === 'video') {
+                    try {
+                        await currentVideoElement.play()
+                        if (!isLocalVideoReady.value || videoTracksChanged) {
+                            await waitForVideoReady(currentVideoElement)
+                            isLocalVideoReady.value = true
+                            console.log('✅ Local video is ready for display')
+                        }
+                    } catch (error) {
+                        console.error('Error preparing local video:', error)
+                        isLocalVideoReady.value = false
+                    }
+                } else {
+                    // Для аудио звонков сразу считаем готовым
                     isLocalVideoReady.value = true
-                    console.log('✅ Local video is ready for display')
-                } catch (error) {
-                    console.error('Error preparing local video:', error)
-                    isLocalVideoReady.value = false
                 }
-            } else {
-                // Для аудио звонков сразу считаем готовым
-                isLocalVideoReady.value = true
             }
         }
 
@@ -600,20 +624,38 @@ const manualPlayRingtone = () => {
 }
 
 // Отслеживаем изменения состояния соединения и останавливаем звук
+// Используем отдельные watch-еры для каждого состояния
 watch(
-    () => callState.value.isConnecting || callState.value.isConnected || callState.value.error,
-    (stateChanged) => {
-        // Останавливаем звук при любом изменении состояния соединения
-        if (stateChanged) {
-            console.log('Stopping ringtone due to connection state change:', {
-                isConnecting: callState.value.isConnecting,
-                isConnected: callState.value.isConnected,
-                error: callState.value.error,
-            })
+    () => callState.value.isConnecting,
+    (isConnecting) => {
+        if (isConnecting && !props.isOutgoing) {
+            // Останавливаем ringtone при начале соединения (только для входящих)
+            console.log('Connection starting - stopping ringtone')
             stopRingtone()
         }
     },
-    { immediate: false },
+)
+
+watch(
+    () => callState.value.isConnected,
+    (isConnected) => {
+        if (isConnected && !props.isOutgoing) {
+            // Останавливаем ringtone при установлении соединения (только для входящих)
+            console.log('Call connected - stopping ringtone')
+            stopRingtone()
+        }
+    },
+)
+
+watch(
+    () => callState.value.error,
+    (error) => {
+        if (error) {
+            // Останавливаем ringtone при ошибке
+            console.log('Call error - stopping ringtone')
+            stopRingtone()
+        }
+    },
 )
 
 // Обработчики событий для обновления медиа потоков
@@ -992,11 +1034,16 @@ watch(isLocalVideoReady, async (isReady) => {
                     ></video>
                     <div
                         class="avatar-circle"
-                        v-if="!localStream || !callState.isLocalVideoEnabled"
+                        v-if="
+                            !localStream ||
+                            (!callState.isLocalVideoEnabled && !callState.isScreenSharing)
+                        "
                     >
                         ME
                     </div>
-                    <div class="call-status" v-if="showLocalVideoLarge">You</div>
+                    <div class="call-status" v-if="showLocalVideoLarge">
+                        {{ callState.isScreenSharing ? 'Your Screen' : 'You' }}
+                    </div>
                 </div>
 
                 <!-- Удаленное видео -->
@@ -1137,9 +1184,9 @@ watch(isLocalVideoReady, async (isReady) => {
                         <span>{{ isFullscreen ? 'Exit' : 'Fullscreen' }}</span>
                     </button>
 
-                    <!-- Кнопка переключения видео (только для видео звонков) -->
+                    <!-- Кнопка переключения видео (только для видео звонков и только когда не идет screen sharing) -->
                     <button
-                        v-if="callType === 'video'"
+                        v-if="callType === 'video' && !callState.isScreenSharing"
                         class="call-button control"
                         @click="toggleLocalVideo"
                         :title="
@@ -1160,6 +1207,29 @@ watch(isLocalVideoReady, async (isReady) => {
                             />
                         </svg>
                         <span>{{ callState.isLocalVideoEnabled ? 'Camera' : 'Camera Off' }}</span>
+                    </button>
+
+                    <!-- Кнопка screen sharing (только для видео звонков) -->
+                    <button
+                        v-if="callType === 'video'"
+                        class="call-button control"
+                        @click="toggleScreenShare"
+                        :title="callState.isScreenSharing ? 'Stop screen sharing' : 'Share screen'"
+                        :class="{ active: callState.isScreenSharing }"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                v-if="!callState.isScreenSharing"
+                                d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"
+                                fill="currentColor"
+                            />
+                            <path
+                                v-else
+                                d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6zm9 2l-4 4h3v3h2v-3h3l-4-4z"
+                                fill="currentColor"
+                            />
+                        </svg>
+                        <span>{{ callState.isScreenSharing ? 'Stop Share' : 'Share' }}</span>
                     </button>
 
                     <!-- Кнопка переключения аудио -->
@@ -1465,6 +1535,15 @@ watch(isLocalVideoReady, async (isReady) => {
 
 .call-button.control.disabled:hover {
     background-color: #757575;
+}
+
+.call-button.control.active {
+    background-color: #4caf50;
+}
+
+.call-button.control.active:hover {
+    background-color: #45a049;
+    box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
 }
 
 .call-button:active {

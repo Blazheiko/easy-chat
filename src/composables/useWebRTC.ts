@@ -18,6 +18,7 @@ export interface CallState {
     isLocalAudioEnabled: boolean
     isRemoteVideoEnabled: boolean
     isRemoteAudioEnabled: boolean
+    isScreenSharing: boolean
     error: string | null
 }
 
@@ -32,6 +33,8 @@ export const useWebRTC = () => {
     let pendingIceCandidates: RTCIceCandidateInit[] = [] // Буфер для ICE candidates до инициализации peer connection
     let selectedVideoDeviceId: string | null = null // ID выбранной камеры
     let selectedAudioDeviceId: string | null = null // ID выбранного микрофона
+    let screenStream: MediaStream | null = null // Поток для screen sharing
+    let originalVideoTrack: MediaStreamTrack | null = null // Оригинальный видео трек (камера) для восстановления
     const callState = ref<CallState>({
         isConnecting: false,
         isConnected: false,
@@ -39,6 +42,7 @@ export const useWebRTC = () => {
         isLocalAudioEnabled: false,
         isRemoteVideoEnabled: false,
         isRemoteAudioEnabled: false,
+        isScreenSharing: false,
         error: null,
     })
 
@@ -624,6 +628,156 @@ export const useWebRTC = () => {
         }
     }
 
+    // Начало screen sharing
+    const startScreenShare = async () => {
+        try {
+            if (!localStream || !peerConnection) {
+                console.warn('No local stream or peer connection available for screen sharing')
+                return false
+            }
+
+            // Запрашиваем доступ к screen sharing
+            screenStream = await navigator.mediaDevices.getDisplayMedia({
+                video: {
+                    cursor: 'always',
+                } as MediaTrackConstraints,
+                audio: false,
+            })
+
+            const screenTrack = screenStream.getVideoTracks()[0]
+
+            if (screenTrack) {
+                // Сохраняем оригинальный видео трек (камеру)
+                const currentVideoTrack = localStream.getVideoTracks()[0]
+                if (currentVideoTrack) {
+                    originalVideoTrack = currentVideoTrack
+                }
+
+                // Заменяем видео трек в peer connection
+                const sender = peerConnection
+                    .getSenders()
+                    .find((s) => s.track && s.track.kind === 'video')
+
+                if (sender) {
+                    await sender.replaceTrack(screenTrack)
+                }
+
+                // Заменяем видео трек в локальном потоке
+                if (currentVideoTrack) {
+                    localStream.removeTrack(currentVideoTrack)
+                }
+                localStream.addTrack(screenTrack)
+
+                // Обновляем состояние
+                callState.value.isScreenSharing = true
+                callState.value.isLocalVideoEnabled = true
+
+                // Обрабатываем остановку screen sharing пользователем через UI браузера
+                screenTrack.onended = () => {
+                    console.log('Screen sharing stopped by user')
+                    stopScreenShare()
+                }
+
+                // Эмитируем событие обновления локального потока
+                eventBus.emit('webrtc_local_stream_updated', { stream: localStream })
+
+                console.log('🖥️ Screen sharing started successfully')
+                return true
+            }
+
+            return false
+        } catch (error) {
+            console.error('Failed to start screen sharing:', error)
+            callState.value.error = 'Failed to start screen sharing'
+            return false
+        }
+    }
+
+    // Остановка screen sharing и возврат к камере
+    const stopScreenShare = async () => {
+        try {
+            if (!localStream || !peerConnection || !screenStream) {
+                console.warn('No screen stream to stop')
+                return false
+            }
+
+            // Останавливаем screen sharing поток
+            screenStream.getTracks().forEach((track) => {
+                track.stop()
+            })
+
+            // Убираем screen track из локального потока
+            const screenTrack = localStream.getVideoTracks()[0]
+            if (screenTrack) {
+                localStream.removeTrack(screenTrack)
+            }
+
+            // Если есть сохраненный оригинальный видео трек, восстанавливаем его
+            if (originalVideoTrack) {
+                // Заменяем трек в peer connection
+                const sender = peerConnection
+                    .getSenders()
+                    .find((s) => s.track && s.track.kind === 'video')
+
+                if (sender) {
+                    await sender.replaceTrack(originalVideoTrack)
+                }
+
+                // Добавляем оригинальный трек обратно в локальный поток
+                localStream.addTrack(originalVideoTrack)
+                originalVideoTrack = null
+            } else {
+                // Если оригинального трека нет, получаем новый поток с камеры
+                const constraints: MediaStreamConstraints = {
+                    video: selectedVideoDeviceId
+                        ? { deviceId: { exact: selectedVideoDeviceId } }
+                        : true,
+                    audio: false,
+                }
+
+                const newStream = await navigator.mediaDevices.getUserMedia(constraints)
+                const newVideoTrack = newStream.getVideoTracks()[0]
+
+                if (newVideoTrack) {
+                    const sender = peerConnection
+                        .getSenders()
+                        .find((s) => s.track && s.track.kind === 'video')
+
+                    if (sender) {
+                        await sender.replaceTrack(newVideoTrack)
+                    }
+
+                    localStream.addTrack(newVideoTrack)
+                }
+            }
+
+            // Обновляем состояние
+            callState.value.isScreenSharing = false
+            callState.value.isLocalVideoEnabled = true
+
+            screenStream = null
+
+            // Эмитируем событие обновления локального потока
+            eventBus.emit('webrtc_local_stream_updated', { stream: localStream })
+
+            console.log('🖥️ Screen sharing stopped, camera restored')
+            return true
+        } catch (error) {
+            console.error('Failed to stop screen sharing:', error)
+            callState.value.error = 'Failed to stop screen sharing'
+            return false
+        }
+    }
+
+    // Переключение между камерой и screen sharing
+    const toggleScreenShare = async () => {
+        if (callState.value.isScreenSharing) {
+            return await stopScreenShare()
+        } else {
+            return await startScreenShare()
+        }
+    }
+
     // Завершение звонка
     const endCall = (reason?: string, skipEmitEvent = false) => {
         try {
@@ -643,6 +797,20 @@ export const useWebRTC = () => {
                 peerConnection = null
             }
 
+            // Останавливаем screen sharing если активен
+            if (screenStream) {
+                screenStream.getTracks().forEach((track) => {
+                    track.stop()
+                })
+                screenStream = null
+            }
+
+            // Очищаем сохраненный оригинальный видео трек
+            if (originalVideoTrack) {
+                originalVideoTrack.stop()
+                originalVideoTrack = null
+            }
+
             // Сбрасываем состояние
             callState.value = {
                 isConnecting: false,
@@ -651,6 +819,7 @@ export const useWebRTC = () => {
                 isLocalAudioEnabled: false,
                 isRemoteVideoEnabled: false,
                 isRemoteAudioEnabled: false,
+                isScreenSharing: false,
                 error: null,
             }
 
@@ -723,6 +892,9 @@ export const useWebRTC = () => {
         handleIceCandidate,
         toggleLocalVideo,
         toggleLocalAudio,
+        startScreenShare,
+        stopScreenShare,
+        toggleScreenShare,
         endCall,
     }
 }
