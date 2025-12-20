@@ -2,6 +2,7 @@
 defineOptions({ name: 'ProjectsView' })
 import { ref, computed, onMounted, reactive, nextTick } from 'vue'
 import { projectsApi, type Project, type CreateProjectRequest } from '@/utils/projects-api'
+import VoiceInput from '@/components/VoiceInput.vue'
 
 // Define emits
 const emit = defineEmits<{
@@ -135,6 +136,15 @@ const formatDate = (date: Date | string | null): string => {
         console.error('Error formatting date:', e, date)
         return '-'
     }
+}
+
+// Voice input handlers
+const handleTitleVoiceInput = (text: string) => {
+    newProject.title = newProject.title ? newProject.title + ' ' + text : text
+}
+
+const handleDescriptionVoiceInput = (text: string) => {
+    newProject.description = newProject.description ? newProject.description + ' ' + text : text
 }
 
 const createProject = async () => {
@@ -380,23 +390,29 @@ const tagsToArray = (tags: string[] | null): string[] => {
                 <div class="form-grid">
                     <div class="form-col">
                         <label class="form-label">Title</label>
-                        <input
-                            v-model="newProject.title"
-                            type="text"
-                            placeholder="Enter project title..."
-                            class="project-input"
-                            @keyup.enter="createProject"
-                            @keyup.esc="showCreateForm = false"
-                        />
+                        <div class="input-with-voice">
+                            <input
+                                v-model="newProject.title"
+                                type="text"
+                                placeholder="Enter project title..."
+                                class="project-input"
+                                @keyup.enter="createProject"
+                                @keyup.esc="showCreateForm = false"
+                            />
+                            <VoiceInput @text-recognized="handleTitleVoiceInput" />
+                        </div>
                     </div>
                     <div class="form-col">
                         <label class="form-label">Description</label>
-                        <textarea
-                            v-model="newProject.description"
-                            rows="3"
-                            placeholder="Enter description..."
-                            class="project-textarea"
-                        />
+                        <div class="input-with-voice">
+                            <textarea
+                                v-model="newProject.description"
+                                rows="3"
+                                placeholder="Enter description..."
+                                class="project-textarea"
+                            />
+                            <VoiceInput @text-recognized="handleDescriptionVoiceInput" />
+                        </div>
                     </div>
 
                     <div class="form-row">
@@ -1815,5 +1831,18 @@ const tagsToArray = (tags: string[] | null): string[] => {
     .progress-text {
         font-size: 12px;
     }
+}
+
+/* Voice input wrapper */
+.input-with-voice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.input-with-voice .project-input,
+.input-with-voice .project-textarea {
+    flex: 1;
 }
 </style>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import VoiceInput from '@/components/VoiceInput.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -94,6 +95,11 @@ const comments = ref([
 
 // Новый комментарий
 const newComment = ref('')
+
+// Voice input handler
+const handleCommentVoiceInput = (text: string) => {
+    newComment.value = newComment.value ? newComment.value + ' ' + text : text
+}
 
 // Добавление комментария
 const addComment = () => {
@@ -256,12 +262,15 @@ onUnmounted(() => {
                     <div class="comment-form">
                         <div class="user-avatar current">{{ getInitial(currentUser.name) }}</div>
                         <div class="comment-input-container">
-                            <textarea
-                                v-model="newComment"
-                                class="comment-input"
-                                placeholder="Write a comment..."
-                                rows="3"
-                            ></textarea>
+                            <div class="input-with-voice">
+                                <textarea
+                                    v-model="newComment"
+                                    class="comment-input"
+                                    placeholder="Write a comment..."
+                                    rows="3"
+                                ></textarea>
+                                <VoiceInput @text-recognized="handleCommentVoiceInput" />
+                            </div>
                             <button class="post-button" @click="addComment">Post</button>
                         </div>
                     </div>
@@ -1047,5 +1056,17 @@ onUnmounted(() => {
     .content-container {
         max-width: 1400px;
     }
+}
+
+/* Voice input wrapper */
+.input-with-voice {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+}
+
+.input-with-voice .comment-input {
+    flex: 1;
 }
 </style>

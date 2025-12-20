@@ -9,7 +9,7 @@ const isRecording = ref(false)
 const isProcessing = ref(false)
 const showUnsupportedModal = ref(false)
 const showNoMicrophoneModal = ref(false)
-const recognition = ref<SpeechRecognition | null>(null)
+let recognition: SpeechRecognition | null = null
 const speechLang = ref('ru-RU')
 
 // Load language preference from localStorage
@@ -72,20 +72,20 @@ const startRecording = async () => {
 
     // Create speech recognition instance
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    recognition.value = new SpeechRecognition()
+    recognition = new SpeechRecognition()
 
     // Configure recognition
-    recognition.value.lang = speechLang.value // Use language from settings
-    recognition.value.continuous = false
-    recognition.value.interimResults = false
-    recognition.value.maxAlternatives = 1
+    recognition.lang = speechLang.value // Use language from settings
+    recognition.continuous = false
+    recognition.interimResults = false
+    recognition.maxAlternatives = 1
 
-    recognition.value.onstart = () => {
+    recognition.onstart = () => {
         isRecording.value = true
         console.log('Speech recognition started')
     }
 
-    recognition.value.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
         const transcript = event.results[0][0].transcript
         console.log('Recognized text:', transcript)
 
@@ -98,7 +98,7 @@ const startRecording = async () => {
         stopRecording()
     }
 
-    recognition.value.onerror = (event: SpeechRecognitionErrorEvent) => {
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.error('Speech recognition error:', event.error)
 
         // Show user-friendly error messages
@@ -115,7 +115,7 @@ const startRecording = async () => {
         stopRecording()
     }
 
-    recognition.value.onend = () => {
+    recognition.onend = () => {
         isRecording.value = false
         isProcessing.value = false
         console.log('Speech recognition ended')
@@ -123,7 +123,7 @@ const startRecording = async () => {
 
     // Start recognition
     try {
-        recognition.value.start()
+        recognition.start()
     } catch (error) {
         console.error('Failed to start speech recognition:', error)
         alert('Failed to start speech recognition. Please try again.')
@@ -132,9 +132,9 @@ const startRecording = async () => {
 }
 
 const stopRecording = () => {
-    if (recognition.value) {
-        recognition.value.stop()
-        recognition.value = null
+    if (recognition) {
+        recognition.stop()
+        recognition = null
     }
     isRecording.value = false
     isProcessing.value = false
@@ -158,8 +158,8 @@ const closeNoMicrophoneModal = () => {
 
 // Cleanup on component unmount
 onUnmounted(() => {
-    if (recognition.value) {
-        recognition.value.stop()
+    if (recognition) {
+        recognition.stop()
     }
 })
 </script>

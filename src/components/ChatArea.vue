@@ -426,7 +426,7 @@ const cancelMessageEdit = () => {
 
 // Voice input handler
 const handleTextRecognized = (text: string) => {
-    newMessage.value = text
+    newMessage.value = newMessage.value ? newMessage.value + ' ' + text : text
     // Optionally, auto-send the message
     // nextTick(() => sendMessage())
 }

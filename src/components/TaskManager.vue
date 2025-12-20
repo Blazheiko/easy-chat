@@ -2,6 +2,7 @@
 import { ref, onMounted, reactive, computed, nextTick } from 'vue'
 import { tasksApi, type Task, type CreateTaskRequest } from '@/utils/tasks-api'
 import { type Project } from '@/utils/projects-api'
+import VoiceInput from './VoiceInput.vue'
 
 const STATUSES: Task['status'][] = ['TODO', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CANCELLED']
 const PRIORITIES: Task['priority'][] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
@@ -101,6 +102,15 @@ const getProjectTitle = (projectId: string | null): string | null => {
 const getParentTaskTitle = (parentTaskId: string | null): string | null => {
     if (!parentTaskId) return null
     return taskIdToTitle.value[parentTaskId] || null
+}
+
+// Voice input handlers
+const handleTitleVoiceInput = (text: string) => {
+    newTaskForm.title = newTaskForm.title ? newTaskForm.title + ' ' + text : text
+}
+
+const handleDescriptionVoiceInput = (text: string) => {
+    newTaskForm.description = newTaskForm.description ? newTaskForm.description + ' ' + text : text
 }
 
 const createTask = async () => {
@@ -382,23 +392,29 @@ onMounted(() => {
                 <div class="form-grid">
                     <div class="form-col">
                         <label class="form-label">Title</label>
-                        <input
-                            v-model="newTaskForm.title"
-                            type="text"
-                            placeholder="Enter task title..."
-                            class="task-input"
-                            @keyup.enter="createTask"
-                            @keyup.esc="showCreateForm = false"
-                        />
+                        <div class="input-with-voice">
+                            <input
+                                v-model="newTaskForm.title"
+                                type="text"
+                                placeholder="Enter task title..."
+                                class="task-input"
+                                @keyup.enter="createTask"
+                                @keyup.esc="showCreateForm = false"
+                            />
+                            <VoiceInput @text-recognized="handleTitleVoiceInput" />
+                        </div>
                     </div>
                     <div class="form-col">
                         <label class="form-label">Description</label>
-                        <textarea
-                            v-model="newTaskForm.description"
-                            rows="3"
-                            placeholder="Enter description..."
-                            class="task-textarea"
-                        />
+                        <div class="input-with-voice">
+                            <textarea
+                                v-model="newTaskForm.description"
+                                rows="3"
+                                placeholder="Enter description..."
+                                class="task-textarea"
+                            />
+                            <VoiceInput @text-recognized="handleDescriptionVoiceInput" />
+                        </div>
                     </div>
 
                     <div class="form-row">
@@ -1882,5 +1898,18 @@ onMounted(() => {
     .progress-text {
         font-size: 12px;
     }
+}
+
+/* Voice input wrapper */
+.input-with-voice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.input-with-voice .task-input,
+.input-with-voice .task-textarea {
+    flex: 1;
 }
 </style>

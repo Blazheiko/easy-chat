@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import VoiceInput from './VoiceInput.vue'
 
 defineOptions({
     name: 'CalendarComponent',
@@ -196,6 +197,17 @@ watch(
 )
 
 //
+
+// Voice input handlers
+const handleTitleVoiceInput = (text: string) => {
+    newEvent.value.title = newEvent.value.title ? newEvent.value.title + ' ' + text : text
+}
+
+const handleDescriptionVoiceInput = (text: string) => {
+    newEvent.value.description = newEvent.value.description
+        ? newEvent.value.description + ' ' + text
+        : text
+}
 
 // Open add event modal
 function openAddEventModal() {
@@ -552,20 +564,26 @@ function getEventColor(index: number): string {
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="event-title">Title</label>
-                        <input
-                            id="event-title"
-                            v-model="newEvent.title"
-                            type="text"
-                            placeholder="Enter event title"
-                        />
+                        <div class="input-with-voice">
+                            <input
+                                id="event-title"
+                                v-model="newEvent.title"
+                                type="text"
+                                placeholder="Enter event title"
+                            />
+                            <VoiceInput @text-recognized="handleTitleVoiceInput" />
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="event-description">Description</label>
-                        <textarea
-                            id="event-description"
-                            v-model="newEvent.description"
-                            placeholder="Enter event description"
-                        ></textarea>
+                        <div class="input-with-voice">
+                            <textarea
+                                id="event-description"
+                                v-model="newEvent.description"
+                                placeholder="Enter event description"
+                            ></textarea>
+                            <VoiceInput @text-recognized="handleDescriptionVoiceInput" />
+                        </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group half">
@@ -1273,5 +1291,18 @@ function getEventColor(index: number): string {
 .form-group.half {
     flex: 1;
     margin-bottom: 0;
+}
+
+/* Voice input wrapper */
+.input-with-voice {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+}
+
+.input-with-voice input,
+.input-with-voice textarea {
+    flex: 1;
 }
 </style>

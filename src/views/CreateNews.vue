@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import VoiceInput from '@/components/VoiceInput.vue'
 // Глобальный хедер теперь рендерится в App.vue
 
 const router = useRouter()
@@ -61,6 +62,11 @@ const removeImage = (index: number) => {
     newsImages.value.splice(index, 1)
 }
 
+// Voice input handlers
+const handleContentVoiceInput = (text: string) => {
+    newsContent.value = newsContent.value ? newsContent.value + ' ' + text : text
+}
+
 // Публикация новости
 const postNews = () => {
     if (newsContent.value.trim() === '') {
@@ -91,13 +97,16 @@ const postNews = () => {
 
                 <div class="form-group">
                     <label for="news-content">What's on your mind?</label>
-                    <textarea
-                        id="news-content"
-                        v-model="newsContent"
-                        class="content-input"
-                        placeholder="Share your thoughts..."
-                        rows="4"
-                    ></textarea>
+                    <div class="input-with-voice">
+                        <textarea
+                            id="news-content"
+                            v-model="newsContent"
+                            class="content-input"
+                            placeholder="Share your thoughts..."
+                            rows="4"
+                        ></textarea>
+                        <VoiceInput @text-recognized="handleContentVoiceInput" />
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -584,5 +593,17 @@ const postNews = () => {
         margin-top: 10px;
         box-sizing: border-box;
     }
+}
+
+/* Voice input wrapper */
+.input-with-voice {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+}
+
+.input-with-voice .content-input {
+    flex: 1;
 }
 </style>

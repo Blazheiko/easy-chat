@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import VoiceInput from './VoiceInput.vue'
 
 // Добавляем проп для управления отображением шапки
 defineProps({
@@ -176,6 +177,15 @@ const removeImage = (index: number) => {
     newsImages.value.splice(index, 1)
 }
 
+// Voice input handlers
+const handleTitleVoiceInput = (text: string) => {
+    newsTitle.value = newsTitle.value ? newsTitle.value + ' ' + text : text
+}
+
+const handleDescriptionVoiceInput = (text: string) => {
+    newsDescription.value = newsDescription.value ? newsDescription.value + ' ' + text : text
+}
+
 // Функция для публикации новости
 const postNews = async () => {
     if (!newsTitle.value.trim()) {
@@ -336,22 +346,28 @@ function updateWindowWidth() {
                 <form @submit.prevent="postNews">
                     <div class="error-message" v-if="error">{{ error }}</div>
                     <div class="form-group">
-                        <input
-                            id="news-title"
-                            v-model="newsTitle"
-                            class="content-input"
-                            placeholder="Enter title..."
-                            type="text"
-                        />
+                        <div class="input-with-voice">
+                            <input
+                                id="news-title"
+                                v-model="newsTitle"
+                                class="content-input"
+                                placeholder="Enter title..."
+                                type="text"
+                            />
+                            <VoiceInput @text-recognized="handleTitleVoiceInput" />
+                        </div>
                     </div>
                     <div class="form-group">
-                        <textarea
-                            id="news-content"
-                            v-model="newsDescription"
-                            class="content-input"
-                            placeholder="What's on your mind?"
-                            rows="4"
-                        ></textarea>
+                        <div class="input-with-voice">
+                            <textarea
+                                id="news-content"
+                                v-model="newsDescription"
+                                class="content-input"
+                                placeholder="What's on your mind?"
+                                rows="4"
+                            ></textarea>
+                            <VoiceInput @text-recognized="handleDescriptionVoiceInput" />
+                        </div>
                     </div>
 
                     <div class="form-group no-margin">
@@ -1647,5 +1663,17 @@ function updateWindowWidth() {
     .news-image {
         border-radius: 4px;
     }
+}
+
+/* Voice input wrapper */
+.input-with-voice {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+}
+
+.input-with-voice .content-input {
+    flex: 1;
 }
 </style>

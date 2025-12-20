@@ -5,6 +5,7 @@ import { useUserStore } from '@/stores/user'
 import type { User } from '@/stores/user'
 import { useRouter } from 'vue-router'
 import { useEventBus } from '@/utils/event-bus'
+import VoiceInput from './VoiceInput.vue'
 const router = useRouter()
 const userStore = useUserStore()
 const eventBus = useEventBus()
@@ -62,6 +63,11 @@ const switchToRegister = () => {
 const switchToLogin = () => {
     showAgreementError.value = false
     emit('show-login')
+}
+
+// Voice input handler
+const handleNameVoiceInput = (text: string) => {
+    name.value = name.value ? name.value + ' ' + text : text
 }
 
 const handleLogin = async () => {
@@ -311,27 +317,30 @@ const handleRegister = async () => {
                 <div v-if="registerError" class="error-message form-error">{{ registerError }}</div>
                 <div class="form-group">
                     <label for="register-name">Full Name</label>
-                    <div class="input-wrapper">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            width="20"
-                            height="20"
-                            fill="currentColor"
-                            class="input-icon"
-                        >
-                            <path
-                                d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                    <div class="input-wrapper-with-voice">
+                        <div class="input-wrapper">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                width="20"
+                                height="20"
+                                fill="currentColor"
+                                class="input-icon"
+                            >
+                                <path
+                                    d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                                />
+                            </svg>
+                            <input
+                                type="text"
+                                id="register-name"
+                                v-model="name"
+                                placeholder="John Smith"
+                                autocomplete="name"
+                                :class="{ 'has-error': nameError }"
                             />
-                        </svg>
-                        <input
-                            type="text"
-                            id="register-name"
-                            v-model="name"
-                            placeholder="John Smith"
-                            autocomplete="name"
-                            :class="{ 'has-error': nameError }"
-                        />
+                        </div>
+                        <VoiceInput @text-recognized="handleNameVoiceInput" />
                     </div>
                     <div v-if="nameError" class="error-message">{{ nameError }}</div>
                 </div>
@@ -1069,5 +1078,17 @@ input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
     transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Voice input wrapper for auth modals */
+.input-wrapper-with-voice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.input-wrapper-with-voice .input-wrapper {
+    flex: 1;
 }
 </style>
