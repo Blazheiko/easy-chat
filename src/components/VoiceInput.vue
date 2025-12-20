@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue'
+import { ref, onUnmounted, onMounted } from 'vue'
 
 const emit = defineEmits<{
     (e: 'text-recognized', text: string): void
@@ -10,6 +10,15 @@ const isProcessing = ref(false)
 const showUnsupportedModal = ref(false)
 const showNoMicrophoneModal = ref(false)
 const recognition = ref<SpeechRecognition | null>(null)
+const speechLang = ref('ru-RU')
+
+// Load language preference from localStorage
+onMounted(() => {
+    const savedLang = localStorage.getItem('speechRecognitionLang')
+    if (savedLang) {
+        speechLang.value = savedLang
+    }
+})
 
 // Check if browser supports speech recognition
 const isSpeechRecognitionSupported = () => {
@@ -66,7 +75,7 @@ const startRecording = async () => {
     recognition.value = new SpeechRecognition()
 
     // Configure recognition
-    recognition.value.lang = 'ru-RU' // Russian language, можно изменить на 'en-US' или другой язык
+    recognition.value.lang = speechLang.value // Use language from settings
     recognition.value.continuous = false
     recognition.value.interimResults = false
     recognition.value.maxAlternatives = 1

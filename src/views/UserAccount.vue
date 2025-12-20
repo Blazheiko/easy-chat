@@ -19,6 +19,86 @@ const notificationsEnabled = ref(true)
 const soundEnabled = ref(true)
 const pushNotificationsEnabled = ref(stateStore.isSubscribedToPush)
 
+// Speech recognition language setting
+const speechRecognitionLang = ref('ru-RU')
+
+// Available languages for speech recognition
+const availableLanguages = [
+    { code: 'uk-UA', name: 'Ukrainian (Українська)' },
+    { code: 'pl-PL', name: 'Polish (Polski)' },
+    { code: 'en-US', name: 'English (US)' },
+    { code: 'en-GB', name: 'English (UK)' },
+    { code: 'en-AU', name: 'English (Australia)' },
+    { code: 'en-CA', name: 'English (Canada)' },
+    { code: 'en-IN', name: 'English (India)' },
+    { code: 'en-NZ', name: 'English (New Zealand)' },
+    { code: 'en-ZA', name: 'English (South Africa)' },
+    { code: 'es-ES', name: 'Spanish (Spain)' },
+    { code: 'es-MX', name: 'Spanish (Mexico)' },
+    { code: 'es-AR', name: 'Spanish (Argentina)' },
+    { code: 'es-CO', name: 'Spanish (Colombia)' },
+    { code: 'es-CL', name: 'Spanish (Chile)' },
+    { code: 'fr-FR', name: 'French (France)' },
+    { code: 'fr-CA', name: 'French (Canada)' },
+    { code: 'fr-BE', name: 'French (Belgium)' },
+    { code: 'fr-CH', name: 'French (Switzerland)' },
+    { code: 'de-DE', name: 'German (Germany)' },
+    { code: 'de-AT', name: 'German (Austria)' },
+    { code: 'de-CH', name: 'German (Switzerland)' },
+    { code: 'it-IT', name: 'Italian (Italy)' },
+    { code: 'it-CH', name: 'Italian (Switzerland)' },
+    { code: 'pt-BR', name: 'Portuguese (Brazil)' },
+    { code: 'pt-PT', name: 'Portuguese (Portugal)' },
+    { code: 'ru-RU', name: 'Russian (Русский)' },
+    { code: 'zh-CN', name: 'Chinese Simplified (中文简体)' },
+    { code: 'zh-TW', name: 'Chinese Traditional (中文繁體)' },
+    { code: 'zh-HK', name: 'Chinese (Hong Kong)' },
+    { code: 'ja-JP', name: 'Japanese (日本語)' },
+    { code: 'ko-KR', name: 'Korean (한국어)' },
+    { code: 'ar-SA', name: 'Arabic (Saudi Arabia)' },
+    { code: 'ar-EG', name: 'Arabic (Egypt)' },
+    { code: 'ar-AE', name: 'Arabic (UAE)' },
+    { code: 'hi-IN', name: 'Hindi (हिन्दी)' },
+    { code: 'tr-TR', name: 'Turkish (Türkçe)' },
+    { code: 'nl-NL', name: 'Dutch (Netherlands)' },
+    { code: 'nl-BE', name: 'Dutch (Belgium)' },
+    { code: 'sv-SE', name: 'Swedish (Svenska)' },
+    { code: 'da-DK', name: 'Danish (Dansk)' },
+    { code: 'nb-NO', name: 'Norwegian (Norsk)' },
+    { code: 'fi-FI', name: 'Finnish (Suomi)' },
+    { code: 'cs-CZ', name: 'Czech (Čeština)' },
+    { code: 'sk-SK', name: 'Slovak (Slovenčina)' },
+    { code: 'hu-HU', name: 'Hungarian (Magyar)' },
+    { code: 'ro-RO', name: 'Romanian (Română)' },
+    { code: 'bg-BG', name: 'Bulgarian (Български)' },
+    { code: 'el-GR', name: 'Greek (Ελληνικά)' },
+    { code: 'he-IL', name: 'Hebrew (עברית)' },
+    { code: 'th-TH', name: 'Thai (ไทย)' },
+    { code: 'vi-VN', name: 'Vietnamese (Tiếng Việt)' },
+    { code: 'id-ID', name: 'Indonesian (Bahasa Indonesia)' },
+    { code: 'ms-MY', name: 'Malay (Bahasa Melayu)' },
+    { code: 'fil-PH', name: 'Filipino (Tagalog)' },
+    { code: 'ca-ES', name: 'Catalan (Català)' },
+    { code: 'hr-HR', name: 'Croatian (Hrvatski)' },
+    { code: 'sl-SI', name: 'Slovenian (Slovenščina)' },
+    { code: 'sr-RS', name: 'Serbian (Srpski)' },
+    { code: 'lt-LT', name: 'Lithuanian (Lietuvių)' },
+    { code: 'lv-LV', name: 'Latvian (Latviešu)' },
+    { code: 'et-EE', name: 'Estonian (Eesti)' },
+    { code: 'af-ZA', name: 'Afrikaans' },
+    { code: 'sw-KE', name: 'Swahili (Kiswahili)' },
+    { code: 'bn-IN', name: 'Bengali (বাংলা)' },
+    { code: 'ta-IN', name: 'Tamil (தமிழ்)' },
+    { code: 'te-IN', name: 'Telugu (తెలుగు)' },
+    { code: 'mr-IN', name: 'Marathi (मराठी)' },
+    { code: 'gu-IN', name: 'Gujarati (ગુજરાતી)' },
+    { code: 'kn-IN', name: 'Kannada (ಕನ್ನಡ)' },
+    { code: 'ml-IN', name: 'Malayalam (മലയാളം)' },
+    { code: 'pa-IN', name: 'Punjabi (ਪੰਜਾਬੀ)' },
+    { code: 'ur-PK', name: 'Urdu (اردو)' },
+    { code: 'fa-IR', name: 'Persian (فارسی)' },
+]
+
 // Загрузка данных пользователя из localStorage
 // onMounted(() => {
 //   const storedUser = localStorage.getItem('user')
@@ -217,10 +297,22 @@ const getOSInfo = (): { name: string; version: string } => {
     return { name: osName, version: osVersion }
 }
 
+// Function to update speech recognition language
+const updateSpeechRecognitionLang = () => {
+    localStorage.setItem('speechRecognitionLang', speechRecognitionLang.value)
+    console.log('Speech recognition language updated:', speechRecognitionLang.value)
+}
+
 // Инициализация компонента
 onMounted(() => {
     // Обновляем состояние push-уведомлений при загрузке
     pushNotificationsEnabled.value = stateStore.isSubscribedToPush
+
+    // Load speech recognition language from localStorage
+    const savedLang = localStorage.getItem('speechRecognitionLang')
+    if (savedLang) {
+        speechRecognitionLang.value = savedLang
+    }
 })
 
 // Отслеживаем изменения в store
@@ -254,7 +346,9 @@ watch(
                     <h2>{{ user.name || 'User' }}</h2>
                     <p>{{ user.email || 'email@example.com' }}</p>
                     <p class="user-status">{{ user.status || 'Online' }}</p>
-                    <p class="join-date" v-if="user?.createdAt">Member since: {{ new Date(user.createdAt as string).toLocaleDateString() }}</p>
+                    <p class="join-date" v-if="user?.createdAt">
+                        Member since: {{ new Date(user.createdAt as string).toLocaleDateString() }}
+                    </p>
                 </div>
             </div>
 
@@ -323,6 +417,28 @@ watch(
                             :class="{ disabled: stateStore.notificationPermission === 'denied' }"
                         ></span>
                     </label>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-with-select">
+                        <div>
+                            <h4>Voice Input Language</h4>
+                            <p>Select language for speech recognition</p>
+                        </div>
+                        <select
+                            v-model="speechRecognitionLang"
+                            @change="updateSpeechRecognitionLang"
+                            class="language-select"
+                        >
+                            <option
+                                v-for="lang in availableLanguages"
+                                :key="lang.code"
+                                :value="lang.code"
+                            >
+                                {{ lang.name }}
+                            </option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -657,6 +773,57 @@ input:disabled + .toggle-slider:before {
     cursor: not-allowed;
 }
 
+/* Language select styles */
+.setting-with-select {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.language-select {
+    padding: 8px 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background-color: white;
+    color: #212529;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 200px;
+    outline: none;
+}
+
+.dark-theme .language-select {
+    background-color: #444;
+    color: #e0e0e0;
+    border-color: #555;
+}
+
+.language-select:hover {
+    border-color: #1a73e8;
+}
+
+.dark-theme .language-select:hover {
+    border-color: #64b5f6;
+}
+
+.language-select:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+}
+
+.dark-theme .language-select:focus {
+    border-color: #64b5f6;
+    box-shadow: 0 0 0 3px rgba(100, 181, 246, 0.1);
+}
+
+.language-select option {
+    padding: 8px;
+}
+
 @media (max-width: 768px) {
     .account-header {
         padding: 16px 0;
@@ -705,6 +872,17 @@ input:disabled + .toggle-slider:before {
 
     .toggle {
         align-self: flex-end;
+    }
+
+    .setting-with-select {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .language-select {
+        width: 100%;
+        min-width: auto;
     }
 }
 </style>
